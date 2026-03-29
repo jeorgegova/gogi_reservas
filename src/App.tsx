@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useEffect, useRef, useState } from 'react';
+import { Toaster } from 'sonner';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import ForgotPasswordPage from './pages/ForgotPassword';
@@ -19,6 +20,25 @@ import SuperAdminSubscriptionPayments from './pages/super-admin/SubscriptionPaym
 import ProfilePage from './pages/Profile';
 import MaintenancePage from './pages/Maintenance';
 import PaymentMockPage from './pages/PaymentMock';
+import Bonificaciones from './pages/Bonificaciones';
+import AdminBonificaciones from './pages/admin/Bonificaciones';
+import VerifyEmail from './pages/VerifyEmail';
+
+const OrganizationHome = () => {
+  const { profile, loading } = useAuth();
+  
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
+  
+  if (profile) {
+    return (
+      <DashboardLayout>
+        <Calendario />
+      </DashboardLayout>
+    );
+  }
+  
+  return <LoginPage />;
+};
 
 const PrivateRoute = ({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) => {
   const { profile, loading } = useAuth();
@@ -57,7 +77,13 @@ const RootLoader = () => {
         if (profile.role === 'super_admin') {
           navigate('/super-admin/organizations', { replace: true });
         } else {
-          navigate('/dashboard', { replace: true });
+          // Redirigir al slug de la organización si está disponible
+          const targetSlug = profile.organization_slug;
+          if (targetSlug) {
+            navigate(`/${targetSlug}`, { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
         }
       } else {
         // Usuario no autenticado - ir a login
@@ -86,16 +112,18 @@ const RootLoader = () => {
 function App() {
   return (
     <AuthProvider>
+      <Toaster position="top-center" richColors />
       <BrowserRouter>
         <Routes>
           {/* Root - muestra pantalla de carga o redirige */}
           <Route path="/" element={<RootLoader />} />
 
-          {/* Organization Routes - muestra login */}
-          <Route path="/:slug" element={<LoginPage />} />
+          {/* Organization Routes - muestra dashboard si está logueado, sino login */}
+          <Route path="/:slug" element={<OrganizationHome />} />
           <Route path="/:slug/login" element={<LoginPage />} />
           <Route path="/:slug/register" element={<RegisterPage />} />
           <Route path="/:slug/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/:slug/verify-email" element={<VerifyEmail />} />
 
           {/* Legacy/Global Redirects */}
           <Route path="/login" element={<Navigate to="/" />} />
@@ -139,6 +167,16 @@ function App() {
               <PrivateRoute>
                 <DashboardLayout>
                   <NewReservationPage />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/bonificaciones"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <Bonificaciones />
                 </DashboardLayout>
               </PrivateRoute>
             }
@@ -190,6 +228,16 @@ function App() {
               <PrivateRoute adminOnly>
                 <DashboardLayout>
                   <AdminSubscriptionPage />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/bonificaciones"
+            element={
+              <PrivateRoute adminOnly>
+                <DashboardLayout>
+                  <AdminBonificaciones />
                 </DashboardLayout>
               </PrivateRoute>
             }

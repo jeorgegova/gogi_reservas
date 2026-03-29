@@ -10,6 +10,7 @@ interface Profile {
   apartment: string | null;
   role: 'user' | 'admin' | 'super_admin';
   organization_id: string;
+  organization_slug?: string;
 }
 
 interface AuthContextType {
@@ -72,7 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, organizations(slug)')
         .eq('id', userId)
         .single();
 
@@ -80,8 +81,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('useAuth: Error en consulta de perfil:', error);
         throw error;
       }
-      console.log('useAuth: Perfil obtenido exitosamente:', data);
-      setProfile(data);
+      if (data) {
+        const profileData = {
+          ...data,
+          organization_slug: data.organizations?.slug
+        };
+        console.log('useAuth: Perfil obtenido exitosamente:', profileData);
+        setProfile(profileData);
+      }
     } catch (error) {
       console.error('useAuth: Error fetching profile (catch):', error);
     } finally {

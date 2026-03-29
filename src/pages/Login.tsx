@@ -48,14 +48,17 @@ export default function LoginPage() {
       if (profile.role === 'super_admin') {
         navigate('/super-admin/organizations', { replace: true });
       } else {
-        // Guardar el slug cuando inicia sesión exitosamente
-        if (slug) {
-          localStorage.setItem('lastOrganizationSlug', slug);
+        // Redirigir al slug de la organización o al dashboard
+        const targetSlug = profile.organization_slug || slug;
+        if (targetSlug) {
+          localStorage.setItem('lastOrganizationSlug', targetSlug);
+          navigate(`/${targetSlug}`, { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
         }
-        navigate('/dashboard', { replace: true });
       }
     }
-  }, [profile, authLoading]);
+  }, [profile, authLoading, slug, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

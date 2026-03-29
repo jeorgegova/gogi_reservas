@@ -38,20 +38,23 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
+      if (!slug) throw new Error("Organización no válida");
+
+      // El correo redireccionará a verify-email
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/${slug}/verify-email`,
       });
 
       if (error) throw error;
       setSubmitted(true);
     } catch (err: any) {
-      setError(translateAuthError(err.message || 'Error al enviar el correo de recuperación'));
+      setError(translateAuthError(err.message || "Error al enviar el correo"));
     } finally {
       setLoading(false);
     }
@@ -75,8 +78,8 @@ export default function ForgotPasswordPage() {
             <div className="flex justify-center">
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-emerald-600 rounded-full blur opacity-40 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-                <div className="relative p-4 bg-white/20 backdrop-blur-md rounded-full border border-white/30 shadow-inner">
-                  <CheckCircle2 className="w-12 h-12 text-white" />
+                <div className="relative p-4 bg-white/20 backdrop-blur-md rounded-full border border-white/30 shadow-inner text-white">
+                  <CheckCircle2 className="w-12 h-12" />
                 </div>
               </div>
             </div>
@@ -88,7 +91,7 @@ export default function ForgotPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center text-blue-100/70 text-sm px-8">
-            Si no recibes el correo en unos minutos, revisa tu carpeta de spam.
+            Si no recibes el correo en unos minutos, revisa tu carpeta de spam o solicita un nuevo enlace.
           </CardContent>
           <CardFooter className="pb-10 pt-6 px-8">
             <Button asChild variant="ghost" className="w-full text-white hover:bg-white/10 hover:text-white rounded-2xl h-11 transition-all border border-white/20">
@@ -140,7 +143,7 @@ export default function ForgotPasswordPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-8">
-          <form onSubmit={handleResetPassword} className="space-y-5">
+          <form onSubmit={handleResetRequest} className="space-y-5">
             {error && (
               <div className="bg-destructive/20 text-white text-sm p-3 rounded-xl border border-destructive/30 backdrop-blur-md animate-in slide-in-from-top-2">
                 {error}

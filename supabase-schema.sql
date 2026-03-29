@@ -25,6 +25,36 @@ CREATE INDEX IF NOT EXISTS idx_reservations_end_datetime ON reservations(end_dat
 CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations(status);
 CREATE INDEX IF NOT EXISTS idx_reservations_organization_id_start ON reservations(organization_id, start_datetime);
 
+-- OPTIMIZATION: Composite index for efficient reservation overlap and range queries
+CREATE INDEX IF NOT EXISTS idx_reservations_org_range 
+ON public.reservations (organization_id, start_datetime, end_datetime);
+
+-- AUTH TRIGGER: Automated profile creation from metadata
+-- IMPORTANT: Run this in the Supabase SQL Editor if profiles are created with null fields.
+/*
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, phone, apartment, organization_id, role)
+  VALUES (
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'phone',
+    new.raw_user_meta_data->>'apartment',
+    (new.raw_user_meta_data->>'organization_id')::uuid,
+    COALESCE(new.raw_user_meta_data->>'role', 'user')
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+*/
+
 -- Payments indexes
 CREATE INDEX IF NOT EXISTS idx_payments_reservation_id ON payments(reservation_id);
 

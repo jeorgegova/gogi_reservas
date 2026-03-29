@@ -15,7 +15,8 @@ import {
   ShieldAlert,
   ArrowLeft,
   Crown,
-  Receipt
+  Receipt,
+  Gift
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -95,6 +96,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Mi Perfil', path: '/profile', icon: User },
   ];
 
+  if (organization?.bonus_system_active) {
+    navItems.splice(3, 0, { name: 'Bonificaciones', path: '/bonificaciones', icon: Gift });
+  }
+
   // Layout minimalista para super_admin sin modo soporte
   if (isSuperAdmin && !isInSupportMode) {
     navItems = [
@@ -110,6 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: 'Áreas Comunes', path: '/admin/areas', icon: Building2 },
       { name: 'Usuarios', path: '/admin/users', icon: User },
       { name: 'Suscripción', path: '/admin/subscription', icon: Crown },
+      { name: 'Bonificaciones', path: '/admin/bonificaciones', icon: Gift },
     ];
 
     // Si es super_admin y está en modo soporte, añadir gestión de organizaciones al principio

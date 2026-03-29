@@ -79,7 +79,9 @@ export default function SuperAdminOrganizations() {
     phone: '',
     address: '',
     logo_url: '',
-    login_photo_url: ''
+    login_photo_url: '',
+    smtp_email: '',
+    smtp_password: ''
   });
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
@@ -247,7 +249,9 @@ export default function SuperAdminOrganizations() {
         phone: org.phone || '',
         address: org.address || '',
         logo_url: org.logo_url || '',
-        login_photo_url: org.login_photo_url || ''
+        login_photo_url: org.login_photo_url || '',
+        smtp_email: org.smtp_email || '',
+        smtp_password: org.smtp_password || ''
       });
     } else {
       setEditingOrg(null);
@@ -258,7 +262,9 @@ export default function SuperAdminOrganizations() {
         phone: '',
         address: '',
         logo_url: '',
-        login_photo_url: ''
+        login_photo_url: '',
+        smtp_email: '',
+        smtp_password: ''
       });
     }
     setIsModalOpen(true);
@@ -1107,25 +1113,38 @@ export default function SuperAdminOrganizations() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">URL del Logo (Icono)</Label>
-                  <Input
-                    value={formData.logo_url}
-                    onChange={e => setFormData({ ...formData, logo_url: e.target.value })}
-                    placeholder="https://..."
-                    className="h-11 rounded-xl"
-                  />
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 bg-amber-50 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-800">Configuración de Correo (SMTP)</h3>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">URL Fondo de Login</Label>
-                  <Input
-                    value={formData.login_photo_url}
-                    onChange={e => setFormData({ ...formData, login_photo_url: e.target.value })}
-                    placeholder="https://..."
-                    className="h-11 rounded-xl"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Email SMTP (Emisor)</Label>
+                    <Input
+                      type="email"
+                      value={formData.smtp_email}
+                      onChange={e => setFormData({ ...formData, smtp_email: e.target.value })}
+                      placeholder="notificaciones@dominio.com"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Contraseña SMTP / App Password</Label>
+                    <Input
+                      type="password"
+                      value={formData.smtp_password}
+                      onChange={e => setFormData({ ...formData, smtp_password: e.target.value })}
+                      placeholder="••••••••••••"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
                 </div>
+                <p className="mt-2 text-[10px] text-gray-500 italic">
+                  * Estos datos se usarán para enviar correos de confirmación y recordatorios desde esta organización específica.
+                </p>
               </div>
 
               <div className="pt-4 flex justify-end gap-3">

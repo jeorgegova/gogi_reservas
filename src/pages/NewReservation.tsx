@@ -25,7 +25,8 @@ import {
   Calendar,
   Users,
   Search,
-  HelpCircle
+  HelpCircle,
+  Gift
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
@@ -62,6 +63,9 @@ export default function NewReservationPage() {
   const [isErrorAlertOpen, setIsErrorAlertOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [userError, setUserError] = useState<string | null>(null);
+  const [bonusConfig, setBonusConfig] = useState<any>(null);
+  const [userReservationCount, setUserReservationCount] = useState(0);
+  const [appliedDiscount, setAppliedDiscount] = useState(0);
 
   // React Query Hooks
   const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
@@ -118,15 +122,23 @@ export default function NewReservationPage() {
   }, [reservationToEdit, isEditing, profile?.id, isAdmin]);
 
   useEffect(() => {
-    console.log('NewReservation: subscriptionStatus', subscriptionStatus, 'daysUntilExpiry', daysUntilExpiry, 'subscriptionLoading', subscriptionLoading, 'previousExpired', previousSubscriptionExpiredBeyond20Days);
-    if (!subscriptionLoading && (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days))) {
-      console.log('Blocking reservations');
+    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) {
       setBlockingError('Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.');
     } else if (!subscriptionLoading) {
-      console.log('Not blocking reservations');
       setBlockingError(null);
     }
   }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
+
+  // Lógica de ajuste automático de duración para no exceder la medianoche
+  useEffect(() => {
+    if (selectedStartTime && selectedArea?.pricing_type !== 'jornada') {
+      const startHour = parseInt(selectedStartTime.split(':')[0]);
+      const maxAllowedByDay = 24 - startHour;
+      if (duration > maxAllowedByDay) {
+        setDuration(maxAllowedByDay);
+      }
+    }
+  }, [selectedStartTime, selectedArea, duration]);
 
   const checkPendingReservations = async () => {
     if (!profile) return;
@@ -196,7 +208,65 @@ export default function NewReservationPage() {
     setSelectedJornada(null); // Reset jornada selection
     setStep(2);
     fetchBusySlots(area.id);
+    fetchBonusInfo(area.id);
   };
+
+  const fetchBonusInfo = async (areaId: string) => {
+    if (!profile?.id) return;
+
+    try {
+      // 1. Verificar si el sistema de bonificaciones está activo para la org
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('bonus_system_active')
+        .eq('id', profile?.organization_id)
+        .single();
+      
+      if (!org?.bonus_system_active) {
+        setBonusConfig(null);
+        return;
+      }
+
+      // 2. Obtener config de bonificación para esta área
+      const { data: config } = await supabase
+        .from('bonus_configs')
+        .select('*')
+        .eq('common_area_id', areaId)
+        .eq('is_active', true)
+        .single();
+      
+      setBonusConfig(config);
+
+      if (config) {
+        // 3. Contar reservas aprobadas del usuario para esta área
+        const targetUserId = (isAdmin && selectedUserId) ? selectedUserId : profile.id;
+        const { count } = await supabase
+          .from('reservations')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', targetUserId)
+          .eq('common_area_id', areaId)
+          .eq('status', 'approved');
+        
+        setUserReservationCount(count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching bonus info:', error);
+    }
+  };
+
+  // Recalcular el descuento aplicado
+  useEffect(() => {
+    if (bonusConfig && userReservationCount > 0) {
+      const isEligible = userReservationCount % bonusConfig.reservations_required === 0;
+      if (isEligible) {
+        setAppliedDiscount(bonusConfig.discount_percentage);
+      } else {
+        setAppliedDiscount(0);
+      }
+    } else {
+      setAppliedDiscount(0);
+    }
+  }, [bonusConfig, userReservationCount]);
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
@@ -243,13 +313,20 @@ export default function NewReservationPage() {
 
     if (!selectedArea) return 0;
 
+    let finalBaseCost = 0;
     if (selectedArea.pricing_type === 'jornada') {
-      if (selectedJornada === 'diurna') return selectedArea.cost_jornada_diurna || 0;
-      if (selectedJornada === 'nocturna') return selectedArea.cost_jornada_nocturna || 0;
-      if (selectedJornada === 'ambos') return selectedArea.cost_jornada_ambos || 0;
-      return 0;
+      if (selectedJornada === 'diurna') finalBaseCost = selectedArea.cost_jornada_diurna || 0;
+      else if (selectedJornada === 'nocturna') finalBaseCost = selectedArea.cost_jornada_nocturna || 0;
+      else if (selectedJornada === 'ambos') finalBaseCost = selectedArea.cost_jornada_ambos || 0;
+    } else {
+      finalBaseCost = selectedArea.cost_per_hour * duration;
     }
-    return selectedArea.cost_per_hour * duration;
+
+    if (appliedDiscount > 0) {
+      return finalBaseCost * (1 - appliedDiscount / 100);
+    }
+
+    return finalBaseCost;
   };
 
   // Obtener la hora de fin de la jornada según la configuración del área
@@ -737,7 +814,15 @@ export default function NewReservationPage() {
                     <>
                       <Label className="text-sm font-medium">Duración (horas)</Label>
                       <div className="flex gap-2">
-                        {[1, 2, 3, 4].filter(h => h <= selectedArea.max_hours_per_reservation).map(h => (
+                        {[1, 2, 3, 4].filter(h => {
+                          const maxByArea = selectedArea.max_hours_per_reservation;
+                          if (h > maxByArea) return false;
+                          if (selectedStartTime) {
+                            const startHour = parseInt(selectedStartTime.split(':')[0]);
+                            return startHour + h <= 24;
+                          }
+                          return true;
+                        }).map(h => (
                           <Button
                             key={h}
                             variant={duration === h ? "default" : "outline"}
@@ -752,7 +837,12 @@ export default function NewReservationPage() {
                   )}
                 </div>
                 {!isFree && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="bg-gray-50 p-4 rounded-lg relative overflow-hidden">
+                    {appliedDiscount > 0 && (
+                      <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg animate-pulse z-10">
+                        {appliedDiscount}% BONIFICACIÓN
+                      </div>
+                    )}
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-primary/10 rounded-lg">
                         {selectedArea.pricing_type === 'jornada' ? (
@@ -763,11 +853,24 @@ export default function NewReservationPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Inversión total</p>
-                        <p className="text-xl font-bold">
-                          {formatCurrency(calculateTotalCost())}
-                        </p>
+                        <div className="flex flex-col">
+                          {appliedDiscount > 0 && (
+                            <span className="text-xs text-gray-400 line-through">
+                              {formatCurrency(calculateTotalCost() / (1 - appliedDiscount / 100))}
+                            </span>
+                          )}
+                          <p className="text-xl font-bold">
+                            {formatCurrency(calculateTotalCost())}
+                          </p>
+                        </div>
                       </div>
                     </div>
+                    {bonusConfig && appliedDiscount === 0 && (
+                      <div className="mt-3 text-[10px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 flex items-center gap-1.5">
+                        <Gift className="w-3 h-3" />
+                        Progreso de bonificación: {userReservationCount % bonusConfig.reservations_required}/{bonusConfig.reservations_required} reservas.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -38,7 +38,7 @@ export default function RegisterPage() {
       .from('organizations')
       .select('*')
       .in('subscription_status', ['active', 'pending_validation']);
-    
+
     if (data) {
       setOrganizations(data);
       if (slug) {
@@ -46,13 +46,14 @@ export default function RegisterPage() {
         if (org) {
           setSelectedOrgId(org.id);
           setCurrentOrg(org);
-          // Guardar imágenes en caché
           cacheImages(org.logo_url, org.login_photo_url);
         } else if (data.length > 0) {
           setSelectedOrgId(data[0].id);
+          setCurrentOrg(data[0]);
         }
       } else if (data.length > 0) {
         setSelectedOrgId(data[0].id);
+        setCurrentOrg(data[0]);
       }
     }
   };
@@ -62,14 +63,12 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
 
-    // Validar que acepte el tratamiento de datos
     if (!habeasDataAccepted) {
       setError('Debe aceptar el tratamiento de datos personales para continuar');
       setLoading(false);
       return;
     }
 
-    // Validar que tenga organization_id
     if (!selectedOrgId) {
       setError('Por favor seleccione una organización');
       setLoading(false);
@@ -77,13 +76,11 @@ export default function RegisterPage() {
     }
 
     try {
-      console.log('Iniciando registro con organization_id:', selectedOrgId);
-      
-      // 1. Crear el usuario en auth
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             full_name: fullName,
             phone: phone,
@@ -95,57 +92,11 @@ export default function RegisterPage() {
         },
       });
 
-      if (signUpError) {
-        console.error('Error en signUp:', signUpError);
-        throw signUpError;
-      }
+      console.log("Data del registrer", data);
+      if (error) throw error;
 
-      console.log('Usuario creado en auth:', signUpData?.user?.id);
-
-      // 2. Si el usuario se creó correctamente, actualizar el perfil con el organization_id
-      if (signUpData?.user) {
-        console.log('Actualizando perfil con organization_id:', selectedOrgId);
-        
-        // Intentar upsert primero
-        const { error: upsertError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: signUpData.user.id,
-            email: email,
-            full_name: fullName,
-            phone: phone,
-            apartment: apartment,
-            organization_id: selectedOrgId,
-            role: 'user',
-          }, {
-            onConflict: 'id',
-          });
-
-        if (upsertError) {
-          console.error('Error en upsert:', upsertError);
-          
-          // Si el upsert falla (probablemente por RLS), intentar update normal
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ organization_id: selectedOrgId })
-            .eq('id', signUpData.user.id);
-
-          if (updateError) {
-            console.error('Error en update:', updateError);
-            // No throw aquí porque el usuario ya se creó correctamente
-            // El organization_id se asignará cuando confirme su email
-          } else {
-            console.log('Perfil actualizado correctamente con update');
-          }
-        } else {
-          console.log('Perfil creado/actualizado correctamente con upsert');
-        }
-      }
-      
-      // Redirect to login or show success message
       setIsSuccessAlertOpen(true);
     } catch (error: any) {
-      console.error('Error en registro:', error);
       setError(translateAuthError(error.message) || 'Error al registrarse');
     } finally {
       setLoading(false);
@@ -155,9 +106,9 @@ export default function RegisterPage() {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background Image with Overlay */}
-      <div 
+      <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat animate-slow-zoom transition-all duration-1000"
-        style={{ 
+        style={{
           backgroundImage: cachedImages.login_photo_url ? `url("${cachedImages.login_photo_url}")` : 'none',
         }}
       >
@@ -172,9 +123,9 @@ export default function RegisterPage() {
         <CardHeader className="space-y-1 text-center pb-6 pt-10">
           <div className="flex justify-center mb-6">
             {currentOrg?.logo_url || cachedImages.logo_url ? (
-              <img 
-                src={currentOrg?.logo_url || cachedImages.logo_url || ''} 
-                alt="Logo" 
+              <img
+                src={currentOrg?.logo_url || cachedImages.logo_url || ''}
+                alt="Logo"
                 className="w-40 h-auto object-contain animate-in fade-in slide-in-from-top-6 duration-1000"
               />
             ) : (
@@ -198,7 +149,7 @@ export default function RegisterPage() {
                 {error}
               </div>
             )}
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="text-white font-medium ml-1">Nombre Completo</Label>
@@ -288,14 +239,14 @@ export default function RegisterPage() {
             </div>
 
             {/* Habeas Data - Tratamiento de Datos Personales */}
-            <HabeasData 
-              accepted={habeasDataAccepted} 
-              onAccept={setHabeasDataAccepted} 
+            <HabeasData
+              accepted={habeasDataAccepted}
+              onAccept={setHabeasDataAccepted}
             />
 
-            <Button 
-              type="submit" 
-              className="w-full h-12 mt-4 text-base font-semibold bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-lg shadow-primary/20 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]" 
+            <Button
+              type="submit"
+              className="w-full h-12 mt-4 text-base font-semibold bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-lg shadow-primary/20 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
               disabled={loading}
             >
               {loading ? (
