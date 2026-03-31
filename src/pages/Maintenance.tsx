@@ -65,10 +65,14 @@ export default function MaintenancePage() {
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   
   useEffect(() => {
-    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) {
-      setBlockingError('Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.');
-    } else if (!subscriptionLoading) {
-      setBlockingError(null);
+    if (!subscriptionLoading) {
+      if (subscriptionStatus === 'cancelled') {
+        setBlockingError('Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.');
+      } else if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) {
+        setBlockingError('Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.');
+      } else {
+        setBlockingError(null);
+      }
     }
   }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
 

@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -25,6 +26,34 @@ export default function SuperAdminSubscriptionPayments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState<string>(format(new Date(), 'yyyy-MM'));
+
+  const [alertConfig, setAlertConfig] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    variant?: 'default' | 'destructive';
+    showCancel?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (title: string, description: string, variant: 'default' | 'destructive' = 'default') => {
+    setAlertConfig({
+      open: true,
+      title,
+      description,
+      onConfirm: () => {},
+      variant,
+      showCancel: false,
+      confirmText: 'Entendido'
+    });
+  };
 
   useEffect(() => {
     if (profile?.role === 'super_admin') {
@@ -174,9 +203,9 @@ export default function SuperAdminSubscriptionPayments() {
       }
 
       fetchPayments(); // Refresh the data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error authorizing payment:', error);
-      alert('Error al autorizar el pago');
+      showAlert('Error al autorizar', error.message, 'destructive');
     }
   };
 
@@ -408,6 +437,19 @@ export default function SuperAdminSubscriptionPayments() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Alert Dialog Global */}
+      <AlertDialog
+        open={alertConfig.open}
+        onOpenChange={(open) => setAlertConfig(prev => ({ ...prev, open }))}
+        title={alertConfig.title}
+        description={alertConfig.description}
+        onConfirm={alertConfig.onConfirm}
+        variant={alertConfig.variant}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+      />
     </div>
   );
 }

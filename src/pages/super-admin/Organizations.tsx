@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { cn, formatDate, formatCurrency } from '@/lib/utils';
 import { differenceInDays, parseISO, isPast } from 'date-fns';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import {
   BarChart,
   Bar,
@@ -91,6 +92,46 @@ export default function SuperAdminOrganizations() {
     auto_renew: false
   });
   const [plans, setPlans] = useState<any[]>([]);
+  const [alertConfig, setAlertConfig] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    variant?: 'default' | 'destructive';
+    showCancel?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (title: string, description: string, variant: 'default' | 'destructive' = 'default') => {
+    setAlertConfig({
+      open: true,
+      title,
+      description,
+      onConfirm: () => {},
+      variant,
+      showCancel: false,
+      confirmText: 'Entendido'
+    });
+  };
+
+  const showConfirm = (title: string, description: string, onConfirm: () => void, variant: 'default' | 'destructive' = 'default') => {
+    setAlertConfig({
+      open: true,
+      title,
+      description,
+      onConfirm,
+      variant,
+      showCancel: true,
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar'
+    });
+  };
 
   type Subscription = {
   updated_at: string;
@@ -300,13 +341,18 @@ export default function SuperAdminOrganizations() {
   };
 
   const deleteOrg = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar esta organización? Esto afectará a todos sus usuarios y datos.')) {
-      const { error } = await supabase
-        .from('organizations')
-        .delete()
-        .eq('id', id);
-      if (!error) fetchData();
-    }
+    showConfirm(
+      '¿Estás seguro de eliminar esta organización?',
+      'Esto afectará a todos sus usuarios y datos. Esta acción no se puede deshacer.',
+      async () => {
+        const { error } = await supabase
+          .from('organizations')
+          .delete()
+          .eq('id', id);
+        if (!error) fetchData();
+      },
+      'destructive'
+    );
   };
 
   const handleSupport = (orgId: string) => {
@@ -447,84 +493,93 @@ export default function SuperAdminOrganizations() {
   };
 
   const handleRenewSubscription = async (subscription: any) => {
-    if (window.confirm('¿Deseas renovar esta suscripción por otro período? Se extenderá la fecha de vencimiento según la duración del plan.')) {
-      try {
-        const plan = subscription.subscription_plans;
-        const currentEndDate = new Date(subscription.end_date);
-        const newEndDate = new Date(currentEndDate.getTime() + plan.duration_in_days * 24 * 60 * 60 * 1000);
+    showConfirm(
+      '¿Deseas renovar esta suscripción?',
+      'Se extenderá la fecha de vencimiento según la duración del plan.',
+      async () => {
+        try {
+          const plan = subscription.subscription_plans;
+          const currentEndDate = new Date(subscription.end_date);
+          const newEndDate = new Date(currentEndDate.getTime() + plan.duration_in_days * 24 * 60 * 60 * 1000);
 
-        const { error } = await supabase
-          .from('subscriptions')
-          .update({
-            end_date: newEndDate.toISOString(),
-            status: 'active'
-          })
-          .eq('id', subscription.id);
+          const { error } = await supabase
+            .from('subscriptions')
+            .update({
+              end_date: newEndDate.toISOString(),
+              status: 'active'
+            })
+            .eq('id', subscription.id);
 
-        if (error) throw error;
+          if (error) throw error;
 
-        // Create renewal payment record
-        if (plan.price > 0) {
-          const { error: paymentError } = await supabase
-            .from('subscription_payments')
-            .insert({
-              subscription_id: subscription.id,
-              amount: plan.price,
-              payment_method: 'subscription_renewal',
-              status: 'pending',
-              paid_at: null
-            });
+          // Create renewal payment record
+          if (plan.price > 0) {
+            const { error: paymentError } = await supabase
+              .from('subscription_payments')
+              .insert({
+                subscription_id: subscription.id,
+                amount: plan.price,
+                payment_method: 'subscription_renewal',
+                status: 'pending',
+                paid_at: null
+              });
 
-          if (paymentError) {
-            console.error('Error creating renewal payment:', paymentError);
+            if (paymentError) {
+              console.error('Error creating renewal payment:', paymentError);
+            }
           }
+
+          // Update organization's subscription status
+          await updateOrganizationSubscriptionStatus(selectedOrgForSubscription.id);
+
+          setSubscriptionModalOpen(false);
+          fetchData();
+        } catch (error: any) {
+          console.error('Error renewing subscription:', error);
+          showAlert('Error al renovar', error.message, 'destructive');
         }
-
-        // Update organization's subscription status
-        await updateOrganizationSubscriptionStatus(selectedOrgForSubscription.id);
-
-        setSubscriptionModalOpen(false);
-        fetchData();
-      } catch (error: any) {
-        console.error('Error renewing subscription:', error);
-        alert('Error al renovar la suscripción: ' + error.message);
       }
-    }
+    );
   };
 
   const handleCancelSubscription = async (subscriptionId: string) => {
-    if (window.confirm('¿Estás seguro de cancelar esta suscripción? La organización perderá acceso a las funcionalidades premium.')) {
-      try {
-        // Update subscription status to cancelled
-        const { error } = await supabase
-          .from('subscriptions')
-          .update({ status: 'cancelled' })
-          .eq('id', subscriptionId);
+    showConfirm(
+      '¿Estás seguro de cancelar esta suscripción?',
+      'La organización perderá acceso a las funcionalidades premium.',
+      async () => {
+        try {
+          // Update subscription status to cancelled
+          const { error } = await supabase
+            .from('subscriptions')
+            .update({ status: 'cancelled' })
+            .eq('id', subscriptionId);
 
-        if (error) throw error;
+          if (error) throw error;
 
-        // Cancel any pending payments for this subscription
-        const { error: paymentError } = await supabase
-          .from('subscription_payments')
-          .update({ status: 'cancelled' })
-          .eq('subscription_id', subscriptionId)
-          .eq('status', 'pending');
+          // Cancel any pending payments for this subscription
+          const { error: paymentError } = await supabase
+            .from('subscription_payments')
+            .update({ status: 'cancelled' })
+            .eq('subscription_id', subscriptionId)
+            .eq('status', 'pending');
 
-        if (paymentError) {
-          console.error('Error cancelling payments:', paymentError);
-          // Don't fail the cancellation if payment update fails
+          if (paymentError) {
+            console.error('Error cancelling payments:', paymentError);
+            // Don't fail the cancellation if payment update fails
+          }
+
+          // Update organization's subscription status
+          await updateOrganizationSubscriptionStatus(selectedOrgForSubscription.id);
+
+          setSubscriptionModalOpen(false);
+          fetchData();
+        } catch (error: any) {
+          console.error('Error cancelling subscription:', error);
+          showAlert('Error al cancelar', error.message, 'destructive');
         }
-
-        // Update organization's subscription status
-        await updateOrganizationSubscriptionStatus(selectedOrgForSubscription.id);
-
-        setSubscriptionModalOpen(false);
-        fetchData();
-      } catch (error: any) {
-        console.error('Error cancelling subscription:', error);
-        alert('Error al cancelar la suscripción: ' + error.message);
-      }
-    }
+      },
+      'destructive'
+    );
   };
 
   const handleSubscriptionSubmit = async (e: React.FormEvent) => {
@@ -534,7 +589,7 @@ export default function SuperAdminOrganizations() {
     try {
       const selectedPlan = plans.find(p => p.id === subscriptionFormData.plan_id);
       if (!selectedPlan) {
-        alert('Por favor selecciona un plan válido');
+        showAlert('Plan no válido', 'Por favor selecciona un plan válido', 'destructive');
         return;
       }
 
@@ -586,7 +641,7 @@ export default function SuperAdminOrganizations() {
       await fetchData();
     } catch (error: any) {
       console.error('Error saving subscription:', error);
-      alert('Error al guardar la suscripción: ' + error.message);
+      showAlert('Error al guardar', error.message, 'destructive');
     } finally {
       setLoading(false);
     }
@@ -701,7 +756,7 @@ export default function SuperAdminOrganizations() {
       </div>
 
       {view === 'list' ? (
-        <Card className="border-none shadow-sm bg-white overflow-hidden">
+        <Card className="border-none shadow-sm bg-white">
           <CardHeader className="p-4 bg-gray-50/50 border-b border-gray-100">
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="relative w-full max-w-sm">
@@ -756,7 +811,7 @@ export default function SuperAdminOrganizations() {
                       </td>
                     </tr>
                   ) : (
-                    filteredOrgs.map((org) => {
+                    filteredOrgs.map((org, index) => {
                       // Find the most relevant subscription for display (most recent by updated_at)
                       const subscription = org.subscriptions?.sort((a: Subscription, b: Subscription) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0] || null;
 
@@ -876,7 +931,10 @@ export default function SuperAdminOrganizations() {
                               </Button>
                               {openDropdownId === org.id && (
                                 <div 
-                                  className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 min-w-[160px] dropdown-menu animate-in fade-in zoom-in-95 duration-200"
+                                  className={cn(
+                                    "absolute right-0 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 min-w-[160px] dropdown-menu animate-in fade-in zoom-in-95 duration-200",
+                                    index >= filteredOrgs.length - 2 ? "bottom-full mb-1" : "top-full mt-1"
+                                  )}
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <button
@@ -1309,6 +1367,19 @@ export default function SuperAdminOrganizations() {
           </div>
         </div>
       )}
+
+      {/* Alert Dialog Global */}
+      <AlertDialog
+        open={alertConfig.open}
+        onOpenChange={(open) => setAlertConfig(prev => ({ ...prev, open }))}
+        title={alertConfig.title}
+        description={alertConfig.description}
+        onConfirm={alertConfig.onConfirm}
+        variant={alertConfig.variant}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+      />
     </div>
   );
 }

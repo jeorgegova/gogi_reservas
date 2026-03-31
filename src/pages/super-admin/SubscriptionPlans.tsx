@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 
 export default function SuperAdminSubscriptionPlans() {
   const { profile } = useAuth();
@@ -31,6 +32,47 @@ export default function SuperAdminSubscriptionPlans() {
     max_reservations: '',
     features: ''
   });
+
+  const [alertConfig, setAlertConfig] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    variant?: 'default' | 'destructive';
+    showCancel?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (title: string, description: string, variant: 'default' | 'destructive' = 'default') => {
+    setAlertConfig({
+      open: true,
+      title,
+      description,
+      onConfirm: () => {},
+      variant,
+      showCancel: false,
+      confirmText: 'Entendido'
+    });
+  };
+
+  const showConfirm = (title: string, description: string, onConfirm: () => void, variant: 'default' | 'destructive' = 'default') => {
+    setAlertConfig({
+      open: true,
+      title,
+      description,
+      onConfirm,
+      variant,
+      showCancel: true,
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar'
+    });
+  };
 
   useEffect(() => {
     if (profile?.role === 'super_admin') {
@@ -111,7 +153,7 @@ export default function SuperAdminSubscriptionPlans() {
       fetchPlans();
     } catch (error: any) {
       console.error('Error saving plan:', error);
-      alert('Error al guardar el plan: ' + error.message);
+      showAlert('Error al guardar', error.message, 'destructive');
     } finally {
       setLoading(false);
     }
@@ -132,29 +174,26 @@ export default function SuperAdminSubscriptionPlans() {
   };
 
   const deletePlan = async (planId: string) => {
-    if (window.confirm('¿Estás seguro de eliminar este plan? Las organizaciones con suscripciones activas no se verán afectadas.')) {
-      try {
-        const { error } = await supabase
-          .from('subscription_plans')
-          .delete()
-          .eq('id', planId);
+    showConfirm(
+      '¿Estás seguro de eliminar este plan?',
+      'Las organizaciones con suscripciones activas no se verán afectadas. Esta acción no se puede deshacer.',
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('subscription_plans')
+            .delete()
+            .eq('id', planId);
 
-        if (error) throw error;
-        fetchPlans();
-      } catch (error) {
-        console.error('Error deleting plan:', error);
-      }
-    }
-  };
-
-  if (profile?.role !== 'super_admin') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-500">
-        <XCircle className="w-12 h-12 mb-4 text-red-400" />
-        <p className="text-lg font-medium">Acceso no autorizado</p>
-      </div>
+          if (error) throw error;
+          fetchPlans();
+        } catch (error: any) {
+          console.error('Error deleting plan:', error);
+          showAlert('Error al eliminar', error.message, 'destructive');
+        }
+      },
+      'destructive'
     );
-  }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -382,6 +421,19 @@ export default function SuperAdminSubscriptionPlans() {
           </div>
         </div>
       )}
+
+      {/* Alert Dialog Global */}
+      <AlertDialog
+        open={alertConfig.open}
+        onOpenChange={(open) => setAlertConfig(prev => ({ ...prev, open }))}
+        title={alertConfig.title}
+        description={alertConfig.description}
+        onConfirm={alertConfig.onConfirm}
+        variant={alertConfig.variant}
+        showCancel={alertConfig.showCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+      />
     </div>
   );
 }

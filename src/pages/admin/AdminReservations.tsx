@@ -43,13 +43,14 @@ export default function AdminReservationsPage() {
   }, [profile]);
 
   useEffect(() => {
-    console.log('AdminReservations: subscriptionStatus', subscriptionStatus, 'daysUntilExpiry', daysUntilExpiry, 'subscriptionLoading', subscriptionLoading, 'previousExpired', previousSubscriptionExpiredBeyond20Days);
-    if (!subscriptionLoading && (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days))) {
-      console.log('Blocking admin reservations');
-      setBlockingError('Servicio temporalmente inhabilitado, renueva la suscripción para continuar utilizando este servicio.');
-    } else if (!subscriptionLoading) {
-      console.log('Not blocking admin reservations');
-      setBlockingError(null);
+    if (!subscriptionLoading) {
+      if (subscriptionStatus === 'cancelled') {
+        setBlockingError('Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.');
+      } else if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) {
+        setBlockingError('Servicio temporalmente inhabilitado, renueva la suscripción para continuar utilizando este servicio.');
+      } else {
+        setBlockingError(null);
+      }
     }
   }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
 
