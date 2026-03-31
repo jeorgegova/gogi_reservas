@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
@@ -17,7 +17,8 @@ import {
   Clock,
   X,
   Wrench,
-  Edit
+  Edit,
+  HelpCircle
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { formatDate } from '@/lib/utils';
@@ -40,7 +41,9 @@ interface Notice {
 
 export default function MaintenancePage() {
   const { profile } = useAuth();
-  const { status: subscriptionStatus, daysUntilExpiry, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
+  const navigate = useNavigate();
+  const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
+  const [blockingError, setBlockingError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
@@ -60,6 +63,14 @@ export default function MaintenancePage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [noticeToDelete, setNoticeToDelete] = useState<string | null>(null);
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  
+  useEffect(() => {
+    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) {
+      setBlockingError('Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.');
+    } else if (!subscriptionLoading) {
+      setBlockingError(null);
+    }
+  }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -290,6 +301,29 @@ export default function MaintenancePage() {
     }
   };
 
+  if (blockingError) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="border-none shadow-sm bg-white text-center p-8 max-w-md">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-amber-100 rounded-full text-amber-600">
+              <HelpCircle className="w-12 h-12" />
+            </div>
+          </div>
+          <CardHeader className="p-0">
+            <h2 className="text-xl mb-4 font-bold text-gray-900 tracking-tight">¡Oops! Servicio temporalmente inhabilitado</h2>
+          </CardHeader>
+          <p className="text-gray-500 text-sm mb-6">
+            {blockingError}
+          </p>
+          <Button onClick={() => navigate('/dashboard')} className="w-full bg-primary hover:bg-primary/95 shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all duration-200">
+            Regresar al inicio
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header Section */}
@@ -306,18 +340,10 @@ export default function MaintenancePage() {
               ? "Informa a los residentes sobre cierres o novedades."
               : "Mantente informado sobre las novedades y mantenimientos de las zonas comunes."}
           </p>
-          {isAdmin && subscriptionStatus !== 'active' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2 ml-1">
-              <p className="text-sm text-yellow-800">
-                La suscripción no está activa. Las funcionalidades de creación de avisos están restringidas.
-              </p>
-            </div>
-          )}
         </div>
         {isAdmin && (
           <Button
             onClick={() => setIsAdding(true)}
-            disabled={subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || previousSubscriptionExpiredBeyond20Days}
             className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 px-5 rounded-xl shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
             <Plus className="mr-2 h-4 w-4" /> Nuevo Aviso
@@ -525,7 +551,6 @@ export default function MaintenancePage() {
             {isAdmin && (
               <Button
                 onClick={() => setIsAdding(true)}
-                disabled={subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || previousSubscriptionExpiredBeyond20Days}
                 className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-10 px-5 rounded-xl shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Plus className="mr-2 h-4 w-4" /> Crear Primer Aviso
