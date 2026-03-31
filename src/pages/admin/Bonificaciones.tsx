@@ -13,11 +13,9 @@ import {
   Users, 
   Plus, 
   Trash2, 
-  Search, 
-  Filter,
+  Search,
   CheckCircle2,
-  Clock,
-  ArrowRight
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
