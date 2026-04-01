@@ -15,8 +15,13 @@ import {
   Trash2, 
   Search,
   CheckCircle2,
-  Clock
+  Clock,
+  Pencil,
+  Award
 } from 'lucide-react';
+
+
+
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -32,6 +37,12 @@ export default function AdminBonificaciones() {
   const [reservationsRequired, setReservationsRequired] = useState(5);
   const [discountPercentage, setDiscountPercentage] = useState(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Inline edit state
+  const [editValueReservations, setEditValueReservations] = useState<number>(0);
+  const [editValueDiscount, setEditValueDiscount] = useState<number>(0);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const { data: areas = [] } = useCommonAreasQuery(profile?.organization_id);
 
@@ -126,28 +137,32 @@ export default function AdminBonificaciones() {
     }
   };
 
-  const handleAddConfig = async (e: React.FormEvent) => {
+  const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAreaId) return;
 
     setIsSubmitting(true);
     try {
+      const configData = {
+        organization_id: profile?.organization_id,
+        common_area_id: selectedAreaId,
+        reservations_required: reservationsRequired,
+        discount_percentage: discountPercentage,
+        is_active: true
+      };
+
       const { error } = await supabase
         .from('bonus_configs')
-        .upsert({
-          organization_id: profile?.organization_id,
-          common_area_id: selectedAreaId,
-          reservations_required: reservationsRequired,
-          discount_percentage: discountPercentage,
-          is_active: true
-        });
+        .insert(configData);
 
       if (error) throw error;
       
-      toast.success('Configuración guardada correctamente');
+      toast.success('Configuración creada correctamente');
       fetchInitialData();
       // Reset form
       setSelectedAreaId('');
+      setReservationsRequired(5);
+      setDiscountPercentage(10);
     } catch (error) {
       console.error('Error saving config:', error);
       toast.error('Error al guardar la configuración');
@@ -155,6 +170,41 @@ export default function AdminBonificaciones() {
       setIsSubmitting(false);
     }
   };
+
+  const handleEditMode = (config: any) => {
+    setEditingId(config.id);
+    setEditValueReservations(config.reservations_required);
+    setEditValueDiscount(config.discount_percentage);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const handleUpdateConfig = async (id: string) => {
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('bonus_configs')
+        .update({
+          reservations_required: editValueReservations,
+          discount_percentage: editValueDiscount,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast.success('Regla actualizada');
+      fetchInitialData();
+      handleCancelEdit();
+    } catch (error) {
+      console.error('Error updating config:', error);
+      toast.error('Error al actualizar la configuración');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
 
   const handleDeleteConfig = async (id: string) => {
     try {
@@ -215,16 +265,22 @@ export default function AdminBonificaciones() {
       )}>
         {/* Configuration Column */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-none shadow-sm h-full">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2 text-primary">
-                <Settings className="w-5 h-5 text-primary" />
+          <Card className={cn(
+            "border-none shadow-sm transition-all duration-500"
+          )}>
+            <CardHeader className="pb-4 relative">
+              <CardTitle className={cn(
+                "text-lg flex items-center gap-2",
+                "text-primary"
+              )}>
+                <Settings className={cn("w-5 h-5 text-primary")} />
                 Nueva Configuración
               </CardTitle>
-              <CardDescription>Define metas de reserva por área común.</CardDescription>
+              <CardDescription>Define metas de reserva pagada por área común.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAddConfig} className="space-y-4">
+              <form onSubmit={handleSaveConfig} className="space-y-4">
+
                 <div className="space-y-2">
                   <Label>Área Común</Label>
                   <select 
@@ -264,10 +320,18 @@ export default function AdminBonificaciones() {
                   </div>
                 </div>
 
-                <Button className="w-full mt-4" type="submit" disabled={isSubmitting}>
+                <Button 
+                  className={cn(
+                    "w-full mt-4 transition-all duration-300",
+                    "bg-primary hover:bg-primary/90"
+                  )} 
+                  type="submit" 
+                  disabled={isSubmitting}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   {isSubmitting ? 'Guardando...' : 'Crear Regla'}
                 </Button>
+
               </form>
             </CardContent>
           </Card>
@@ -284,33 +348,94 @@ export default function AdminBonificaciones() {
               </div>
             ) : (
               configs.map((config) => (
-                <Card key={config.id} className="border-none shadow-sm bg-white hover:shadow-md transition-shadow relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-gray-400 hover:text-red-600 transition-colors"
-                      onClick={() => handleDeleteConfig(config.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <Card key={config.id} className={cn("border-none shadow-sm bg-white hover:shadow-md transition-all relative overflow-hidden group", editingId === config.id && "ring-2 ring-indigo-500")}>
+                  {editingId !== config.id && (
+                    <div className="absolute top-0 right-0 p-2 flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-gray-400 hover:text-indigo-600 transition-colors h-8 w-8"
+                        onClick={() => handleEditMode(config)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-gray-400 hover:text-red-600 transition-colors h-8 w-8"
+                        onClick={() => handleDeleteConfig(config.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+
                   <CardHeader className="p-4 pb-2">
-                    <div className="bg-primary/10 w-fit p-2 rounded-lg mb-2">
-                      <Gift className="w-5 h-5 text-primary" />
+                    <div className="flex justify-between items-start">
+                      <div className="bg-primary/10 w-fit p-2 rounded-lg mb-2">
+                        <Gift className="w-5 h-5 text-primary" />
+                      </div>
                     </div>
                     <CardTitle className="text-base font-bold">{config.common_areas?.name}</CardTitle>
                   </CardHeader>
+
                   <CardContent className="p-4 pt-0">
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100">
-                        {config.discount_percentage}% OFF
+                    {editingId === config.id ? (
+                      <div className="space-y-4 mt-2 animate-in fade-in duration-300">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Meta Reservas</Label>
+                            <Input 
+                              type="number" 
+                              min="1" 
+                              className="h-8 text-sm"
+                              value={editValueReservations}
+                              onChange={(e) => setEditValueReservations(parseInt(e.target.value))}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Descuento (%)</Label>
+                            <Input 
+                              type="number" 
+                              min="1" 
+                              max="100" 
+                              className="h-8 text-sm"
+                              value={editValueDiscount}
+                              onChange={(e) => setEditValueDiscount(parseInt(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button 
+                            size="sm" 
+                            className="flex-1 h-8 text-xs bg-indigo-600 hover:bg-indigo-700" 
+                            onClick={() => handleUpdateConfig(config.id)}
+                            disabled={isUpdating}
+                          >
+                            Guardar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1 h-8 text-xs" 
+                            onClick={handleCancelEdit}
+                            disabled={isUpdating}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-gray-500 text-xs">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Cada {config.reservations_required} reservas
+                    ) : (
+                      <div className="flex items-center gap-4 mt-2">
+                        <div className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100">
+                          {config.discount_percentage}% OFF
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-500 text-xs">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Cada {config.reservations_required} reservas pagadas
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -346,7 +471,8 @@ export default function AdminBonificaciones() {
                     <tr className="bg-gray-50 text-gray-500 font-medium uppercase text-[10px] tracking-wider border-b">
                       <th className="px-6 py-3">Usuario / Apt</th>
                       <th className="px-6 py-3">Área Común</th>
-                      <th className="px-6 py-3">Reservas</th>
+                      <th className="px-6 py-3 text-center">Reservas Pagadas</th>
+
                       <th className="px-6 py-3">Estado</th>
                     </tr>
                   </thead>
@@ -362,9 +488,11 @@ export default function AdminBonificaciones() {
                         const config = configs.find(c => c.common_area_id === item.areaId);
                         const areaName = areas.find(a => a.id === item.areaId)?.name || 'Área desconocida';
                         const goal = config?.reservations_required || 5;
-                        const progress = (item.count % goal);
-                        const reached = item.count > 0 && progress === 0;
-                        const percentage = (progress / goal) * 100;
+                        const bonusesEarned = Math.floor(item.count / goal);
+                        const progressInCycle = item.count % goal;
+                        const isExactlyAtGoal = item.count > 0 && progressInCycle === 0;
+                        const percentage = (progressInCycle / goal) * 100;
+
 
                           return (
                             <tr key={idx} className="hover:bg-gray-50 transition-colors">
@@ -379,29 +507,52 @@ export default function AdminBonificaciones() {
                               </td>
                               <td className="px-6 py-4">
                                 {config ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-gray-900">{item.count}</span>
-                                    <div className="hidden md:block w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className={cn(
-                                          "h-full rounded-full transition-all duration-500",
-                                          reached ? "bg-emerald-500 animate-pulse" : "bg-primary"
-                                        )}
-                                        style={{ width: `${reached ? 100 : percentage}%` }}
-                                      />
+                                  <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded border">
+                                        Pagadas: {item.count}
+                                      </span>
+
+                                      {bonusesEarned > 0 && (
+                                        <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200">
+                                          <Award className="w-3 h-3" />
+                                          {bonusesEarned} {bonusesEarned === 1 ? 'BONO' : 'BONOS'}
+                                        </div>
+                                      )}
                                     </div>
-                                    <span className="text-xs text-gray-500">{progress}/{goal}</span>
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex justify-between items-center text-[10px]">
+                                        <span className={cn(
+                                          "font-medium",
+                                          isExactlyAtGoal ? "text-emerald-600" : "text-gray-500"
+                                        )}>
+                                          {isExactlyAtGoal ? `🎯 ¡Meta Alcanzada!` : `Rumbo al próximo: ${progressInCycle}/${goal}`}
+                                        </span>
+                                        <span className="text-gray-400">{Math.floor(percentage)}%</span>
+                                      </div>
+                                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-200 shadow-inner">
+                                        <div 
+                                          className={cn(
+                                            "h-full rounded-full transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1)",
+                                            isExactlyAtGoal ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-primary"
+                                          )}
+                                          style={{ width: `${isExactlyAtGoal ? 100 : percentage}%` }}
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div className="text-gray-400 text-xs italic flex items-center gap-1">
+                                  <div className="text-gray-400 text-xs italic flex items-center gap-1 bg-gray-50 px-2 py-1 rounded inline-flex">
                                     <Gift className="w-3 h-3 opacity-30" />
                                     Sin bonificación asignada
                                   </div>
                                 )}
                               </td>
+
                               <td className="px-6 py-4">
                                 {config ? (
-                                  reached ? (
+                                  isExactlyAtGoal ? (
+
                                     <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs">
                                       <CheckCircle2 className="w-4 h-4" />
                                       META OK

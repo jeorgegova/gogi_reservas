@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -64,6 +64,7 @@ export default function Calendario() {
     const [calendarRange, setCalendarRange] = useState<{ start: string; end: string } | null>(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const queryClient = useQueryClient();
+    const calendarRef = useRef<FullCalendar>(null);
 
     // Queries
     const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
@@ -779,14 +780,15 @@ export default function Calendario() {
                             </div>
                         </CardHeader>
                         <CardContent className="p-1 sm:p-2">
-                            <div className="calendar-container compact-calendar overflow-hidden">
+                            <div className="calendar-container compact-calendar">
                                 <FullCalendar
+                                    ref={calendarRef}
                                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                                    initialView={isMobile ? "timeGridDay" : "dayGridMonth"}
+                                    initialView="dayGridMonth"
                                     headerToolbar={{
                                         left: 'prev,next today',
                                         center: 'title',
-                                        right: isMobile ? 'timeGridDay,timeGridWeek' : 'dayGridMonth,timeGridWeek,timeGridDay'
+                                        right: 'dayGridMonth,timeGridWeek,timeGridDay'
                                     }}
                                     buttonText={{
                                         today: 'Hoy',
@@ -798,6 +800,7 @@ export default function Calendario() {
                                     aspectRatio={isMobile ? 1.35 : 3}
                                     fixedWeekCount={false}
                                     dayMaxEvents={isMobile ? 3 : 2}
+                                    moreLinkText={(n) => `+${n} más`}
                                     eventContent={(eventInfo) => {
                                         const isReservation = eventInfo.event.extendedProps.type === 'reservation';
                                         const statusColor = isReservation
@@ -806,22 +809,10 @@ export default function Calendario() {
 
                                         const isMonthView = eventInfo.view.type === 'dayGridMonth';
 
-                                        // Vista mes en móvil: solo punto
-                                        if (isMonthView && isMobile) {
-                                            return (
-                                                <div className="flex items-center justify-center h-full w-full py-0.5">
-                                                    <div
-                                                        style={{ backgroundColor: statusColor }}
-                                                        className="w-1.5 h-1.5 rounded-full shadow-sm hover:scale-125 transition-transform"
-                                                    />
-                                                </div>
-                                            );
-                                        }
-
-                                        // Vista mes en PC: punto + hora + título (truncado)
+                                        // Vista mes en PC y Móvil: punto + hora + título (truncado)
                                         if (isMonthView) {
                                             return (
-                                                <div className="flex items-center gap-1 overflow-hidden h-full px-0.5">
+                                                <div className="flex items-center gap-1 overflow-hidden h-full px-0.5" title={eventInfo.event.title}>
                                                     <div style={{ backgroundColor: statusColor }} className="w-1.5 h-1.5 rounded-full flex-shrink-0" />
                                                     <span className="text-[9px] font-bold text-gray-900 whitespace-nowrap">{eventInfo.timeText}</span>
                                                     <span className="truncate text-[9px] font-medium text-gray-600">{eventInfo.event.title}</span>
@@ -850,14 +841,19 @@ export default function Calendario() {
                                         return (
                                             <div
                                                 onClick={() => {
-                                                    if (isMobile && isBookable) {
-                                                        const dateStr = format(arg.date, 'yyyy-MM-dd');
-                                                        navigate(`/reservations/new?date=${dateStr}`);
+                                                    if (calendarRef.current) {
+                                                        const api = calendarRef.current.getApi();
+                                                        if (api.view.type === 'dayGridMonth') {
+                                                            api.changeView('timeGridDay', arg.date);
+                                                        } else if (isMobile && isBookable) {
+                                                            const dateStr = format(arg.date, 'yyyy-MM-dd');
+                                                            navigate(`/reservations/new?date=${dateStr}`);
+                                                        }
                                                     }
                                                 }}
                                                 className={cn(
                                                     "relative w-full h-full min-h-[35px] sm:min-h-[40px] p-0.5 flex flex-col justify-between group",
-                                                    isMobile && isBookable && "cursor-pointer active:bg-gray-50"
+                                                    "cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
                                                 )}
                                             >
                                                 <div className="flex justify-end w-full p-0.5">
@@ -877,7 +873,7 @@ export default function Calendario() {
                                                                 const dateStr = format(arg.date, 'yyyy-MM-dd');
                                                                 navigate(`/reservations/new?date=${dateStr}`);
                                                             }}
-                                                            className="w-4 h-4 text-gray-300 transition-all opacity-0 group-hover:opacity-100 hover:text-primary"
+                                                            className="w-4 h-4 text-gray-400 transition-all hover:text-primary"
                                                             title="Agregar reserva"
                                                         >
                                                             <span className="text-xs font-bold">+</span>

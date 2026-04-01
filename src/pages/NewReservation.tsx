@@ -71,6 +71,69 @@ export default function NewReservationPage() {
   const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
   const createMutation = useCreateReservationMutation();
   const updateMutation = useUpdateReservationMutation();
+  
+  const timeSlots = Array.from({ length: 14 }, (_, i) => {
+    const hour = 8 + i;
+    return `${hour.toString().padStart(2, '0')}:00`;
+  });
+
+  const getNextBlockStart = (startTime: string): Date | null => {
+
+    if (!startTime) return null;
+    
+    const start = parseISO(`${selectedDate}T${startTime}:00`);
+    let earliestBlock: Date | null = null;
+
+    // Check reservations
+    for (const res of existingReservations) {
+      const resStart = parseISO(detoxTime(res.start_datetime));
+      if (resStart > start) {
+        if (!earliestBlock || resStart < earliestBlock) {
+          earliestBlock = resStart;
+        }
+      }
+    }
+
+    // Check maintenance
+    for (const maint of activeMaintenances) {
+      const maintStart = parseISO(detoxTime(maint.starts_at));
+      if (maintStart > start) {
+        if (!earliestBlock || maintStart < earliestBlock) {
+          earliestBlock = maintStart;
+        }
+      }
+    }
+
+    return earliestBlock;
+  };
+
+  const checkPendingReservations = async () => {
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('user_id', profile.id)
+      .eq('organization_id', profile.organization_id)
+      .eq('status', 'pending_payment');
+
+    if (data && data.length > 0) {
+      setBlockingError('Tiene una reserva pendiente de pago. Debe completar el pago antes de hacer una nueva reserva.');
+    }
+  };
+
+  const fetchUsers = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, apartment')
+      .eq('organization_id', profile?.organization_id)
+      .eq('role', 'user')
+      .order('full_name');
+
+    if (data) {
+      setUsers(data);
+    }
+  };
 
   // Fetch single reservation for edit using useQuery
   const { data: reservationToEdit } = useQuery({
@@ -104,9 +167,10 @@ export default function NewReservationPage() {
         return;
       }
       if (reservationToEdit.status !== 'pending_validation' && !isAdmin) {
-        setBlockingError('Solo se pueden editar reservas con estado Pendiente Validación.');
+        setBlockingError('la reserva ya se valido y no se puede editar');
         return;
       }
+
 
       setSelectedArea(reservationToEdit.common_areas);
       const startDate = new Date(reservationToEdit.start_datetime);
@@ -133,44 +197,28 @@ export default function NewReservationPage() {
     }
   }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
 
-  // Lógica de ajuste automático de duración para no exceder la medianoche
+  // Lógica de ajuste automático de duración para no exceder la medianoche o la siguiente reserva
   useEffect(() => {
     if (selectedStartTime && selectedArea?.pricing_type !== 'jornada') {
       const startHour = parseInt(selectedStartTime.split(':')[0]);
       const maxAllowedByDay = 24 - startHour;
-      if (duration > maxAllowedByDay) {
-        setDuration(maxAllowedByDay);
+      
+      const nextBlock = getNextBlockStart(selectedStartTime) as Date | null;
+      let maxAllowed = maxAllowedByDay;
+
+      if (nextBlock) {
+        const start = parseISO(`${selectedDate}T${selectedStartTime}:00`);
+        const diffHours = (nextBlock.getTime() - start.getTime()) / (1000 * 60 * 60);
+        maxAllowed = Math.min(maxAllowedByDay, diffHours);
+      }
+
+      if (duration > maxAllowed) {
+        setDuration(maxAllowed >= 1 ? Math.floor(maxAllowed) : 1);
       }
     }
-  }, [selectedStartTime, selectedArea, duration]);
+  }, [selectedStartTime, selectedArea, duration, existingReservations, activeMaintenances]);
 
-  const checkPendingReservations = async () => {
-    if (!profile) return;
 
-    const { data } = await supabase
-      .from('reservations')
-      .select('id')
-      .eq('user_id', profile.id)
-      .eq('organization_id', profile.organization_id)
-      .eq('status', 'pending_payment');
-
-    if (data && data.length > 0) {
-      setBlockingError('Tiene una reserva pendiente de pago. Debe completar el pago antes de hacer una nueva reserva.');
-    }
-  };
-
-  const fetchUsers = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, apartment')
-      .eq('organization_id', profile?.organization_id)
-      .eq('role', 'user')
-      .order('full_name');
-
-    if (data) {
-      setUsers(data);
-    }
-  };
 
   const filteredUsers = users.filter((user: any) =>
     user.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
@@ -179,17 +227,20 @@ export default function NewReservationPage() {
   );
 
   const fetchBusySlots = async (areaId: string) => {
-    // Fetch reservations
-    const { data: resData } = await supabase
+    let query = supabase
       .from('reservations')
       .select('start_datetime, end_datetime')
       .eq('common_area_id', areaId)
       .eq('organization_id', profile?.organization_id)
       .in('status', ['approved', 'pending_validation', 'pending_payment']);
 
+    if (isEditing && id) {
+      query = query.neq('id', id);
+    }
+
+    const { data: resData } = await query;
     setExistingReservations(resData || []);
 
-    // Fetch maintenance notices for this area or general notices
     const { data: maintData } = await supabase
       .from('maintenance_notices')
       .select('starts_at, ends_at, severity, title, content')
@@ -201,15 +252,13 @@ export default function NewReservationPage() {
   };
 
   const handleAreaSelect = (area: any) => {
-    console.log('DEBUG: Selected area properties:', area);
-    console.log('Is free:', area.is_free);
     if (isAdmin && !selectedUserId) {
       setUserError('Por favor selecciona un usuario antes de elegir un área.');
       return;
     }
     setUserError(null);
     setSelectedArea(area);
-    setSelectedJornada(null); // Reset jornada selection
+    setSelectedJornada(null);
     setStep(2);
     fetchBusySlots(area.id);
     fetchBonusInfo(area.id);
@@ -219,7 +268,6 @@ export default function NewReservationPage() {
     if (!profile?.id) return;
 
     try {
-      // 1. Verificar si el sistema de bonificaciones está activo para la org
       const { data: org } = await supabase
         .from('organizations')
         .select('bonus_system_active')
@@ -231,7 +279,6 @@ export default function NewReservationPage() {
         return;
       }
 
-      // 2. Obtener config de bonificación para esta área
       const { data: config } = await supabase
         .from('bonus_configs')
         .select('*')
@@ -242,7 +289,6 @@ export default function NewReservationPage() {
       setBonusConfig(config);
 
       if (config) {
-        // 3. Contar reservas aprobadas del usuario para esta área
         const targetUserId = (isAdmin && selectedUserId) ? selectedUserId : profile.id;
         const { count } = await supabase
           .from('reservations')
@@ -250,13 +296,19 @@ export default function NewReservationPage() {
           .eq('user_id', targetUserId)
           .eq('common_area_id', areaId)
           .eq('status', 'approved');
-        
+
         setUserReservationCount(count || 0);
+      } else {
+        setUserReservationCount(0);
       }
     } catch (error) {
       console.error('Error fetching bonus info:', error);
+      setBonusConfig(null);
+      setUserReservationCount(0);
     }
   };
+
+
 
   // Recalcular el descuento aplicado
   useEffect(() => {
@@ -280,11 +332,9 @@ export default function NewReservationPage() {
     }
   };
 
-  // Generate slots from 08:00 to 22:00
-  const timeSlots = Array.from({ length: 14 }, (_, i) => {
-    const hour = 8 + i;
-    return `${hour.toString().padStart(2, '0')}:00`;
-  });
+
+
+
 
   const getSlotStatus = (time: string) => {
     const slotStart = parseISO(`${selectedDate}T${time}:00`);
@@ -407,7 +457,7 @@ export default function NewReservationPage() {
   };
 
   const [jornadaError, setJornadaError] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(initialDate ? parseISO(initialDate) : new Date());
   const [daysWithReservations, setDaysWithReservations] = useState<Set<string>>(new Set());
 
   // Fetch reservations for the current month to show availability on calendar
@@ -530,7 +580,10 @@ export default function NewReservationPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Nueva Reserva</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {isEditing ? 'Editar Reserva' : 'Nueva Reserva'}
+          </h1>
+
           <p className="text-gray-500 text-sm">Sigue los pasos para asegurar tu espacio.</p>
         </div>
         <div className="w-full">
@@ -596,72 +649,89 @@ export default function NewReservationPage() {
       {step === 1 && (
         <>
           {/* Selector de usuario para admin */}
-          {isAdmin && users.length > 0 && (
-            <Card className="mb-6 border-primary/20 bg-primary/5">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-lg font-bold text-gray-900">Reservar para Usuario</CardTitle>
-                </div>
-                <CardDescription>Selecciona el residente que hará uso del espacio</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {users.length > 5 && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="Buscar por nombre, email o apartamento..."
-                      value={userSearchTerm}
-                      onChange={(e) => setUserSearchTerm(e.target.value)}
-                      className="pl-10 h-10"
-                    />
+          {isAdmin && (
+            users.length > 0 ? (
+              <Card className="mb-6 border-primary/20 bg-primary/5">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg font-bold text-gray-900">Reservar para Usuario</CardTitle>
                   </div>
-                )}
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => {
-                    setSelectedUserId(e.target.value);
-                    setUserError(null); // Clear error when selecting
-                  }}
-                  className={cn(
-                    "w-full p-3 border rounded-lg bg-white text-gray-900 transition-colors",
-                    selectedUserId ? "border-green-200 bg-green-50/50" : "border-gray-200"
-                  )}
-                >
-                  <option value="">Seleccionar usuario</option>
-                  {filteredUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.full_name || user.email} {user.apartment ? `- Apt ${user.apartment}` : ''}
-                    </option>
-                  ))}
-                </select>
-                {userError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-                    <AlertCircle className="w-4 h-4" />
-                    {userError}
-                  </div>
-                )}
-                {selectedUserId && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-green-700">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-medium">
-                        Usuario seleccionado: {users.find(u => u.id === selectedUserId)?.full_name || users.find(u => u.id === selectedUserId)?.email}
-                        {users.find(u => u.id === selectedUserId)?.apartment && ` - Apt ${users.find(u => u.id === selectedUserId)?.apartment}`}
-                      </span>
+                  <CardDescription>Selecciona el residente que hará uso del espacio</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {users.length > 5 && (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="Buscar por nombre, email o apartamento..."
+                        value={userSearchTerm}
+                        onChange={(e) => setUserSearchTerm(e.target.value)}
+                        className="pl-10 h-10"
+                      />
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                  <select
+                    value={selectedUserId}
+                    onChange={(e) => {
+                      setSelectedUserId(e.target.value);
+                      setUserError(null); // Clear error when selecting
+                    }}
+                    className={cn(
+                      "w-full p-3 border rounded-lg bg-white text-gray-900 transition-colors",
+                      selectedUserId ? "border-green-200 bg-green-50/50" : "border-gray-200"
+                    )}
+                  >
+                    <option value="">Seleccionar usuario</option>
+                    {filteredUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.email} {user.apartment ? `- Apt ${user.apartment}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {userError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {userError}
+                    </div>
+                  )}
+                  {selectedUserId && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium">
+                          Usuario seleccionado: {users.find(u => u.id === selectedUserId)?.full_name || users.find(u => u.id === selectedUserId)?.email}
+                          {users.find(u => u.id === selectedUserId)?.apartment && ` - Apt ${users.find(u => u.id === selectedUserId)?.apartment}`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
+                <div className="p-2 bg-amber-100 rounded-lg shrink-0">
+                  <Users className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-amber-900 tracking-tight">Esta organización no tiene usuarios para crear reservas</h3>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Debe registrar residentes en el módulo de usuarios antes de poder realizar reservas administrativas.
+                  </p>
+                </div>
+              </div>
+            )
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {areasData.map((area: any) => (
               <Card
                 key={area.id}
-                className="border-none shadow-sm bg-white hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
-                onClick={() => handleAreaSelect(area)}
+                className={cn(
+                  "border-none shadow-sm bg-white transition-all overflow-hidden",
+                  (isAdmin && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:shadow-md cursor-pointer"
+                )}
+                onClick={() => (isAdmin && users.length === 0) ? null : handleAreaSelect(area)}
               >
                 <div className="relative h-40 overflow-hidden">
                   {area.image_url ? (
@@ -701,7 +771,10 @@ export default function NewReservationPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="p-4 pt-2">
-                  <Button className="w-full">
+                  <Button 
+                    className="w-full"
+                    disabled={isAdmin && users.length === 0}
+                  >
                     Seleccionar
                   </Button>
                 </CardFooter>
@@ -823,7 +896,14 @@ export default function NewReservationPage() {
                           if (h > maxByArea) return false;
                           if (selectedStartTime) {
                             const startHour = parseInt(selectedStartTime.split(':')[0]);
-                            return startHour + h <= 24;
+                            if (startHour + h > 24) return false;
+
+                            const nextBlock = getNextBlockStart(selectedStartTime) as Date | null;
+                            if (nextBlock) {
+                              const start = parseISO(`${selectedDate}T${selectedStartTime}:00`);
+                              const diffHours = (nextBlock.getTime() - start.getTime()) / (1000 * 60 * 60);
+                              return h <= diffHours;
+                            }
                           }
                           return true;
                         }).map(h => (
@@ -872,9 +952,10 @@ export default function NewReservationPage() {
                     {bonusConfig && appliedDiscount === 0 && (
                       <div className="mt-3 text-[10px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 flex items-center gap-1.5">
                         <Gift className="w-3 h-3" />
-                        Progreso de bonificación: {userReservationCount % bonusConfig.reservations_required}/{bonusConfig.reservations_required} reservas.
+                        Progreso de bonificación: {userReservationCount % bonusConfig.reservations_required}/{bonusConfig.reservations_required} reservas pagadas.
                       </div>
                     )}
+
                   </div>
                 )}
               </div>
@@ -1071,8 +1152,9 @@ export default function NewReservationPage() {
                     )}
 
                     <div className="grid grid-cols-4 gap-3">
-                      {timeSlots.map(time => {
+                      {timeSlots.map((time: string) => {
                         const info = getSlotStatus(time);
+
                         const isOccupied = info.status !== 'available';
 
                         // Calcular si este horario está dentro del rango seleccionado

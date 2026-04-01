@@ -209,6 +209,103 @@ export default function SuperAdminSubscriptionPayments() {
     }
   };
 
+  const handleRejectPayment = async (paymentId: string) => {
+    showConfirm(
+      '¿Estás seguro de cancelar este pago?',
+      'La suscripción solicitada será cancelada y la organización volverá a su estado anterior.',
+      async () => {
+        try {
+          // Get payment to know subscription_id
+          const { data: payment } = await supabase
+            .from('subscription_payments')
+            .select('subscription_id')
+            .eq('id', paymentId)
+            .single();
+
+          if (!payment) throw new Error('Pago no encontrado');
+
+          // Update payment status to failed
+          const { error: paymentError } = await supabase
+            .from('subscription_payments')
+            .update({
+              status: 'failed',
+              paid_at: null
+            })
+            .eq('id', paymentId);
+
+          if (paymentError) throw paymentError;
+
+          // Get subscription details to find organization_id
+          const { data: subscriptionData } = await supabase
+            .from('subscriptions')
+            .select('organization_id')
+            .eq('id', payment.subscription_id)
+            .single();
+
+          if (subscriptionData) {
+            // Update subscription status to cancelled
+            await supabase
+              .from('subscriptions')
+              .update({ status: 'cancelled' })
+              .eq('id', payment.subscription_id);
+
+            // Fetch ALL subscriptions for this organization to find the previous valid one
+            const { data: allSubscriptions } = await supabase
+              .from('subscriptions')
+              .select('id, status, end_date')
+              .eq('organization_id', subscriptionData.organization_id)
+              .neq('status', 'pending')
+              .neq('id', payment.subscription_id) // Exclude the one we just cancelled
+              .order('created_at', { ascending: false });
+
+            // The most recent non-pending/non-cancelled one would be the "previous" state
+            // If none found, we'll set it to inactive
+            const previousSub = allSubscriptions?.find(s => s.status === 'active' || s.status === 'expired');
+
+            if (previousSub) {
+              // Revert organization to previous subscription state
+              await supabase
+                .from('organizations')
+                .update({
+                  subscription_status: previousSub.status,
+                  subscription_end_date: previousSub.end_date
+                })
+                .eq('id', subscriptionData.organization_id);
+            } else {
+              // No previous valid subscription, set to inactive
+              await supabase
+                .from('organizations')
+                .update({
+                  subscription_status: 'inactive',
+                  subscription_end_date: null
+                })
+                .eq('id', subscriptionData.organization_id);
+            }
+          }
+
+          fetchPayments(); // Refresh data
+        } catch (error: any) {
+          console.error('Error rejecting payment:', error);
+          showAlert('Error al cancelar', error.message, 'destructive');
+        }
+      },
+      'destructive'
+    );
+  };
+
+  const showConfirm = (title: string, description: string, onConfirm: () => void, variant: 'default' | 'destructive' = 'default') => {
+    setAlertConfig({
+      open: true,
+      title,
+      description,
+      onConfirm,
+      variant,
+      showCancel: true,
+      confirmText: 'Confirmar',
+      cancelText: 'Volver'
+    });
+  };
+
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = !searchTerm ||
       payment.subscriptions?.organizations?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -420,13 +517,23 @@ export default function SuperAdminSubscriptionPayments() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         {payment.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            className="h-7 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium"
-                            onClick={() => handleAuthorizePayment(payment.id)}
-                          >
-                            Autorizar
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-3 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                              onClick={() => handleRejectPayment(payment.id)}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium text-white"
+                              onClick={() => handleAuthorizePayment(payment.id)}
+                            >
+                              Autorizar
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>

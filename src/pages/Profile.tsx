@@ -19,7 +19,13 @@ export default function ProfilePage() {
     phone: '',
     apartment: ''
   });
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [passwordFormData, setPasswordFormData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [organizationName, setOrganizationName] = useState<string>('');
 
   useEffect(() => {
@@ -48,7 +54,7 @@ export default function ProfilePage() {
     if (!profile) return;
 
     setLoading(true);
-    setMessage(null);
+    setProfileMessage(null);
 
     const { error } = await supabase
       .from('profiles')
@@ -60,12 +66,40 @@ export default function ProfilePage() {
       .eq('organization_id', profile.organization_id);
 
     if (error) {
-      setMessage({ type: 'error', text: 'Error al actualizar el perfil: ' + error.message });
+      setProfileMessage({ type: 'error', text: 'Error al actualizar el perfil: ' + error.message });
     } else {
       await fetchProfile();
-      setMessage({ type: 'success', text: 'Perfil actualizado correctamente.' });
+      setProfileMessage({ type: 'success', text: 'Perfil actualizado correctamente.' });
     }
     setLoading(false);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'Las contraseñas no coinciden.' });
+      return;
+    }
+
+    if (passwordFormData.newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'La contraseña debe tener al menos 6 caracteres.' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordMessage(null);
+
+    const { error } = await supabase.auth.updateUser({
+      password: passwordFormData.newPassword
+    });
+
+    if (error) {
+      setPasswordMessage({ type: 'error', text: 'Error al cambiar la contraseña: ' + error.message });
+    } else {
+      setPasswordMessage({ type: 'success', text: 'Contraseña actualizada correctamente.' });
+      setPasswordFormData({ newPassword: '', confirmPassword: '' });
+    }
+    setPasswordLoading(false);
   };
 
   if (!profile) return null;
@@ -92,12 +126,12 @@ export default function ProfilePage() {
         </CardHeader>
 
         <CardContent className="space-y-6 p-6">
-          {message && (
+          {profileMessage && (
             <div className={cn(
               "p-3 rounded-lg text-xs font-bold flex items-center gap-2 border",
-              message.type === 'success' ? "bg-green-50 text-green-700 border-green-100" : "bg-red-50 text-red-700 border-red-100"
+              profileMessage.type === 'success' ? "bg-green-50 text-green-700 border-green-100" : "bg-red-50 text-red-700 border-red-100"
             )}>
-              {message.text}
+              {profileMessage.text}
             </div>
           )}
 
@@ -154,6 +188,61 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
+
+          {/* Cambio de Contraseña */}
+          <div className="pt-6 border-t border-gray-100 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Seguridad</h3>
+              <p className="text-[10px] text-gray-500">Actualiza tu contraseña para mantener tu cuenta segura.</p>
+            </div>
+
+            {passwordMessage && (
+              <div className={cn(
+                "p-3 rounded-lg text-xs font-bold flex items-center gap-2 border",
+                passwordMessage.type === 'success' ? "bg-green-50 text-green-700 border-green-100" : "bg-red-50 text-red-700 border-red-100"
+              )}>
+                {passwordMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-gray-400">Nueva Contraseña</Label>
+                  <Input
+                    type="password"
+                    className="h-10 rounded-lg text-sm"
+                    value={passwordFormData.newPassword}
+                    onChange={e => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
+                    required
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-gray-400">Confirmar Contraseña</Label>
+                  <Input
+                    type="password"
+                    className="h-10 rounded-lg text-sm"
+                    value={passwordFormData.confirmPassword}
+                    onChange={e => setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })}
+                    required
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                variant="outline"
+                className="w-full h-10 font-bold border-gray-200 text-gray-700 hover:bg-gray-50"
+                disabled={passwordLoading}
+              >
+                {passwordLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Actualizar Contraseña
+              </Button>
+            </form>
+          </div>
         </CardContent>
 
         <CardFooter className="bg-gray-50/50 p-4 border-t border-gray-100">
