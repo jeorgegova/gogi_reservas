@@ -173,11 +173,11 @@ export default function NewReservationPage() {
 
 
       setSelectedArea(reservationToEdit.common_areas);
-      const startDate = new Date(reservationToEdit.start_datetime);
+      const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
       setSelectedDate(format(startDate, 'yyyy-MM-dd'));
       setSelectedStartTime(format(startDate, 'HH:mm'));
 
-      const endDate = new Date(reservationToEdit.end_datetime);
+      const endDate = parseISO(detoxTime(reservationToEdit.end_datetime));
       const diffMs = endDate.getTime() - startDate.getTime();
       const diffHours = Math.round(diffMs / (1000 * 60 * 60));
       setDuration(diffHours);
