@@ -136,15 +136,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+      {/* Sidebar / Bottom Sheet */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl transition-transform duration-300 ease-in-out lg:static lg:inset-y-0 lg:w-64 lg:rounded-none lg:shadow-none lg:border-r lg:border-gray-200 flex flex-col h-[85vh] lg:h-full lg:translate-y-0 overflow-hidden",
+          isSidebarOpen ? "translate-y-0" : "translate-y-full"
         )}
       >
         <div className="flex flex-col h-full">
-          <div className="p-6 flex items-center justify-between border-b border-gray-100">
+          <div className="p-4 lg:p-6 flex items-center justify-between border-b border-gray-100">
             <div className="flex items-center gap-2 overflow-hidden">
               {orgLoading ? (
                 <Loader2 className="w-6 h-6 text-primary animate-spin" />
@@ -157,7 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {organization?.name || 'GoGi Reservas'}
               </h1>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="lg:hidden">
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="lg:hidden rounded-full bg-gray-100 hover:bg-gray-200">
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -184,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           )}
 
-          <nav className="flex-1 px-4 space-y-1 mt-4">
+          <nav className="flex-1 overflow-y-auto px-4 space-y-1 mt-4 lg:mt-0 pb-safe">
             {navItems.map((item) => (
               <NavLink
                 key={item.path}
@@ -232,8 +232,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200">
+      <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0 relative">
+        <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between p-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="flex items-center gap-2 overflow-hidden">
             {organization?.logo_url ? (
               <img src={organization.logo_url} alt="Logo" className="w-6 h-6 object-contain" />
@@ -242,12 +242,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
             <span className="font-bold text-gray-900 truncate">{organization?.name || 'GoGi Reservas'}</span>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
-            <Menu className="w-6 h-6" />
-          </Button>
+          <button onClick={() => navigate('/profile')} className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+             <span className="text-xs font-semibold text-primary">{profile?.full_name?.charAt(0) || <User className="w-4 h-4 text-primary" />}</span>
+          </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             {subscriptionStatus === 'pending_validation' && isAdmin && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-center justify-between">
@@ -318,10 +318,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
 
-      {/* Overlay for mobile */}
+      {/* Bottom Navigation for Mobile */}
+      <nav 
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center h-[72px] px-2"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {navItems.slice(0, 4).map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+                isActive ? "text-primary" : "text-gray-500 hover:text-gray-900"
+              )
+            }
+          >
+            <item.icon className="w-6 h-6" strokeWidth={1.5} />
+            <span className="text-[10px] font-medium leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] text-center">
+              {item.name.split(' ')[0]}
+            </span>
+          </NavLink>
+        ))}
+        {navItems.length > 4 && (
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            <Menu className="w-6 h-6" strokeWidth={1.5} />
+            <span className="text-[10px] font-medium leading-none">Más</span>
+          </button>
+        )}
+      </nav>
+
+      {/* Overlay for mobile Bottom Sheet */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

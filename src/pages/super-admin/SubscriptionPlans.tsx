@@ -218,7 +218,8 @@ export default function SuperAdminSubscriptionPlans() {
 
       <Card className="border-none shadow-sm bg-white overflow-hidden">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-visible">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-gray-50/30 border-b border-gray-100">
@@ -317,6 +318,89 @@ export default function SuperAdminSubscriptionPlans() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="md:hidden flex flex-col divide-y divide-gray-100">
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-4 animate-pulse">
+                  <div className="h-24 bg-gray-100 rounded-xl w-full" />
+                </div>
+              ))
+            ) : plans.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-400 text-sm">
+                No hay planes de suscripción configurados.
+              </div>
+            ) : (
+              plans.map((plan) => (
+                <div key={plan.id} className="p-4 bg-white hover:bg-gray-50 transition-colors flex flex-col gap-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col min-w-0 pr-2">
+                       <span className="font-bold text-gray-900 truncate text-lg">{plan.name}</span>
+                       <span className="font-bold text-gray-900 mt-1">{formatCurrency(plan.price)}</span>
+                    </div>
+                    <button
+                      onClick={() => togglePlanStatus(plan.id, plan.is_active)}
+                      className={cn(
+                        "inline-flex items-center px-2 py-0.5 text-[10px] font-bold border uppercase rounded-full shrink-0",
+                        plan.is_active
+                          ? "bg-green-50 text-green-700 border-green-100"
+                          : "bg-red-50 text-red-700 border-red-100"
+                      )}
+                    >
+                      {plan.is_active ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Activo
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-3 h-3 mr-1" />
+                          Inactivo
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {plan.description && (
+                    <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100">{plan.description}</div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                     <div className="bg-gray-50 border border-gray-100 rounded-lg p-2.5 flex flex-col items-start gap-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duración</span>
+                        <span className="font-semibold text-gray-700">{plan.duration_in_days} días</span>
+                     </div>
+                     <div className="bg-gray-50 border border-gray-100 rounded-lg p-2.5 flex flex-col items-start gap-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Máx Reservas</span>
+                        <span className="font-semibold text-gray-700">{plan.max_reservations ? `${plan.max_reservations} reservas` : 'Ilimitado'}</span>
+                     </div>
+                  </div>
+
+                  <div className="flex justify-end gap-1.5 pt-2 border-t border-gray-50">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg px-2"
+                      onClick={() => handleOpenModal(plan)}
+                    >
+                      <Edit2 className="w-4 h-4 mr-1.5" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg px-2"
+                      onClick={() => deletePlan(plan.id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      Eliminar
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

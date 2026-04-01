@@ -785,7 +785,8 @@ export default function SuperAdminOrganizations() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-visible">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="bg-gray-50/30 border-b border-gray-100">
@@ -982,6 +983,174 @@ export default function SuperAdminOrganizations() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden flex flex-col divide-y divide-gray-100">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="p-4 animate-pulse">
+                    <div className="h-24 bg-gray-100 rounded-xl w-full" />
+                  </div>
+                ))
+              ) : filteredOrgs.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-400 text-sm">
+                  No se encontraron organizaciones con los filtros aplicados.
+                </div>
+              ) : (
+                filteredOrgs.map((org, index) => {
+                  const subscription = org.subscriptions?.sort((a: Subscription, b: Subscription) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0] || null;
+                  const daysUntilRenewal = subscription?.end_date ? differenceInDays(parseISO(subscription.end_date), new Date()) : null;
+                  const isExpired = subscription?.end_date ? isPast(parseISO(subscription.end_date)) : false;
+                  const isWarning = daysUntilRenewal !== null && daysUntilRenewal <= 7 && daysUntilRenewal > 0;
+
+                  return (
+                    <div key={org.id} className="p-4 bg-white hover:bg-gray-50 flex flex-col gap-4">
+                      {/* Name & Actions */}
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          {org.logo_url ? (
+                            <img src={org.logo_url} className="w-10 h-10 rounded-xl object-contain bg-white border border-gray-100 p-1.5 shadow-sm shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center border border-gray-50 shrink-0">
+                              <Building2 className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex flex-col">
+                            <span className="font-bold text-gray-900 truncate">{org.name}</span>
+                            <span className="text-[10px] text-indigo-600 font-mono tracking-tighter truncate">/{org.slug}</span>
+                          </div>
+                        </div>
+
+                        {/* Top-right Actions Menu */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-indigo-400 hover:text-indigo-600 bg-indigo-50/50 rounded-lg shrink-0"
+                            onClick={() => handleSupport(org.id)}
+                            title="Entrar en modo soporte"
+                          >
+                            <ShieldPlus className="w-4 h-4" />
+                          </Button>
+                          <div className="relative">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "h-8 w-8 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 dropdown-trigger rounded-lg shrink-0",
+                                openDropdownId === org.id && "bg-gray-100 text-indigo-600"
+                              )}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(openDropdownId === org.id ? null : org.id);
+                              }}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                            {openDropdownId === org.id && (
+                              <div 
+                                className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 min-w-[160px] dropdown-menu animate-in fade-in duration-200"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => handleOpenLogin(org)}
+                                  className="w-full px-4 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                                  Abrir Login
+                                </button>
+                                <button
+                                  onClick={() => handleCopyLink(org)}
+                                  className="w-full px-4 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5"
+                                >
+                                  <Download className="w-3.5 h-3.5 text-gray-400 rotate-[-90deg]" />
+                                  Copiar Link
+                                </button>
+                                <button
+                                  onClick={() => { handleOpenModal(org); setOpenDropdownId(null); }}
+                                  className="w-full px-4 py-2 text-left text-xs font-bold text-amber-700 hover:bg-amber-50 flex items-center gap-2.5"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  Editar Org
+                                </button>
+                                <button
+                                  onClick={() => { deleteOrg(org.id); setOpenDropdownId(null); }}
+                                  className="w-full px-4 py-2 text-left text-xs font-bold text-red-700 hover:bg-red-50 flex items-center gap-2.5"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Eliminar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contact & Address */}
+                      <div className="space-y-1.5 pb-3 border-b border-gray-50">
+                        <div className="flex items-start text-gray-700 font-medium text-xs">
+                          <MapPin className="w-3.5 h-3.5 mr-1.5 text-gray-400 shrink-0 mt-0.5" />
+                          <span className="line-clamp-2">{org.address || 'Sin dirección'}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 font-medium flex flex-wrap gap-x-3 gap-y-1 ml-5">
+                          <span>{org.contact_email}</span>
+                          {org.phone && <span>{org.phone}</span>}
+                        </div>
+                      </div>
+
+                      {/* Subscription Status Line */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-1.5">
+                          {subscription ? (
+                            <>
+                              <div className={cn(
+                                "inline-flex items-center w-fit rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase shrink-0",
+                                subscription.status === 'active' && !isExpired
+                                  ? "bg-green-50 text-green-700 border-green-100"
+                                  : subscription.status === 'active' && isExpired
+                                  ? "bg-red-50 text-red-700 border-red-100"
+                                  : subscription.status === 'pending'
+                                  ? "bg-yellow-50 text-yellow-700 border-yellow-100"
+                                  : "bg-gray-50 text-gray-500 border-gray-100"
+                              )}>
+                                {subscription.status === 'active' && !isExpired && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                                {(subscription.status === 'active' && isExpired) && <AlertCircle className="w-3 h-3 mr-1" />}
+                                {subscription.status}
+                              </div>
+                              <div className={cn(
+                                "flex items-center text-[10px] font-medium",
+                                isExpired ? "text-red-600" : isWarning ? "text-amber-600" : "text-gray-400"
+                              )}>
+                                {isExpired ? (
+                                  <AlertCircle className="w-3 h-3 mr-1" />
+                                ) : isWarning ? (
+                                  <Clock className="w-3 h-3 mr-1" />
+                                ) : (
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                )}
+                                Hasta {formatDate(subscription.end_date)}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-[10px] text-gray-400 italic">Sin suscripción</div>
+                          )}
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg text-xs"
+                          onClick={() => handleOpenSubscriptionModal(org)}
+                        >
+                          <Calendar className="w-4 h-4 mr-1.5" />
+                          Planes
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </CardContent>
         </Card>

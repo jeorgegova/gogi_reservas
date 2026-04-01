@@ -780,7 +780,20 @@ export default function Calendario() {
                             </div>
                         </CardHeader>
                         <CardContent className="p-1 sm:p-2">
-                            <div className="calendar-container compact-calendar">
+                            <div className={`calendar-container compact-calendar ${isMobile ? 'mobile-month-view' : ''}`}>
+                                <style>{`
+                                    /* Eliminar estilos por defecto del evento en móvil para vista 'Mes' para mostrar solo el punto */
+                                    .mobile-month-view .fc-daygrid-event {
+                                        background: transparent !important;
+                                        border: none !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        box-shadow: none !important;
+                                    }
+                                    .mobile-month-view .fc-daygrid-event:hover {
+                                        background: transparent !important;
+                                    }
+                                `}</style>
                                 <FullCalendar
                                     ref={calendarRef}
                                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -797,9 +810,9 @@ export default function Calendario() {
                                         day: 'Día'
                                     }}
                                     height="auto"
-                                    aspectRatio={isMobile ? 1.35 : 3}
+                                    aspectRatio={isMobile ? 1.0 : 3}
                                     fixedWeekCount={false}
-                                    dayMaxEvents={isMobile ? 3 : 2}
+                                    dayMaxEvents={isMobile ? 2 : 2}
                                     moreLinkText={(n) => `+${n} más`}
                                     eventContent={(eventInfo) => {
                                         const isReservation = eventInfo.event.extendedProps.type === 'reservation';
@@ -809,24 +822,44 @@ export default function Calendario() {
 
                                         const isMonthView = eventInfo.view.type === 'dayGridMonth';
 
-                                        // Vista mes en PC y Móvil: punto + hora + título (truncado)
-                                        if (isMonthView) {
+                                        // En móvil, mostramos punto + la hora muy pequeña (sin desbordar)
+                                        if (isMonthView && isMobile) {
                                             return (
-                                                <div className="flex items-center gap-1 overflow-hidden h-full px-0.5" title={eventInfo.event.title}>
-                                                    <div style={{ backgroundColor: statusColor }} className="w-1.5 h-1.5 rounded-full flex-shrink-0" />
-                                                    <span className="text-[9px] font-bold text-gray-900 whitespace-nowrap">{eventInfo.timeText}</span>
-                                                    <span className="truncate text-[9px] font-medium text-gray-600">{eventInfo.event.title}</span>
+                                                <div className="flex items-center gap-0.5 w-full overflow-hidden px-0.5">
+                                                    <div style={{ backgroundColor: statusColor }} className="w-1.5 h-1.5 rounded-full shadow-sm flex-shrink-0" />
+                                                    {eventInfo.timeText && (
+                                                        <span className="text-[8px] font-bold text-gray-700 whitespace-nowrap truncate min-w-0 flex-1 leading-none pt-0.5">
+                                                            {eventInfo.timeText}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             );
                                         }
 
-                                        // Vistas de semana y día: contenido completo
+                                        // Vista mes en PC: punto + hora + título (truncado)
+                                        if (isMonthView && !isMobile) {
+                                            return (
+                                                <div className="flex items-center gap-1 overflow-hidden w-full h-full px-0.5" title={eventInfo.event.title}>
+                                                    <div style={{ backgroundColor: statusColor }} className="w-2 h-2 rounded-full flex-shrink-0" />
+                                                    {eventInfo.timeText && (
+                                                        <span className="text-[9px] font-bold text-gray-900 whitespace-nowrap flex-shrink-0">
+                                                            {eventInfo.timeText}
+                                                        </span>
+                                                    )}
+                                                    <span className="truncate text-[9px] font-medium text-gray-600 block min-w-0 flex-1">
+                                                        {eventInfo.event.title}
+                                                    </span>
+                                                </div>
+                                            );
+                                        }
+
+                                        // Vistas de semana y día (PC y Móvil): contenido completo
                                         return (
-                                            <div className="flex flex-col gap-0.5 p-1 h-full border-l-2" style={{ borderLeftColor: statusColor }}>
-                                                <span className="text-[10px] font-bold text-gray-900 border-b border-gray-100/50 pb-0.5">
+                                            <div className="flex flex-col gap-0.5 p-1 h-full border-l-2 overflow-hidden" style={{ borderLeftColor: statusColor }}>
+                                                <span className="text-[10px] font-bold text-gray-900 border-b border-gray-100/50 pb-0.5 truncate">
                                                     {eventInfo.timeText}
                                                 </span>
-                                                <span className="text-[11px] font-medium text-gray-700 leading-tight">
+                                                <span className="text-[10px] sm:text-[11px] font-medium text-gray-700 leading-tight truncate whitespace-normal line-clamp-2">
                                                     {eventInfo.event.title}
                                                 </span>
                                             </div>
@@ -845,38 +878,38 @@ export default function Calendario() {
                                                         const api = calendarRef.current.getApi();
                                                         if (api.view.type === 'dayGridMonth') {
                                                             api.changeView('timeGridDay', arg.date);
-                                                        } else if (isMobile && isBookable) {
+                                                        } else if (isBookable) {
                                                             const dateStr = format(arg.date, 'yyyy-MM-dd');
                                                             navigate(`/reservations/new?date=${dateStr}`);
                                                         }
                                                     }
                                                 }}
                                                 className={cn(
-                                                    "relative w-full h-full min-h-[35px] sm:min-h-[40px] p-0.5 flex flex-col justify-between group",
+                                                    "relative w-full h-full min-h-[45px] sm:min-h-[50px] p-0.5 flex flex-col justify-between group",
                                                     "cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
                                                 )}
                                             >
                                                 <div className="flex justify-end w-full p-0.5">
                                                     <span className={cn(
-                                                        "text-[10px] sm:text-xs font-bold text-gray-900 px-1",
-                                                        arg.isToday && "bg-primary text-white w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full"
+                                                        "text-[10px] sm:text-xs font-bold text-gray-900 px-1 hover:text-primary transition-colors",
+                                                        arg.isToday && "bg-primary text-white w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:text-white"
                                                     )}>
                                                         {arg.dayNumberText}
                                                     </span>
                                                 </div>
 
-                                                {isBookable && !isMobile && (
-                                                    <div className="absolute bottom-0 right-0 p-0.5">
+                                                {isBookable && (
+                                                    <div className="absolute bottom-0 right-0 p-0.5 z-10 w-full flex justify-end">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 const dateStr = format(arg.date, 'yyyy-MM-dd');
                                                                 navigate(`/reservations/new?date=${dateStr}`);
                                                             }}
-                                                            className="w-4 h-4 text-gray-400 transition-all hover:text-primary"
+                                                            className="w-5 h-5 sm:w-4 sm:h-4 text-gray-400 transition-all hover:text-primary hover:bg-gray-100 rounded flex items-center justify-center bg-white/50 backdrop-blur-sm sm:bg-transparent"
                                                             title="Agregar reserva"
                                                         >
-                                                            <span className="text-xs font-bold">+</span>
+                                                            <span className="text-sm sm:text-xs font-bold leading-none">+</span>
                                                         </button>
                                                     </div>
                                                 )}

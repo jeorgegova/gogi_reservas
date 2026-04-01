@@ -441,7 +441,8 @@ export default function SuperAdminSubscriptionPayments() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-visible">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-gray-50/30 border-b border-gray-100">
@@ -541,6 +542,87 @@ export default function SuperAdminSubscriptionPayments() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="md:hidden flex flex-col divide-y divide-gray-100">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="p-4 animate-pulse">
+                  <div className="h-24 bg-gray-100 rounded-xl w-full" />
+                </div>
+              ))
+            ) : filteredPayments.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-400 text-sm">
+                No se encontraron pagos en el período seleccionado.
+              </div>
+            ) : (
+              filteredPayments.map((payment) => (
+                <div key={payment.id} className="p-4 bg-white hover:bg-gray-50 flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col min-w-0 pr-2">
+                      <span className="font-bold text-gray-900 truncate">{payment.subscriptions?.organizations?.name || 'N/A'}</span>
+                      <span className="text-[10px] text-gray-500 truncate">/{payment.subscriptions?.organizations?.slug}</span>
+                    </div>
+                    <div className={cn(
+                      "inline-flex items-center px-2 py-0.5 text-[10px] font-bold border uppercase rounded-full shrink-0",
+                      payment.status === 'completed'
+                        ? "bg-green-50 text-green-700 border-green-100"
+                        : payment.status === 'failed'
+                          ? "bg-red-50 text-red-700 border-red-100"
+                          : "bg-amber-50 text-amber-700 border-amber-100"
+                    )}>
+                      {getStatusIcon(payment.status)}
+                      <span className="ml-1">{getStatusLabel(payment.status)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg border border-gray-100 mt-1">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan</span>
+                      <span className="text-xs font-semibold text-gray-700">{payment.subscriptions?.subscription_plans?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monto</span>
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(payment.amount)}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs mt-1">
+                     <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> Fecha
+                        </span>
+                        <span className="font-medium text-gray-700">{formatDate(payment.created_at)}</span>
+                     </div>
+                     <div className="flex flex-col gap-0.5 items-end">
+                        <span className="text-[10px] text-gray-400 font-medium">Transacción</span>
+                        <span className="text-[10px] text-gray-500 font-mono text-right truncate w-full">{payment.transaction_id || 'N/A'}</span>
+                     </div>
+                  </div>
+
+                  {payment.status === 'pending' && (
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-50 mt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-3 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full"
+                        onClick={() => handleRejectPayment(payment.id)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-8 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium text-white w-full"
+                        onClick={() => handleAuthorizePayment(payment.id)}
+                      >
+                        Autorizar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

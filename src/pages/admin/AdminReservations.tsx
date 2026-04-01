@@ -187,7 +187,8 @@ export default function AdminReservationsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-visible">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-gray-50/30 border-b border-gray-100">
@@ -265,7 +266,7 @@ export default function AdminReservationsPage() {
                               <Button
                                 size="sm"
                                 disabled={!!blockingError}
-                                className="h-8 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium shadow-lg shadow-green-500/25"
+                                className="h-8 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium text-white shadow-lg shadow-green-500/25"
                                 onClick={() => handleUpdateStatus(res.id, 'approved')}
                               >
                                 <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
@@ -275,7 +276,7 @@ export default function AdminReservationsPage() {
                                 size="sm"
                                 variant="destructive"
                                 disabled={!!blockingError}
-                                className="h-8 px-3 text-xs font-medium"
+                                className="h-8 px-3 text-xs font-medium shadow-lg shadow-red-500/25"
                                 onClick={() => handleUpdateStatus(res.id, 'rejected')}
                               >
                                 <XCircle className="w-3.5 h-3.5 mr-1.5" />
@@ -290,6 +291,100 @@ export default function AdminReservationsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="md:hidden flex flex-col divide-y divide-gray-100">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="p-4 animate-pulse">
+                  <div className="h-24 bg-gray-100 rounded-xl w-full" />
+                </div>
+              ))
+            ) : filteredReservations.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-400 text-sm">
+                 No se encontraron reservas.
+              </div>
+            ) : (
+              filteredReservations.map((res) => (
+                <div key={res.id} className="p-4 bg-white hover:bg-gray-50 transition-colors flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col min-w-0 pr-2">
+                       <h3 className="font-bold text-gray-900 truncate">{res.profiles?.full_name}</h3>
+                       <span className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
+                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" /> Apto {res.profiles?.apartment}
+                       </span>
+                    </div>
+                    {(() => {
+                      const statusStyles: Record<string, string> = {
+                        'approved': 'bg-green-50 text-green-700 border-green-100',
+                        'pending_validation': 'bg-amber-50 text-amber-700 border-amber-100',
+                        'pending_payment': 'bg-red-50 text-red-700 border-red-100',
+                        'rejected': 'bg-gray-50 text-gray-600 border-gray-100',
+                        'cancelled': 'bg-gray-50 text-gray-400 border-gray-100',
+                      };
+                      const style = statusStyles[res.status] || 'bg-gray-50 text-gray-600 border-gray-100';
+                      return (
+                        <div className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase shrink-0 whitespace-nowrap",
+                          style
+                        )}>
+                          {res.status.replace('_', ' ').substring(0, 15)}
+                        </div>
+                      )
+                    })()}
+                  </div>
+
+                  <div className="flex flex-col gap-2 mt-1">
+                    <div className="flex items-center gap-1.5 text-gray-700 text-sm font-medium">
+                      <ClipboardList className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span className="truncate">{res.common_areas?.name}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-end">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5 text-gray-600 text-sm">
+                          <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                          <span>{formatDate(res.start_datetime)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
+                          <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+                          <span>{formatTime(res.start_datetime)} - {formatTime(res.end_datetime)}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="font-bold text-gray-900 text-sm bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                        {formatCurrency(res.total_cost)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {res.status === 'pending_validation' && (
+                    <div className="flex items-center justify-end gap-2 mt-2 pt-3 border-t border-gray-50">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={!!blockingError}
+                        className="h-9 px-3 text-xs font-medium w-full flex-1 shadow-lg shadow-red-500/25"
+                        onClick={() => handleUpdateStatus(res.id, 'rejected')}
+                      >
+                        <XCircle className="w-4 h-4 mr-1.5" />
+                        Rechazar
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={!!blockingError}
+                        className="h-9 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium w-full flex-1 text-white shadow-lg shadow-green-500/25"
+                        onClick={() => handleUpdateStatus(res.id, 'approved')}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1.5" />
+                        Aprobar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

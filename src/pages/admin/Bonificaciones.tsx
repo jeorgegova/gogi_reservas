@@ -465,14 +465,14 @@ export default function AdminBonificaciones() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-visible">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
                     <tr className="bg-gray-50 text-gray-500 font-medium uppercase text-[10px] tracking-wider border-b">
                       <th className="px-6 py-3">Usuario / Apt</th>
                       <th className="px-6 py-3">Área Común</th>
                       <th className="px-6 py-3 text-center">Reservas Pagadas</th>
-
                       <th className="px-6 py-3">Estado</th>
                     </tr>
                   </thead>
@@ -493,86 +493,165 @@ export default function AdminBonificaciones() {
                         const isExactlyAtGoal = item.count > 0 && progressInCycle === 0;
                         const percentage = (progressInCycle / goal) * 100;
 
+                        return (
+                          <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-gray-900">{item.userName}</p>
+                              <p className="text-xs text-gray-500">Apt {item.apartment}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+                                {areaName}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {config ? (
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded border">
+                                      Pagadas: {item.count}
+                                    </span>
 
-                          return (
-                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4">
-                                <p className="font-semibold text-gray-900">{item.userName}</p>
-                                <p className="text-xs text-gray-500">Apt {item.apartment}</p>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
-                                  {areaName}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                {config ? (
-                                  <div className="flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded border">
-                                        Pagadas: {item.count}
+                                    {bonusesEarned > 0 && (
+                                      <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200">
+                                        <Award className="w-3 h-3" />
+                                        {bonusesEarned} {bonusesEarned === 1 ? 'BONO' : 'BONOS'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between items-center text-[10px]">
+                                      <span className={cn(
+                                        "font-medium",
+                                        isExactlyAtGoal ? "text-emerald-600" : "text-gray-500"
+                                      )}>
+                                        {isExactlyAtGoal ? `🎯 ¡Meta Alcanzada!` : `Rumbo al próximo: ${progressInCycle}/${goal}`}
                                       </span>
-
-                                      {bonusesEarned > 0 && (
-                                        <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200">
-                                          <Award className="w-3 h-3" />
-                                          {bonusesEarned} {bonusesEarned === 1 ? 'BONO' : 'BONOS'}
-                                        </div>
-                                      )}
+                                      <span className="text-gray-400">{Math.floor(percentage)}%</span>
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                      <div className="flex justify-between items-center text-[10px]">
-                                        <span className={cn(
-                                          "font-medium",
-                                          isExactlyAtGoal ? "text-emerald-600" : "text-gray-500"
-                                        )}>
-                                          {isExactlyAtGoal ? `🎯 ¡Meta Alcanzada!` : `Rumbo al próximo: ${progressInCycle}/${goal}`}
-                                        </span>
-                                        <span className="text-gray-400">{Math.floor(percentage)}%</span>
-                                      </div>
-                                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-200 shadow-inner">
-                                        <div 
-                                          className={cn(
-                                            "h-full rounded-full transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1)",
-                                            isExactlyAtGoal ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-primary"
-                                          )}
-                                          style={{ width: `${isExactlyAtGoal ? 100 : percentage}%` }}
-                                        />
-                                      </div>
+                                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-200 shadow-inner">
+                                      <div 
+                                        className={cn(
+                                          "h-full rounded-full transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1)",
+                                          isExactlyAtGoal ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-primary"
+                                        )}
+                                        style={{ width: `${isExactlyAtGoal ? 100 : percentage}%` }}
+                                      />
                                     </div>
                                   </div>
-                                ) : (
-                                  <div className="text-gray-400 text-xs italic flex items-center gap-1 bg-gray-50 px-2 py-1 rounded inline-flex">
-                                    <Gift className="w-3 h-3 opacity-30" />
-                                    Sin bonificación asignada
+                                </div>
+                              ) : (
+                                <div className="text-gray-400 text-xs italic flex items-center gap-1 bg-gray-50 px-2 py-1 rounded inline-flex">
+                                  <Gift className="w-3 h-3 opacity-30" />
+                                  Sin bonificación asignada
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              {config ? (
+                                isExactlyAtGoal ? (
+                                  <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    META OK
                                   </div>
-                                )}
-                              </td>
-
-                              <td className="px-6 py-4">
-                                {config ? (
-                                  isExactlyAtGoal ? (
-
-                                    <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs">
-                                      <CheckCircle2 className="w-4 h-4" />
-                                      META OK
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-1.5 text-amber-600 font-medium text-xs">
-                                      <Clock className="w-4 h-4" />
-                                      EN CURSO
-                                    </div>
-                                  )
                                 ) : (
-                                  <div className="text-gray-300 text-xs">-</div>
-                                )}
-                              </td>
-                            </tr>
-                          );
+                                  <div className="flex items-center gap-1.5 text-amber-600 font-medium text-xs">
+                                    <Clock className="w-4 h-4" />
+                                    EN CURSO
+                                  </div>
+                                )
+                              ) : (
+                                <div className="text-gray-300 text-xs">-</div>
+                              )}
+                            </td>
+                          </tr>
+                        );
                       })
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="md:hidden flex flex-col divide-y divide-gray-100">
+                {filteredProgress.length === 0 ? (
+                  <div className="px-6 py-12 text-center text-gray-400 text-sm">
+                    No se encontraron datos de progreso.
+                  </div>
+                ) : (
+                  filteredProgress.map((item, idx) => {
+                    const config = configs.find(c => c.common_area_id === item.areaId);
+                    const areaName = areas.find(a => a.id === item.areaId)?.name || 'Área desconocida';
+                    const goal = config?.reservations_required || 5;
+                    const bonusesEarned = Math.floor(item.count / goal);
+                    const progressInCycle = item.count % goal;
+                    const isExactlyAtGoal = item.count > 0 && progressInCycle === 0;
+                    const percentage = (progressInCycle / goal) * 100;
+
+                    return (
+                      <div key={idx} className="p-4 bg-white hover:bg-gray-50 transition-colors flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <h3 className="font-bold text-gray-900 truncate">{item.userName}</h3>
+                            <span className="text-xs text-gray-500 truncate mt-0.5">Apt {item.apartment}</span>
+                          </div>
+                          {config ? (
+                            isExactlyAtGoal ? (
+                              <div className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-100 text-[10px] font-bold shrink-0">
+                                <CheckCircle2 className="w-3 h-3" />
+                                META OK
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-100 text-[10px] font-bold shrink-0">
+                                <Clock className="w-3 h-3" />
+                                EN CURSO
+                              </div>
+                            )
+                          ) : (
+                            <div className="text-gray-400 text-[10px] border border-gray-100 px-2 py-0.5 rounded-full bg-gray-50 shrink-0">Inactivo</div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between mt-1 border-b border-gray-50 pb-3">
+                           <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold truncate max-w-[60%]">
+                             {areaName}
+                           </span>
+                           {config && bonusesEarned > 0 && (
+                             <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200">
+                               <Award className="w-3 h-3" />
+                               {bonusesEarned} {bonusesEarned === 1 ? 'BONO' : 'BONOS'}
+                             </div>
+                           )}
+                        </div>
+
+                        {config ? (
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex justify-between items-end">
+                               <span className="text-xs font-bold text-gray-900">Pagadas: {item.count}</span>
+                               <span className="text-[10px] text-gray-400 font-medium">
+                                 {isExactlyAtGoal ? 'Próximo:' : ''} {progressInCycle}/{goal} ({Math.floor(percentage)}%)
+                               </span>
+                            </div>
+                            <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200 shadow-inner">
+                              <div 
+                                className={cn(
+                                  "h-full rounded-full transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1)",
+                                  isExactlyAtGoal ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-primary"
+                                )}
+                                style={{ width: `${isExactlyAtGoal ? 100 : percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-gray-400 text-xs italic flex items-center justify-center gap-1 bg-gray-50/50 p-2 rounded-lg border border-dashed border-gray-200">
+                            <Gift className="w-3 h-3 opacity-30" />
+                            Sin bonificación configurada
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </CardContent>
           </Card>
