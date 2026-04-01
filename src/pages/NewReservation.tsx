@@ -110,15 +110,21 @@ export default function NewReservationPage() {
   const checkPendingReservations = async () => {
     if (!profile) return;
 
-    const { data } = await supabase
+    let query = supabase
       .from('reservations')
       .select('id')
       .eq('user_id', profile.id)
       .eq('organization_id', profile.organization_id)
-      .eq('status', 'pending_payment');
+      .in('status', ['pending_payment', 'pending_validation']);
+
+    if (isEditing && id) {
+      query = query.neq('id', id);
+    }
+
+    const { data } = await query;
 
     if (data && data.length > 0) {
-      setBlockingError('Tiene una reserva pendiente de pago. Debe completar el pago antes de hacer una nueva reserva.');
+      setBlockingError('Tiene una reserva pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva reserva.');
     }
   };
 
@@ -310,10 +316,13 @@ export default function NewReservationPage() {
 
 
 
-  // Recalcular el descuento aplicado
+  // Recalcular el descuento aplicado (ciclo de requeridas + 1)
   useEffect(() => {
-    if (bonusConfig && userReservationCount > 0) {
-      const isEligible = userReservationCount % bonusConfig.reservations_required === 0;
+    if (bonusConfig) {
+      const cycleLength = bonusConfig.reservations_required + 1;
+      const progressInCycle = userReservationCount % cycleLength;
+      
+      const isEligible = progressInCycle === bonusConfig.reservations_required;
       if (isEligible) {
         setAppliedDiscount(bonusConfig.discount_percentage);
       } else {
@@ -526,7 +535,7 @@ export default function NewReservationPage() {
     }
 
     const reservationUserId = (isAdmin && selectedUserId && selectedUserId.length > 0) ? selectedUserId : profile.id;
-    const reservationStatus = isFree ? 'pending_validation' : 'pending_payment';
+    const reservationStatus = isEditing ? 'pending_validation' : (isFree ? 'pending_validation' : 'pending_payment');
 
     const reservationData: Partial<reservationService.Reservation> = {
       user_id: reservationUserId,
@@ -952,7 +961,7 @@ export default function NewReservationPage() {
                     {bonusConfig && appliedDiscount === 0 && (
                       <div className="mt-3 text-[10px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 flex items-center gap-1.5">
                         <Gift className="w-3 h-3" />
-                        Progreso de bonificación: {userReservationCount % bonusConfig.reservations_required}/{bonusConfig.reservations_required} reservas pagadas.
+                        Progreso de bonificación: {userReservationCount % (bonusConfig.reservations_required + 1)}/{bonusConfig.reservations_required} reservas pagadas.
                       </div>
                     )}
 
@@ -1280,12 +1289,29 @@ export default function NewReservationPage() {
                 <span className="text-sm text-gray-500">Hora de entrada</span>
                 <span className="font-medium">{selectedStartTime}</span>
               </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-sm font-medium">{isFree ? 'Costo' : 'Total a pagar'}</span>
-                <span className="text-lg font-bold text-primary">
-                  {isFree ? 'Gratis' : formatCurrency(calculateTotalCost())}
-                </span>
-              </div>
+              {isEditing ? (
+                <>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm text-amber-600 font-medium">Abono previo (en validación)</span>
+                    <span className="font-medium text-amber-600">{formatCurrency(reservationToEdit?.total_cost || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-sm font-medium">Total extra a pagar</span>
+                    <span className="text-lg font-bold text-primary">
+                      {(calculateTotalCost() - (reservationToEdit?.total_cost || 0)) > 0 
+                        ? formatCurrency(calculateTotalCost() - (reservationToEdit?.total_cost || 0)) 
+                        : formatCurrency(0)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-sm font-medium">{isFree ? 'Costo' : 'Total a pagar'}</span>
+                  <span className="text-lg font-bold text-primary">
+                    {isFree ? 'Gratis' : formatCurrency(calculateTotalCost())}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className={cn(
@@ -1299,9 +1325,11 @@ export default function NewReservationPage() {
                 isFree ? "text-blue-500" : "text-amber-500"
               )} />
               <p className="text-sm text-gray-600">
-                {isFree
-                  ? "Al confirmar, se generará la reserva pendiente de validación sin costo adicional."
-                  : "Al confirmar, se generará una solicitud pendiente de validación. Tienes 15 minutos para completar la transacción."
+                {isEditing 
+                  ? "Al confirmar edición, la reserva quedará pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos." 
+                  : isFree
+                    ? "Al confirmar, se generará la reserva pendiente de validación sin costo adicional."
+                    : "Al confirmar, se generará una solicitud pendiente de validación. Tienes 15 minutos para completar la transacción."
                 }
               </p>
             </div>
