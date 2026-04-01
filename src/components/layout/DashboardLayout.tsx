@@ -16,7 +16,7 @@ import {
   ArrowLeft,
   Crown,
   Receipt,
-  Gift
+  Gift,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -24,7 +24,7 @@ import { supabase } from '@/lib/supabase';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId } = useAuth();
+  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, terminology: terminologyHook } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [organization, setOrganization] = useState<any>(null);
   const [orgLoading, setOrgLoading] = useState(false);
@@ -88,10 +88,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
+  const terminology = terminologyHook;
   let navItems = [
     { name: 'Calendario', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Reservar', path: '/reservations/new', icon: Calendar },
-    { name: 'Mis Reservas', path: '/reservations/my', icon: History },
+    { name: terminology.reservationLabel, path: '/reservations/new', icon: Calendar },
+    { name: `Mis ${terminology.reservationLabel}s`, path: '/reservations/my', icon: History },
     { name: 'Mantenimientos', path: '/maintenance', icon: Bell },
     { name: 'Mi Perfil', path: '/profile', icon: User },
   ];
@@ -110,10 +111,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   } else if (isAdmin) {
     const adminItems = [
       { name: 'Dashboard (informes)', path: '/admin', icon: LayoutDashboard },
-      { name: 'Calendario (reservas)', path: '/dashboard', icon: Calendar },
-      { name: 'Gestión Reservas', path: '/admin/reservations', icon: Calendar },
-      { name: 'Áreas Comunes', path: '/admin/areas', icon: Building2 },
-      { name: 'Usuarios', path: '/admin/users', icon: User },
+      { name: `Calendario (${terminology.reservationLabel}s)`, path: '/dashboard', icon: Calendar },
+      { name: `Gestión ${terminology.reservationLabel}s`, path: '/admin/reservations', icon: Calendar },
+      { name: terminology.areaLabel, path: '/admin/areas', icon: Building2 },
+      { name: terminology.userLabel + 's', path: '/admin/users', icon: User },
       { name: 'Suscripción', path: '/admin/subscription', icon: Crown },
       { name: 'Bonificaciones', path: '/admin/bonificaciones', icon: Gift },
     ];
@@ -123,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       adminItems.unshift({ name: 'Gestión Organizaciones', path: '/super-admin/organizations', icon: Building2 });
     }
 
-    navItems = [...adminItems, { name: 'Reservar', path: '/reservations/new', icon: Calendar }, { name: 'Mantenimientos', path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
+    navItems = [...adminItems, { name: terminology.reservationLabel, path: '/reservations/new', icon: Calendar }, { name: 'Mantenimientos', path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
   }
 
   // Función para salir del modo soporte

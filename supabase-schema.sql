@@ -7,6 +7,10 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Organizations indexes
 CREATE INDEX IF NOT EXISTS idx_organizations_subscription_status ON organizations(subscription_status);
+CREATE INDEX IF NOT EXISTS idx_organizations_business_type ON organizations(business_type);
+
+-- Add business_type column to organizations (for multi-industry support)
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS business_type text DEFAULT 'residential'::text CHECK (business_type = ANY (ARRAY['residential'::text, 'barbershop'::text, 'beauty_salon'::text, 'workshop'::text, 'office'::text, 'other'::text]));
 
 -- Profiles indexes
 CREATE INDEX IF NOT EXISTS idx_profiles_organization_id ON profiles(organization_id);

@@ -33,7 +33,7 @@ import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval
 import { es } from 'date-fns/locale';
 
 export default function NewReservationPage() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
   const navigate = useNavigate();
   const { id } = useParams();
@@ -124,7 +124,7 @@ export default function NewReservationPage() {
     const { data } = await query;
 
     if (data && data.length > 0) {
-      setBlockingError('Tiene una reserva pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva reserva.');
+      setBlockingError(`Tiene una ${terminology.reservationLabel.toLowerCase()} pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva ${terminology.reservationLabel.toLowerCase()}.`);
     }
   };
 
@@ -169,11 +169,11 @@ export default function NewReservationPage() {
     if (reservationToEdit && isEditing) {
       // Logic from fetchReservationToEdit
       if (reservationToEdit.user_id !== profile?.id && !isAdmin) {
-        setBlockingError('No tienes permiso para editar esta reserva.');
+        setBlockingError(`No tienes permiso para editar esta ${terminology.reservationLabel.toLowerCase()}.`);
         return;
       }
       if (reservationToEdit.status !== 'pending_validation' && !isAdmin) {
-        setBlockingError('la reserva ya se valido y no se puede editar');
+        setBlockingError(`La ${terminology.reservationLabel.toLowerCase()} ya se validó y no se puede editar.`);
         return;
       }
 
@@ -448,7 +448,7 @@ export default function NewReservationPage() {
     });
 
     if (conflict) {
-      return { available: false, message: 'Ya existe una reserva para esta jornada en la fecha seleccionada' };
+      return { available: false, message: `Ya existe una ${terminology.reservationLabel.toLowerCase()} para esta jornada en la fecha seleccionada` };
     }
 
     // Verificar si hay conflicto con mantenimiento
@@ -530,7 +530,7 @@ export default function NewReservationPage() {
     const totalCost = calculateTotalCost();
 
     if (isAdmin && (!selectedUserId || selectedUserId.length === 0)) {
-      setBlockingError('Por favor selecciona un usuario para la reserva');
+      setBlockingError(`Por favor selecciona un ${terminology.userLabel.toLowerCase()} para la ${terminology.reservationLabel.toLowerCase()}`);
       return;
     }
 
@@ -559,7 +559,7 @@ export default function NewReservationPage() {
       }
       navigate('/reservations/my');
     } catch (error: any) {
-      setErrorMessage(error.message || 'Error al procesar la reserva');
+      setErrorMessage(error.message || `Error al procesar la ${terminology.reservationLabel.toLowerCase()}`);
       setIsErrorAlertOpen(true);
     }
   };
@@ -578,7 +578,7 @@ export default function NewReservationPage() {
             {blockingError}
           </CardDescription>
           <Button onClick={() => navigate('/reservations/my')}>
-            Ver mis reservas
+            Ver mis {terminology.reservationLabel.toLowerCase()}s
           </Button>
         </Card>
       </div>
@@ -590,7 +590,7 @@ export default function NewReservationPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {isEditing ? 'Editar Reserva' : 'Nueva Reserva'}
+            {isEditing ? `Editar ${terminology.reservationLabel}` : `Nueva ${terminology.reservationLabel}`}
           </h1>
 
           <p className="text-gray-500 text-sm">Sigue los pasos para asegurar tu espacio.</p>
@@ -664,16 +664,16 @@ export default function NewReservationPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-primary" />
-                    <CardTitle className="text-lg font-bold text-gray-900">Reservar para Usuario</CardTitle>
+                    <CardTitle className="text-lg font-bold text-gray-900">Reservar para {terminology.userLabel}</CardTitle>
                   </div>
-                  <CardDescription>Selecciona el residente que hará uso del espacio</CardDescription>
+                  <CardDescription>Selecciona el {terminology.userLabel.toLowerCase()} que hará uso del {terminology.areaLabel.toLowerCase()}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {users.length > 5 && (
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
-                        placeholder="Buscar por nombre, email o apartamento..."
+                        placeholder={`Buscar por nombre, email o ${terminology.unitLabel.toLowerCase()}...`}
                         value={userSearchTerm}
                         onChange={(e) => setUserSearchTerm(e.target.value)}
                         className="pl-10 h-10"
@@ -691,7 +691,7 @@ export default function NewReservationPage() {
                       selectedUserId ? "border-green-200 bg-green-50/50" : "border-gray-200"
                     )}
                   >
-                    <option value="">Seleccionar usuario</option>
+                    <option value="">Seleccionar {terminology.userLabel.toLowerCase()}</option>
                     {filteredUsers.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.full_name || user.email} {user.apartment ? `- Apt ${user.apartment}` : ''}
@@ -725,7 +725,7 @@ export default function NewReservationPage() {
                 <div>
                   <h3 className="text-sm font-bold text-amber-900 tracking-tight">Esta organización no tiene usuarios para crear reservas</h3>
                   <p className="text-xs text-amber-700 mt-0.5">
-                    Debe registrar residentes en el módulo de usuarios antes de poder realizar reservas administrativas.
+                    Debe registrar {terminology.userLabel.toLowerCase()}s en el módulo de usuarios antes de poder realizar {terminology.reservationLabel.toLowerCase()}s administrativas.
                   </p>
                 </div>
               </div>
@@ -774,7 +774,7 @@ export default function NewReservationPage() {
                     ) : (
                       <>
                         <Clock className="w-3 h-3" />
-                        <span>Máx. {area.max_hours_per_reservation}h por reserva</span>
+                        <span>Máx. {area.max_hours_per_reservation}h por {terminology.reservationLabel.toLowerCase()}</span>
                       </>
                     )}
                   </div>
@@ -1024,7 +1024,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Mantenimiento: ${maintenance.title}` : 'Horario con reserva'}
+                              {maintenance ? `Mantenimiento: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1081,7 +1081,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Mantenimiento: ${maintenance.title}` : 'Horario con reserva'}
+                              {maintenance ? `Mantenimiento: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1138,7 +1138,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Mantenimiento: ${maintenance.title}` : 'Horario con reserva'}
+                              {maintenance ? `Mantenimiento: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1154,7 +1154,7 @@ export default function NewReservationPage() {
                         <div className="flex items-center gap-2 text-sm text-primary font-medium">
                           <Clock className="w-4 h-4" />
                           <span>
-                            Reserva de {selectedStartTime} a {format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), duration), 'HH:mm')} ({duration} {duration === 1 ? 'hora' : 'horas'})
+                            {terminology.reservationLabel} de {selectedStartTime} a {format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), duration), 'HH:mm')} ({duration} {duration === 1 ? 'hora' : 'horas'})
                           </span>
                         </div>
                       </div>
@@ -1198,7 +1198,7 @@ export default function NewReservationPage() {
 
                             {isOccupied && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                                {info.status === 'maintenance' ? `Mantenimiento: ${info.reason}` : 'Horario con reserva'}
+                                {info.status === 'maintenance' ? `Mantenimiento: ${info.reason}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                               </div>
                             )}
@@ -1250,7 +1250,7 @@ export default function NewReservationPage() {
                   setStep(3);
                 }}
               >
-                Continuar reserva <ArrowRight className="w-5 h-5 ml-2" />
+                Continuar {terminology.reservationLabel.toLowerCase()} <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
           </CardContent>
@@ -1326,9 +1326,9 @@ export default function NewReservationPage() {
               )} />
               <p className="text-sm text-gray-600">
                 {isEditing 
-                  ? "Al confirmar edición, la reserva quedará pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos." 
+                  ? `Al confirmar edición, la ${terminology.reservationLabel.toLowerCase()} quedarán pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos.` 
                   : isFree
-                    ? "Al confirmar, se generará la reserva pendiente de validación sin costo adicional."
+                    ? `Al confirmar, se generará la ${terminology.reservationLabel.toLowerCase()} pendiente de validación sin costo adicional.`
                     : "Al confirmar, se generará una solicitud pendiente de validación. Tienes 15 minutos para completar la transacción."
                 }
               </p>
@@ -1342,7 +1342,7 @@ export default function NewReservationPage() {
             >
               {createMutation.isPending || updateMutation.isPending
                 ? "Procesando..."
-                : isFree ? "Confirmar Reserva Gratis" : "Confirmar y proceder al pago"}
+                : isFree ? `Confirmar ${terminology.reservationLabel} Gratis` : "Confirmar y proceder al pago"}
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => setStep(2)}>
               <ChevronLeft className="w-4 h-4 mr-2" />
@@ -1354,7 +1354,7 @@ export default function NewReservationPage() {
       <AlertDialog
         open={isErrorAlertOpen}
         onOpenChange={setIsErrorAlertOpen}
-        title="Error en la Reserva"
+        title={`Error en la ${terminology.reservationLabel}`}
         description={errorMessage}
         confirmText="Entendido"
         showCancel={false}

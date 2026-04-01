@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
 export default function BonificacionesUsuario() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [configs, setConfigs] = useState<any[]>([]);
@@ -77,7 +77,7 @@ export default function BonificacionesUsuario() {
         <div className="space-y-2 text-center md:text-left">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Mis Recompensas</h1>
           <p className="text-gray-600 max-w-xl">
-            ¡Sigue reservando tus áreas favoritas! Al completar tus metas de reserva, obtendrás descuentos exclusivos en tus próximas solicitudes.
+            ¡Sigue reservando tus {terminology.areaLabel.toLowerCase()}s favoritas! Al completar tus metas de {terminology.reservationLabel.toLowerCase()}, obtendrás descuentos exclusivos en tus próximas solicitudes.
           </p>
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function BonificacionesUsuario() {
                     <div className="flex justify-between items-end">
                       <div className="space-y-1">
                         <p className="text-3xl font-black text-gray-900">{progress}<span className="text-lg text-gray-400 font-normal">/{goal}</span></p>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Reservas realizadas</p>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{terminology.reservationLabel}s realizadas</p>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-black text-primary">{config.discount_percentage}%</p>

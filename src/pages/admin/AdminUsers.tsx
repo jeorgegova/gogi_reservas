@@ -34,7 +34,7 @@ interface UserProfile {
 }
 
 export default function AdminUsersPage() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,8 +166,8 @@ export default function AdminUsersPage() {
             <Users className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de Usuarios</h1>
-            <p className="text-gray-500 text-sm">Administra los permisos y perfiles de los residentes.</p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.userLabel}s</h1>
+            <p className="text-gray-500 text-sm">Administra los permisos y perfiles de los {terminology.userLabel.toLowerCase()}s.</p>
           </div>
         </div>
       </div>
@@ -177,7 +177,7 @@ export default function AdminUsersPage() {
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input 
-              placeholder="Buscar por nombre, apto..." 
+              placeholder={`Buscar por nombre, ${terminology.unitLabel.toLowerCase()}...`} 
               className="pl-10 h-9 rounded-lg text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
                 <tr className="bg-gray-50/30 border-b border-gray-100">
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contacto</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Apartamento</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.unitLabel}</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rol</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
@@ -209,7 +209,7 @@ export default function AdminUsersPage() {
                 ) : filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                       No se encontraron usuarios.
+                       No se encontraron {terminology.userLabel.toLowerCase()}s.
                     </td>
                   </tr>
                 ) : (
@@ -241,7 +241,7 @@ export default function AdminUsersPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1.5 text-gray-700 font-bold">
                            <MapPin className="w-3.5 h-3.5 text-gray-300" />
-                           <span>Apto {user.apartment || 'N/A'}</span>
+                           <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -374,7 +374,7 @@ export default function AdminUsersPage() {
                     )}
                     <div className="flex items-center gap-1 text-xs text-gray-700 font-bold ml-auto shrink-0">
                        <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                       <span>Apto {user.apartment || 'N/A'}</span>
+                       <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -408,13 +408,13 @@ export default function AdminUsersPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="editApartment" className="text-sm font-medium text-gray-700">
-                Apartamento
+                {terminology.unitLabel}
               </Label>
               <Input
                 id="editApartment"
                 value={editForm.apartment}
                 onChange={e => setEditForm({ ...editForm, apartment: e.target.value })}
-                placeholder="Apto 101"
+                placeholder={terminology.unitPlaceholder}
                 className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
               />
             </div>

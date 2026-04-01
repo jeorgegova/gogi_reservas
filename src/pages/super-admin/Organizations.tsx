@@ -7,30 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-  Building2,
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  ExternalLink,
-  Loader2,
-  XCircle,
-  ShieldPlus,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  MapPin,
-  TrendingUp,
-  PieChart,
-  BarChart3,
-  Map as MapIcon,
-  Download,
-} from 'lucide-react';
+import { Building2, Plus, Search, Edit2, Trash2, ExternalLink, Loader2, XCircle, ShieldPlus, Calendar, AlertCircle, CheckCircle2, Clock, MapPin, TrendingUp, PieChart, BarChart3, Map as MapIcon, Download, Tag } from 'lucide-react';
 import { cn, formatDate, formatCurrency } from '@/lib/utils';
 import { differenceInDays, parseISO, isPast } from 'date-fns';
 import { AlertDialog } from '@/components/ui/alert-dialog';
+import { BUSINESS_TYPE_OPTIONS, getTerminology } from '@/lib/terminology';
 import {
   BarChart,
   Bar,
@@ -82,7 +63,8 @@ export default function SuperAdminOrganizations() {
     logo_url: '',
     login_photo_url: '',
     smtp_email: '',
-    smtp_password: ''
+    smtp_password: '',
+    business_type: 'residential'
   });
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
@@ -105,7 +87,7 @@ export default function SuperAdminOrganizations() {
     open: false,
     title: '',
     description: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const showAlert = (title: string, description: string, variant: 'default' | 'destructive' = 'default') => {
@@ -113,7 +95,7 @@ export default function SuperAdminOrganizations() {
       open: true,
       title,
       description,
-      onConfirm: () => {},
+      onConfirm: () => { },
       variant,
       showCancel: false,
       confirmText: 'Entendido'
@@ -134,9 +116,9 @@ export default function SuperAdminOrganizations() {
   };
 
   type Subscription = {
-  updated_at: string;
-  // agrega más campos si quieres
-};
+    updated_at: string;
+    // agrega más campos si quieres
+  };
 
   useEffect(() => {
     if (profile?.role === 'super_admin') {
@@ -292,7 +274,8 @@ export default function SuperAdminOrganizations() {
         logo_url: org.logo_url || '',
         login_photo_url: org.login_photo_url || '',
         smtp_email: org.smtp_email || '',
-        smtp_password: org.smtp_password || ''
+        smtp_password: org.smtp_password || '',
+        business_type: org.business_type || 'residential'
       });
     } else {
       setEditingOrg(null);
@@ -305,7 +288,8 @@ export default function SuperAdminOrganizations() {
         logo_url: '',
         login_photo_url: '',
         smtp_email: '',
-        smtp_password: ''
+        smtp_password: '',
+        business_type: 'residential'
       });
     }
     setIsModalOpen(true);
@@ -436,7 +420,7 @@ export default function SuperAdminOrganizations() {
           const endDate = new Date(mostRecentSubscription.end_date);
           const now = new Date();
           const isExpired = endDate < now;
-          
+
           if (isExpired) {
             newStatus = 'past_due';
           } else {
@@ -446,7 +430,7 @@ export default function SuperAdminOrganizations() {
               .select('id')
               .eq('subscription_id', mostRecentSubscription.id)
               .eq('status', 'pending');
-            
+
             if (pendingPayments && pendingPayments.length > 0) {
               newStatus = 'pending_validation';
             } else {
@@ -472,7 +456,7 @@ export default function SuperAdminOrganizations() {
         default:
           newStatus = 'inactive';
       }
-      
+
       newEndDate = mostRecentSubscription.end_date;
     }
 
@@ -649,11 +633,11 @@ export default function SuperAdminOrganizations() {
 
   const filteredOrgs = organizations.filter(org => {
     const matchesSearch = org.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         org.slug?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         org.address?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      org.slug?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      org.address?.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = statusFilter === 'all' || org.subscription_status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -689,18 +673,18 @@ export default function SuperAdminOrganizations() {
         </div>
         <div className="flex items-center gap-2">
           <div className="bg-gray-100 p-1 rounded-xl flex gap-1">
-            <Button 
-              variant={view === 'list' ? 'secondary' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={view === 'list' ? 'secondary' : 'ghost'}
+              size="sm"
               onClick={() => setView('list')}
               className={cn("rounded-lg h-8 text-xs font-bold", view === 'list' && "bg-white shadow-sm")}
             >
               <Building2 className="w-3.5 h-3.5 mr-1.5" />
               Organizaciones
             </Button>
-            <Button 
-              variant={view === 'reports' ? 'secondary' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={view === 'reports' ? 'secondary' : 'ghost'}
+              size="sm"
               onClick={() => setView('reports')}
               className={cn("rounded-lg h-8 text-xs font-bold", view === 'reports' && "bg-white shadow-sm")}
             >
@@ -823,161 +807,172 @@ export default function SuperAdminOrganizations() {
                       const isWarning = daysUntilRenewal !== null && daysUntilRenewal <= 7 && daysUntilRenewal > 0;
 
                       return (
-                      <tr key={org.id} className="hover:bg-gray-50/50 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {org.logo_url ? (
-                              <img src={org.logo_url} className="w-10 h-10 rounded-xl object-contain bg-white border border-gray-100 p-1.5 shadow-sm" />
-                            ) : (
-                              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center border border-gray-50">
-                                <Building2 className="w-5 h-5 text-gray-400" />
-                              </div>
-                            )}
-                            <div>
-                              <div className="font-bold text-gray-900">{org.name}</div>
-                              <div className="text-[10px] text-indigo-600 font-mono tracking-tighter">/{org.slug}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center text-gray-700 font-medium">
-                              <MapPin className="w-3 h-3 mr-1.5 text-gray-400" />
-                              {org.address || 'Sin dirección'}
-                            </div>
-                            <div className="text-[10px] text-gray-400 flex items-center">
-                              <span className="font-bold text-gray-500 mr-2">{org.contact_email}</span>
-                              {org.phone && <span>• {org.phone}</span>}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1.5">
-                            {subscription ? (
-                              <>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {subscription.subscription_plans?.name || 'Plan desconocido'}
+                        <tr key={org.id} className="hover:bg-gray-50/50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {org.logo_url ? (
+                                <img src={org.logo_url} className="w-10 h-10 rounded-xl object-contain bg-white border border-gray-100 p-1.5 shadow-sm" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center border border-gray-50">
+                                  <Building2 className="w-5 h-5 text-gray-400" />
                                 </div>
-                                <div className={cn(
-                                  "inline-flex items-center w-fit rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
-                                  subscription.status === 'active' && !isExpired
-                                    ? "bg-green-50 text-green-700 border-green-100"
-                                    : subscription.status === 'active' && isExpired
-                                    ? "bg-red-50 text-red-700 border-red-100"
-                                    : subscription.status === 'pending'
-                                    ? "bg-yellow-50 text-yellow-700 border-yellow-100"
-                                    : "bg-gray-50 text-gray-500 border-gray-100"
-                                )}>
-                                  {subscription.status === 'active' && !isExpired && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                                  {(subscription.status === 'active' && isExpired) && <AlertCircle className="w-3 h-3 mr-1" />}
-                                  {subscription.status}
-                                </div>
-                                <div className={cn(
-                                  "flex items-center text-[10px] font-medium",
-                                  isExpired ? "text-red-600" : isWarning ? "text-amber-600" : "text-gray-500"
-                                )}>
-                                  {isExpired ? (
-                                    <AlertCircle className="w-3 h-3 mr-1" />
-                                  ) : isWarning ? (
-                                    <Clock className="w-3 h-3 mr-1" />
-                                  ) : (
-                                    <Calendar className="w-3 h-3 mr-1" />
+                              )}
+                              <div>
+                                <div className="font-bold text-gray-900">{org.name}</div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="text-[10px] text-indigo-600 font-mono tracking-tighter">/{org.slug}</div>
+                                  {org.business_type && org.business_type !== 'residential' && (
+                                    <div className={cn(
+                                      "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold border uppercase",
+                                      getTerminology(org.business_type).badgeColor
+                                    )}>
+                                      <Tag className="w-2 h-2 mr-1" />
+                                      {BUSINESS_TYPE_OPTIONS.find(o => o.value === org.business_type)?.label.replace(/^[^\s]+\s/, '') || org.business_type}
+                                    </div>
                                   )}
-                                  {formatDate(subscription.end_date)}
-                                  {isWarning && !isExpired && ` (En ${daysUntilRenewal}d)`}
-                                  {isExpired && " (Vencido)"}
                                 </div>
-                              </>
-                            ) : (
-                              <div className="text-[10px] text-gray-400 italic">Sin suscripción</div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1.5 overflow-visible">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
-                              onClick={() => handleSupport(org.id)}
-                              title="Entrar en modo soporte"
-                            >
-                              <ShieldPlus className="w-4 h-4" />
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded-lg"
-                              onClick={() => handleOpenSubscriptionModal(org)}
-                              title="Gestionar Suscripción"
-                            >
-                              <Calendar className="w-4 h-4" />
-                            </Button>
-                            
-                            <div className="relative">
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center text-gray-700 font-medium">
+                                <MapPin className="w-3 h-3 mr-1.5 text-gray-400" />
+                                {org.address || 'Sin dirección'}
+                              </div>
+                              <div className="text-[10px] text-gray-400 flex items-center">
+                                <span className="font-bold text-gray-500 mr-2">{org.contact_email}</span>
+                                {org.phone && <span>• {org.phone}</span>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1.5">
+                              {subscription ? (
+                                <>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {subscription.subscription_plans?.name || 'Plan desconocido'}
+                                  </div>
+                                  <div className={cn(
+                                    "inline-flex items-center w-fit rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
+                                    subscription.status === 'active' && !isExpired
+                                      ? "bg-green-50 text-green-700 border-green-100"
+                                      : subscription.status === 'active' && isExpired
+                                        ? "bg-red-50 text-red-700 border-red-100"
+                                        : subscription.status === 'pending'
+                                          ? "bg-yellow-50 text-yellow-700 border-yellow-100"
+                                          : "bg-gray-50 text-gray-500 border-gray-100"
+                                  )}>
+                                    {subscription.status === 'active' && !isExpired && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                                    {(subscription.status === 'active' && isExpired) && <AlertCircle className="w-3 h-3 mr-1" />}
+                                    {subscription.status}
+                                  </div>
+                                  <div className={cn(
+                                    "flex items-center text-[10px] font-medium",
+                                    isExpired ? "text-red-600" : isWarning ? "text-amber-600" : "text-gray-500"
+                                  )}>
+                                    {isExpired ? (
+                                      <AlertCircle className="w-3 h-3 mr-1" />
+                                    ) : isWarning ? (
+                                      <Clock className="w-3 h-3 mr-1" />
+                                    ) : (
+                                      <Calendar className="w-3 h-3 mr-1" />
+                                    )}
+                                    {formatDate(subscription.end_date)}
+                                    {isWarning && !isExpired && ` (En ${daysUntilRenewal}d)`}
+                                    {isExpired && " (Vencido)"}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-[10px] text-gray-400 italic">Sin suscripción</div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-1.5 overflow-visible">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className={cn(
-                                  "h-8 w-8 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 relative dropdown-trigger rounded-lg",
-                                  openDropdownId === org.id && "bg-gray-100 text-indigo-600"
-                                )}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(openDropdownId === org.id ? null : org.id);
-                                }}
+                                className="h-8 w-8 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                onClick={() => handleSupport(org.id)}
+                                title="Entrar en modo soporte"
                               >
-                                <ExternalLink className="w-4 h-4" />
+                                <ShieldPlus className="w-4 h-4" />
                               </Button>
-                              {openDropdownId === org.id && (
-                                <div 
-                                  className={cn(
-                                    "absolute right-0 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 min-w-[160px] dropdown-menu animate-in fade-in zoom-in-95 duration-200",
-                                    index >= filteredOrgs.length - 2 ? "bottom-full mb-1" : "top-full mt-1"
-                                  )}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <button
-                                    onClick={() => handleOpenLogin(org)}
-                                    className="w-full px-4 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5"
-                                  >
-                                    <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                                    Abrir Login
-                                  </button>
-                                  <button
-                                    onClick={() => handleCopyLink(org)}
-                                    className="w-full px-4 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5"
-                                  >
-                                    <Download className="w-3.5 h-3.5 text-gray-400 rotate-[-90deg]" />
-                                    Copiar Link
-                                  </button>
-                                </div>
-                              )}
-                            </div>
 
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg"
-                              onClick={() => handleOpenModal(org)}
-                              title="Editar"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                              onClick={() => deleteOrg(org.id)}
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded-lg"
+                                onClick={() => handleOpenSubscriptionModal(org)}
+                                title="Gestionar Suscripción"
+                              >
+                                <Calendar className="w-4 h-4" />
+                              </Button>
+
+                              <div className="relative">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    "h-8 w-8 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 relative dropdown-trigger rounded-lg",
+                                    openDropdownId === org.id && "bg-gray-100 text-indigo-600"
+                                  )}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(openDropdownId === org.id ? null : org.id);
+                                  }}
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </Button>
+                                {openDropdownId === org.id && (
+                                  <div
+                                    className={cn(
+                                      "absolute right-0 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 min-w-[160px] dropdown-menu animate-in fade-in zoom-in-95 duration-200",
+                                      index >= filteredOrgs.length - 2 ? "bottom-full mb-1" : "top-full mt-1"
+                                    )}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={() => handleOpenLogin(org)}
+                                      className="w-full px-4 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                                      Abrir Login
+                                    </button>
+                                    <button
+                                      onClick={() => handleCopyLink(org)}
+                                      className="w-full px-4 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2.5"
+                                    >
+                                      <Download className="w-3.5 h-3.5 text-gray-400 rotate-[-90deg]" />
+                                      Copiar Link
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg"
+                                onClick={() => handleOpenModal(org)}
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                onClick={() => deleteOrg(org.id)}
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
                       );
                     })
                   )}
@@ -998,7 +993,7 @@ export default function SuperAdminOrganizations() {
                   No se encontraron organizaciones con los filtros aplicados.
                 </div>
               ) : (
-                filteredOrgs.map((org, index) => {
+                filteredOrgs.map((org) => {
                   const subscription = org.subscriptions?.sort((a: Subscription, b: Subscription) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0] || null;
                   const daysUntilRenewal = subscription?.end_date ? differenceInDays(parseISO(subscription.end_date), new Date()) : null;
                   const isExpired = subscription?.end_date ? isPast(parseISO(subscription.end_date)) : false;
@@ -1049,7 +1044,7 @@ export default function SuperAdminOrganizations() {
                               <ExternalLink className="w-4 h-4" />
                             </Button>
                             {openDropdownId === org.id && (
-                              <div 
+                              <div
                                 className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 min-w-[160px] dropdown-menu animate-in fade-in duration-200"
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -1109,10 +1104,10 @@ export default function SuperAdminOrganizations() {
                                 subscription.status === 'active' && !isExpired
                                   ? "bg-green-50 text-green-700 border-green-100"
                                   : subscription.status === 'active' && isExpired
-                                  ? "bg-red-50 text-red-700 border-red-100"
-                                  : subscription.status === 'pending'
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-100"
-                                  : "bg-gray-50 text-gray-500 border-gray-100"
+                                    ? "bg-red-50 text-red-700 border-red-100"
+                                    : subscription.status === 'pending'
+                                      ? "bg-yellow-50 text-yellow-700 border-yellow-100"
+                                      : "bg-gray-50 text-gray-500 border-gray-100"
                               )}>
                                 {subscription.status === 'active' && !isExpired && <CheckCircle2 className="w-3 h-3 mr-1" />}
                                 {(subscription.status === 'active' && isExpired) && <AlertCircle className="w-3 h-3 mr-1" />}
@@ -1181,7 +1176,7 @@ export default function SuperAdminOrganizations() {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend verticalAlign="bottom" height={36}/>
+                  <Legend verticalAlign="bottom" height={36} />
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
@@ -1211,10 +1206,10 @@ export default function SuperAdminOrganizations() {
                   </div>
                   <div className={cn(
                     "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border",
-                    org.subscription_status === 'active' ? "bg-green-50 text-green-700 border-green-100" : 
-                    org.subscription_status === 'pending_validation' ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
-                    org.subscription_status === 'past_due' || org.subscription_status === 'expired' ? "bg-red-50 text-red-700 border-red-100" :
-                    "bg-gray-50 text-gray-500 border-gray-100"
+                    org.subscription_status === 'active' ? "bg-green-50 text-green-700 border-green-100" :
+                      org.subscription_status === 'pending_validation' ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
+                        org.subscription_status === 'past_due' || org.subscription_status === 'expired' ? "bg-red-50 text-red-700 border-red-100" :
+                          "bg-gray-50 text-gray-500 border-gray-100"
                   )}>
                     {org.subscription_status || 'sin suscripción'}
                   </div>
@@ -1249,14 +1244,14 @@ export default function SuperAdminOrganizations() {
                   { name: 'Sin subscripción', value: stats.inactive }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 600, fill: '#64748b'}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 600, fill: '#64748b'}} />
-                  <Tooltip 
-                    cursor={{fill: '#f8fafc'}}
-                    contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }} />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    { [0,1,2,3].map((index) => (
+                    {[0, 1, 2, 3].map((index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Bar>
@@ -1270,25 +1265,41 @@ export default function SuperAdminOrganizations() {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-gray-100">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{editingOrg ? 'Editar Organización' : 'Nueva Organización'}</h2>
-                <p className="text-gray-500 text-xs">Completa los datos para configurar el conjunto residencial.</p>
+                <p className="text-gray-500 text-xs">Selecciona el tipo de negocio y completa los datos de configuración.</p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}>
                 <XCircle className="w-5 h-5 text-gray-400" />
               </Button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
+              {/* Tipo de Negocio - campo principal al inicio */}
+              <div className="space-y-1.5">
+                <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Tipo de Negocio</Label>
+                <select
+                  value={formData.business_type}
+                  onChange={e => setFormData({ ...formData, business_type: e.target.value })}
+                  className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm font-medium text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  required
+                >
+                  {BUSINESS_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 ml-1">Esto adapta la terminología del sistema (Apartamento, Residente, etc.) al sector de este negocio.</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Nombre del Conjunto</Label>
+                  <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Nombre de la Organización</Label>
                   <Input
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Residencial Los Olivos"
+                    placeholder="Ej: Residencial Los Olivos / Barbería Modern"
                     required
                     className="h-11 rounded-xl"
                   />
@@ -1415,7 +1426,7 @@ export default function SuperAdminOrganizations() {
                     const allSubscriptions = selectedOrgForSubscription.subscriptions?.sort((a: Subscription, b: Subscription) =>
                       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
                     ) || [];
-                    
+
                     // Get the most recent subscription (by updated_at)
                     const displaySubscription = allSubscriptions[0] || null;
 
@@ -1431,9 +1442,9 @@ export default function SuperAdminOrganizations() {
                           <span className={cn(
                             "text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase",
                             displaySubscription.status === 'active' ? "bg-green-50 text-green-700" :
-                            displaySubscription.status === 'pending' ? "bg-yellow-50 text-yellow-700" :
-                            displaySubscription.status === 'cancelled' ? "bg-red-50 text-red-700" :
-                            "bg-red-50 text-red-700"
+                              displaySubscription.status === 'pending' ? "bg-yellow-50 text-yellow-700" :
+                                displaySubscription.status === 'cancelled' ? "bg-red-50 text-red-700" :
+                                  "bg-red-50 text-red-700"
                           )}>
                             {displaySubscription.status}
                           </span>

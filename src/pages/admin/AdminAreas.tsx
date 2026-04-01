@@ -67,7 +67,7 @@ function CurrencyInput({ value, onChange, className, placeholder }: { value: num
 }
 
 export default function AdminAreasPage() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -178,8 +178,8 @@ export default function AdminAreasPage() {
             <Settings className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de Áreas Comunes</h1>
-            <p className="text-gray-500 text-sm">Configura los espacios disponibles para reserva.</p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.areaLabel}</h1>
+            <p className="text-gray-500 text-sm">Configura los espacios disponibles para {terminology.reservationLabel.toLowerCase()}.</p>
           </div>
         </div>
         <Button
@@ -254,7 +254,7 @@ export default function AdminAreasPage() {
                       checked={currentArea.is_free}
                       onCheckedChange={(checked) => setCurrentArea({ ...currentArea, is_free: checked })}
                     />
-                    <Label className="text-sm text-gray-600 cursor-pointer">Reserva sin costo</Label>
+                    <Label className="text-sm text-gray-600 cursor-pointer">{terminology.reservationLabel} sin costo</Label>
                   </div>
 
                   {currentArea.pricing_type === 'hourly' ? (

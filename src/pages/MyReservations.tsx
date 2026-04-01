@@ -22,7 +22,7 @@ import { Link } from 'react-router-dom';
 import { startOfMonth, isAfter, parseISO, startOfDay, format } from 'date-fns';
 
 export default function MyReservationsPage() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const [reservations, setReservations] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,12 +123,12 @@ export default function MyReservationsPage() {
             <HistoryIcon className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Mis Reservas</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Mis {terminology.reservationLabel}s</h1>
             <p className="text-gray-500 text-sm">Historial y estado de tus solicitudes.</p>
           </div>
         </div>
         <Button asChild className="bg-primary hover:bg-primary/95 shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
-          <Link to="/reservations/new">Nueva Reserva</Link>
+          <Link to="/reservations/new">Nueva {terminology.reservationLabel}</Link>
         </Button>
       </div>
 
@@ -141,7 +141,7 @@ export default function MyReservationsPage() {
               <h3 className="text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left">
                 {formatCurrency(totalInvested)}
               </h3>
-              <p className="text-[10px] text-gray-400 font-medium">Suma de reservas aprobadas</p>
+              <p className="text-[10px] text-gray-400 font-medium">Suma de {terminology.reservationLabel.toLowerCase()}s {terminology.reservationLabel.toLowerCase() === 'reserva' ? 'aprobadas' : 'aprobados'}</p>
             </div>
             <div className="p-3 bg-white rounded-xl shadow-sm group-hover:rotate-12 transition-transform">
               <DollarSign className="w-5 h-5 text-primary" />
@@ -152,11 +152,11 @@ export default function MyReservationsPage() {
         <Card className="md:col-span-1 border-none shadow-sm bg-blue-50/50 border-l-4 border-blue-500 overflow-hidden group">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Servicios Aprobados</p>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{terminology.reservationLabel}s Aprobados</p>
               <h3 className="text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left">
                 {totalServices}
               </h3>
-              <p className="text-[10px] text-gray-400 font-medium">Reservas aprobadas</p>
+              <p className="text-[10px] text-gray-400 font-medium">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'reserva' ? 'aprobadas' : 'aprobados'}</p>
             </div>
             <div className="p-3 bg-white rounded-xl shadow-sm group-hover:-rotate-12 transition-transform">
               <ClipboardCheck className="w-5 h-5 text-blue-500" />
@@ -183,14 +183,14 @@ export default function MyReservationsPage() {
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1.5">
-                <MapPin className="w-3 h-3 text-primary/60" /> Área Común
+                <MapPin className="w-3 h-3 text-primary/60" /> {terminology.areaLabel}
               </label>
               <select
                 className="w-full h-10 px-3 bg-gray-50/50 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
               >
-                <option value="all">Todas las áreas</option>
+                <option value="all">Todas las {terminology.areaLabel.toLowerCase()}s</option>
                 {areas.map(area => (
                   <option key={area.id} value={area.id}>{area.name}</option>
                 ))}
@@ -244,7 +244,7 @@ export default function MyReservationsPage() {
               <div className="p-4 bg-gray-50 rounded-full mb-4">
                 <Search className="w-10 h-10 text-gray-200" />
               </div>
-              <p className="text-gray-500 font-semibold">No se encontraron reservas</p>
+              <p className="text-gray-500 font-semibold">No se encontraron {terminology.reservationLabel.toLowerCase()}s</p>
               <p className="text-gray-400 text-sm mb-6">Intenta ajustando los filtros seleccionados.</p>
               <Button
                 variant="outline"
@@ -354,9 +354,9 @@ export default function MyReservationsPage() {
       <AlertDialog
         open={isCancelAlertOpen}
         onOpenChange={setIsCancelAlertOpen}
-        title="Cancelar Reserva"
-        description="¿Estás seguro de que deseas cancelar esta reserva? Esta acción no se puede deshacer."
-        confirmText="Sí, cancelar reserva"
+        title={`Cancelar ${terminology.reservationLabel}`}
+        description={`¿Estás seguro de que deseas cancelar esta ${terminology.reservationLabel.toLowerCase()}? Esta acción no se puede deshacer.`}
+        confirmText={`Sí, cancelar ${terminology.reservationLabel.toLowerCase()}`}
         cancelText="No, mantener"
         onConfirm={handleConfirmCancel}
         variant="destructive"

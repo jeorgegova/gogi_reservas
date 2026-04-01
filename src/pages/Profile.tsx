@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
-  const { profile, fetchProfile } = useAuth();
+  const { profile, fetchProfile, terminology } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -121,7 +121,7 @@ export default function ProfilePage() {
         <CardHeader className="pt-4 text-center pb-2">
           <CardTitle className="text-xl font-bold text-gray-900">{profile.full_name}</CardTitle>
           <CardDescription className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            Rol: {profile.role} • Residente de {profile.apartment || 'N/A'} • {organizationName || 'Cargando...'}
+            {terminology.userLabel} de {profile.apartment || 'N/A'} • {organizationName || 'Cargando...'}
           </CardDescription>
         </CardHeader>
 
@@ -168,12 +168,12 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold text-gray-400">Apartamento / Torre</Label>
+              <Label className="text-[10px] uppercase font-bold text-gray-400">{terminology.unitLabel}</Label>
               <Input
                 className="h-10 rounded-lg text-sm"
                 value={formData.apartment}
                 onChange={e => setFormData({ ...formData, apartment: e.target.value })}
-                placeholder="Torre 1 - Apto 101"
+                placeholder={terminology.unitPlaceholder}
               />
             </div>
 

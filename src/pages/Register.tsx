@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { HabeasData } from '@/components/ui/habeas-data';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { UserPlus, Building2 } from 'lucide-react';
+import { getTerminology } from '@/lib/terminology';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -138,7 +139,7 @@ export default function RegisterPage() {
             Crear Cuenta
           </CardTitle>
           <CardDescription className="text-blue-100/90 text-sm font-medium">
-            {currentOrg ? `Únete a ${currentOrg.name}` : 'Únete a la comunidad de tu conjunto residencial'}
+            {currentOrg ? `Únete a ${currentOrg.name}` : 'Crea tu cuenta para empezar'}
           </CardDescription>
         </CardHeader>
 
@@ -193,11 +194,13 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="apartment" className="text-white font-medium ml-1">Apartamento</Label>
+                <Label htmlFor="apartment" className="text-white font-medium ml-1">
+                  {getTerminology(currentOrg?.business_type).unitLabel}
+                </Label>
                 <Input
                   id="apartment"
                   type="text"
-                  placeholder="Torre 1 - 101"
+                  placeholder={getTerminology(currentOrg?.business_type).unitPlaceholder}
                   value={apartment}
                   onChange={(e) => setApartment(e.target.value)}
                   required
@@ -208,7 +211,9 @@ export default function RegisterPage() {
 
             {!slug && (
               <div className="space-y-2">
-                <Label htmlFor="organization" className="text-white font-medium ml-1">Conjunto Residencial</Label>
+                <Label htmlFor="organization" className="text-white font-medium ml-1">
+                {getTerminology(currentOrg?.business_type).businessLabel}
+              </Label>
                 <select
                   id="organization"
                   value={selectedOrgId}
