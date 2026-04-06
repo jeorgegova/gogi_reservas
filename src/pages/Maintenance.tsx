@@ -342,7 +342,7 @@ export default function MaintenancePage() {
           <p className="text-gray-500 text-sm ml-1">
             {isAdmin
               ? `Informa a los ${terminology.userLabel.toLowerCase()}s sobre cierres o novedades.`
-              : "Mantente informado sobre las novedades y mantenimientos de las zonas comunes."}
+              : `Mantente informado sobre las novedades y mantenimientos de los ${terminology.areaLabel.toLowerCase()}s.`}
           </p>
         </div>
         {isAdmin && (
@@ -390,14 +390,14 @@ export default function MaintenancePage() {
                     value={newNotice.title}
                     onChange={e => setNewNotice({ ...newNotice, title: e.target.value })}
                     required
-                    placeholder="Ej: Mantenimiento Piscina"
+                    placeholder={`Ej: Mantenimiento ${terminology.areaLabel}`}
                     className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="area" className="text-sm font-medium text-gray-700">
-                    Área Afectada
+                    {terminology.areaLabel} Afectada
                   </Label>
                   <select
                     id="area"
@@ -406,7 +406,7 @@ export default function MaintenancePage() {
                     onChange={e => setNewNotice({ ...newNotice, common_area_id: e.target.value })}
                     required
                   >
-                    <option value="">Selecciona un área...</option>
+                    <option value="">Selecciona un {terminology.areaLabel.toLowerCase()}...</option>
                     {areas.map(area => (
                       <option key={area.id} value={area.id}>{area.name}</option>
                     ))}
@@ -550,7 +550,7 @@ export default function MaintenancePage() {
             <p className="text-sm text-gray-500 text-center max-w-sm">
               {isAdmin
                 ? `Crea el primer aviso para informar a los ${terminology.userLabel.toLowerCase()}s sobre mantenimientos o cierres.`
-                : "No hay avisos de mantenimiento activos en este momento."}
+                : `No hay avisos de mantenimiento activos en este momento.`}
             </p>
             {isAdmin && (
               <Button

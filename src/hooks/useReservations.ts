@@ -18,6 +18,7 @@ export const useCreateReservationMutation = () => {
     onSuccess: (_, variables) => {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['reservations', variables.organization_id] });
+      queryClient.invalidateQueries({ queryKey: ['pendingReservations', variables.user_id, variables.organization_id] });
     },
   });
 };
@@ -31,6 +32,7 @@ export const useUpdateReservationMutation = () => {
     onSuccess: (data) => {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['reservations', data.organization_id] });
+      queryClient.invalidateQueries({ queryKey: ['pendingReservations', data.user_id, data.organization_id] });
     },
   });
 };

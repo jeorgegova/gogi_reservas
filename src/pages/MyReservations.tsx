@@ -141,7 +141,7 @@ export default function MyReservationsPage() {
               <h3 className="text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left">
                 {formatCurrency(totalInvested)}
               </h3>
-              <p className="text-[10px] text-gray-400 font-medium">Suma de {terminology.reservationLabel.toLowerCase()}s {terminology.reservationLabel.toLowerCase() === 'reserva' ? 'aprobadas' : 'aprobados'}</p>
+              <p className="text-[10px] text-gray-400 font-medium">Suma de {terminology.reservationLabel.toLowerCase()}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'aprobados' : 'aprobadas'}</p>
             </div>
             <div className="p-3 bg-white rounded-xl shadow-sm group-hover:rotate-12 transition-transform">
               <DollarSign className="w-5 h-5 text-primary" />
@@ -152,11 +152,11 @@ export default function MyReservationsPage() {
         <Card className="md:col-span-1 border-none shadow-sm bg-blue-50/50 border-l-4 border-blue-500 overflow-hidden group">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{terminology.reservationLabel}s Aprobados</p>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'Aprobados' : 'Aprobadas'}</p>
               <h3 className="text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left">
                 {totalServices}
               </h3>
-              <p className="text-[10px] text-gray-400 font-medium">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'reserva' ? 'aprobadas' : 'aprobados'}</p>
+              <p className="text-[10px] text-gray-400 font-medium">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'aprobados' : 'aprobadas'}</p>
             </div>
             <div className="p-3 bg-white rounded-xl shadow-sm group-hover:-rotate-12 transition-transform">
               <ClipboardCheck className="w-5 h-5 text-blue-500" />
@@ -207,7 +207,7 @@ export default function MyReservationsPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="all">Todos los estados</option>
-                <option value="approved">Aprobada</option>
+                <option value="approved">{terminology.reservationLabel.toLowerCase() === 'servicio' ? 'Aprobado' : 'Aprobada'}</option>
                 <option value="pending_validation">Pendiente Validación</option>
                 <option value="pending_payment">Pendiente Pago</option>
                 <option value="cancelled">Cancelada</option>
@@ -288,7 +288,7 @@ export default function MyReservationsPage() {
                         res.status === 'pending_validation' ? 'bg-amber-50 text-amber-700 border-amber-100' :
                           res.status === 'pending_payment' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-gray-50 text-gray-700 border-gray-100'
                     )}>
-                      {res.status === 'approved' ? 'Aprobada' :
+                      {res.status === 'approved' ? (terminology.reservationLabel.toLowerCase() === 'servicio' ? 'Aprobado' : 'Aprobada') :
                         res.status === 'pending_validation' ? 'Pendiente Val.' :
                           res.status === 'pending_payment' ? 'Pendiente Pago' :
                             res.status === 'cancelled' ? 'Cancelada' :

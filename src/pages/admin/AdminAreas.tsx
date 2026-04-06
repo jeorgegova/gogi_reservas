@@ -178,8 +178,8 @@ export default function AdminAreasPage() {
             <Settings className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.areaLabel}</h1>
-            <p className="text-gray-500 text-sm">Configura los espacios disponibles para {terminology.reservationLabel.toLowerCase()}.</p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.areaLabel}s</h1>
+            <p className="text-gray-500 text-sm">Configura los espacios disponibles para {terminology.reservationLabel.toLowerCase()}s.</p>
           </div>
         </div>
         <Button
@@ -194,14 +194,14 @@ export default function AdminAreasPage() {
           }}
           className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 font-semibold h-11 px-5 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
         >
-          <Plus className="w-4 h-4 mr-2" /> Nueva Área
+          <Plus className="w-4 h-4 mr-2" /> Nueva {terminology.areaLabel}
         </Button>
       </div>
 
       {isEditing && (
         <Card className="border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
           <div className="bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900">{currentArea.id ? 'Editar Área' : 'Crear Nueva Área'}</h2>
+            <h2 className="text-lg font-bold text-gray-900">{currentArea.id ? `Editar ${terminology.areaLabel}` : `Crear Nueva ${terminology.areaLabel}`}</h2>
             <p className="text-sm text-gray-500">Completa los detalles del espacio</p>
           </div>
           <CardContent className="p-6 space-y-6">
@@ -213,7 +213,7 @@ export default function AdminAreasPage() {
                     <Input
                       value={currentArea.name}
                       onChange={e => setCurrentArea({ ...currentArea, name: e.target.value })}
-                      placeholder="Ej: Salón Comunal"
+                      placeholder={`Ej: ${terminology.areaLabel === 'Servicio' ? 'Corte de Cabello' : 'Salón Comunal'}`}
                       required
                       className="h-10 rounded-lg text-sm"
                     />

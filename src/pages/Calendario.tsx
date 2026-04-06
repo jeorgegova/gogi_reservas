@@ -102,7 +102,7 @@ export default function Calendario() {
         if (calendarRange) {
             fetchNotices(calendarRange.start, calendarRange.end);
         }
-        
+
         if (showAnalytics) {
             fetchAdminData();
         }
@@ -184,7 +184,7 @@ export default function Calendario() {
             : filteredByMonth;
 
         // Reservas hoy (independiente del filtro de mes)
-        const reservationsToday = reservations.filter(res => 
+        const reservationsToday = reservations.filter(res =>
             res.start_datetime >= startOfToday && res.start_datetime <= endOfToday
         ).length;
 
@@ -655,8 +655,8 @@ export default function Calendario() {
                         <div className="flex items-center gap-2">
                             <Calendar className="w-5 h-5 text-primary" />
                             <div>
-<h3 className="text-lg font-bold text-gray-900">{terminology.reservationLabel}s Recientes</h3>
-                                        <p className="text-xs text-gray-500">Últimas {terminology.reservationLabel.toLowerCase()}s realizadas en el sistema</p>
+                                <h3 className="text-lg font-bold text-gray-900">{terminology.reservationLabel}s Recientes</h3>
+                                <p className="text-xs text-gray-500">Últimas {terminology.reservationLabel.toLowerCase()}s realizadas en el sistema</p>
                             </div>
                         </div>
                     </CardHeader>
@@ -748,10 +748,10 @@ export default function Calendario() {
         <div className="space-y-6 animate-fade-in duration-500">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                    {isAdmin ? `Dashboard del ${terminology.businessLabel}` : 'Calendario'}
+                    {isAdmin ? `Dashboard ${terminology.businessLabel}` : 'Calendario'}
                 </h1>
                 <p className="text-gray-500 text-sm">
-                    Resumen general y estado de las {terminology.areaLabel.toLowerCase()}s.
+                    Resumen general y estado de sus {terminology.areaLabel.toLowerCase()}s.
                 </p>
             </div>
 
@@ -919,16 +919,16 @@ export default function Calendario() {
                                     datesSet={(dateInfo) => {
                                         const start = dateInfo.startStr;
                                         const end = dateInfo.endStr;
-                                        
+
                                         if (calendarRange?.start !== start || calendarRange?.end !== end) {
                                             setCalendarRange({ start, end });
-                                            
+
                                             // Prefetch next range (e.g. next month)
                                             // dateInfo.view.currentStart is the start of the current view (e.g. start of month)
                                             const nextRangeStart = addMonths(new Date(dateInfo.view.currentStart), 1);
                                             const pStart = startOfMonth(nextRangeStart).toISOString();
                                             const pEnd = endOfMonth(nextRangeStart).toISOString();
-                                            
+
                                             queryClient.prefetchQuery({
                                                 queryKey: ['reservations', profile?.organization_id, pStart, pEnd],
                                                 queryFn: () => reservationService.getReservations(profile?.organization_id!, pStart, pEnd)

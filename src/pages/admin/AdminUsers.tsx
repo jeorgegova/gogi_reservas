@@ -34,7 +34,7 @@ interface UserProfile {
 }
 
 export default function AdminUsersPage() {
-  const { profile, terminology } = useAuth();
+  const { profile, terminology, businessType } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -153,7 +153,7 @@ export default function AdminUsersPage() {
 
   const filteredUsers = users.filter(user => 
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.apartment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (businessType === 'residential' && user.apartment?.toLowerCase().includes(searchTerm.toLowerCase())) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -177,7 +177,7 @@ export default function AdminUsersPage() {
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input 
-              placeholder={`Buscar por nombre, ${terminology.unitLabel.toLowerCase()}...`} 
+              placeholder={`Buscar por nombre, ${businessType === 'residential' ? terminology.unitLabel.toLowerCase() + ', ' : ''}email...`} 
               className="pl-10 h-9 rounded-lg text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
                 <tr className="bg-gray-50/30 border-b border-gray-100">
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contacto</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.unitLabel}</th>
+                  {businessType === 'residential' && <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.unitLabel}</th>}
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rol</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
@@ -238,12 +238,14 @@ export default function AdminUsersPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-gray-700 font-bold">
-                           <MapPin className="w-3.5 h-3.5 text-gray-300" />
-                           <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
-                        </div>
-                      </td>
+                      {businessType === 'residential' && (
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-gray-700 font-bold">
+                             <MapPin className="w-3.5 h-3.5 text-gray-300" />
+                             <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
+                          </div>
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <div className={cn(
                           "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
@@ -268,7 +270,7 @@ export default function AdminUsersPage() {
                           >
                             <DropdownMenuItem onClick={() => openEditModal(user)}>
                               <Pencil className="h-4 w-4" />
-                              Editar usuario
+                              Editar {terminology.userLabel.toLowerCase()}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
                               {user.role === 'admin' ? (
@@ -285,7 +287,7 @@ export default function AdminUsersPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
                               <Trash2 className="h-4 w-4" />
-                              Eliminar usuario
+                              Eliminar {terminology.userLabel.toLowerCase()}
                             </DropdownMenuItem>
                           </DropdownMenu>
                         </div>
@@ -307,7 +309,7 @@ export default function AdminUsersPage() {
               ))
             ) : filteredUsers.length === 0 ? (
               <div className="px-6 py-12 text-center text-gray-400 text-sm">
-                 No se encontraron usuarios.
+                 No se encontraron {terminology.userLabel.toLowerCase()}s.
               </div>
             ) : (
               filteredUsers.map((user) => (
@@ -337,7 +339,7 @@ export default function AdminUsersPage() {
                     >
                       <DropdownMenuItem onClick={() => openEditModal(user)}>
                         <Pencil className="h-4 w-4" />
-                        Editar usuario
+                        Editar {terminology.userLabel.toLowerCase()}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
                         {user.role === 'admin' ? (
@@ -354,7 +356,7 @@ export default function AdminUsersPage() {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
                         <Trash2 className="h-4 w-4" />
-                        Eliminar usuario
+                        Eliminar {terminology.userLabel.toLowerCase()}
                       </DropdownMenuItem>
                     </DropdownMenu>
                   </div>
@@ -372,10 +374,12 @@ export default function AdminUsersPage() {
                         <span className="truncate">{user.phone}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-1 text-xs text-gray-700 font-bold ml-auto shrink-0">
-                       <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                       <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
-                    </div>
+                    {businessType === 'residential' && (
+                      <div className="flex items-center gap-1 text-xs text-gray-700 font-bold ml-auto shrink-0">
+                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                         <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -405,19 +409,21 @@ export default function AdminUsersPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="editApartment" className="text-sm font-medium text-gray-700">
-                {terminology.unitLabel}
-              </Label>
-              <Input
-                id="editApartment"
-                value={editForm.apartment}
-                onChange={e => setEditForm({ ...editForm, apartment: e.target.value })}
-                placeholder={terminology.unitPlaceholder}
-                className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-              />
-            </div>
+          <div className={`grid ${businessType === 'residential' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+            {businessType === 'residential' && (
+              <div className="space-y-2">
+                <Label htmlFor="editApartment" className="text-sm font-medium text-gray-700">
+                  {terminology.unitLabel}
+                </Label>
+                <Input
+                  id="editApartment"
+                  value={editForm.apartment}
+                  onChange={e => setEditForm({ ...editForm, apartment: e.target.value })}
+                  placeholder={terminology.unitPlaceholder}
+                  className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="editPhone" className="text-sm font-medium text-gray-700">
@@ -450,7 +456,7 @@ export default function AdminUsersPage() {
                 `}
               >
                 <User className="h-4 w-4" />
-                Usuario
+                {terminology.userLabel}
               </button>
               <button
                 type="button"
@@ -514,9 +520,9 @@ export default function AdminUsersPage() {
       <AlertDialog
         open={isDeleteAlertOpen}
         onOpenChange={setIsDeleteAlertOpen}
-        title="Eliminar usuario"
-        description={`¿Estás seguro de que quieres eliminar a ${deletingUser?.full_name}? Esta acción no se puede deshacer y se eliminarán todos sus datos y reservas.`}
-        confirmText="Eliminar usuario"
+        title={`Eliminar ${terminology.userLabel.toLowerCase()}`}
+        description={`¿Estás seguro de que quieres eliminar a ${deletingUser?.full_name}? Esta acción no se puede deshacer y se eliminarán todos sus datos y ${terminology.reservationLabel.toLowerCase()}s.`}
+        confirmText={`Eliminar ${terminology.userLabel.toLowerCase()}`}
         onConfirm={handleDeleteUser}
         variant="destructive"
       />

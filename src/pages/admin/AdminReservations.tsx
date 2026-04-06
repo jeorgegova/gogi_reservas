@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminReservationsPage() {
-  const { profile, terminology } = useAuth();
+  const { profile, terminology, businessType } = useAuth();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
   
   const [reservations, setReservations] = useState<any[]>([]);
@@ -132,7 +132,7 @@ export default function AdminReservationsPage() {
 
   const filteredReservations = reservations.filter(res => 
     res.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    res.profiles?.apartment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (businessType === 'residential' && res.profiles?.apartment?.toLowerCase().includes(searchTerm.toLowerCase())) ||
     res.common_areas?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -164,7 +164,7 @@ export default function AdminReservationsPage() {
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input 
-                placeholder={`Buscar por nombre, ${terminology.unitLabel.toLowerCase()}...`} 
+                placeholder={`Buscar por nombre, ${businessType === 'residential' ? terminology.unitLabel.toLowerCase() + ', ' : ''}${terminology.areaLabel.toLowerCase()}...`} 
                 className="pl-10 h-9 rounded-lg text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -192,8 +192,8 @@ export default function AdminReservationsPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-gray-50/30 border-b border-gray-100">
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario / {terminology.unitLabel}</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Área</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.userLabel} {businessType === 'residential' ? `/ ${terminology.unitLabel}` : ''}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.areaLabel}</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha / Hora</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Costo</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Estado</th>
@@ -220,10 +220,12 @@ export default function AdminReservationsPage() {
                     <tr key={res.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="font-bold text-gray-900">{res.profiles?.full_name}</div>
-                        <div className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-gray-300" />
-                          {terminology.unitLabel} {res.profiles?.apartment}
-                        </div>
+                        {businessType === 'residential' && (
+                          <div className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-gray-300" />
+                            {terminology.unitLabel} {res.profiles?.apartment}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-gray-600 font-medium">{res.common_areas?.name}</td>
                       <td className="px-6 py-4">
@@ -311,9 +313,11 @@ export default function AdminReservationsPage() {
                   <div className="flex justify-between items-start">
                     <div className="flex flex-col min-w-0 pr-2">
                        <h3 className="font-bold text-gray-900 truncate">{res.profiles?.full_name}</h3>
-                       <span className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
-                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" /> {terminology.unitLabel} {res.profiles?.apartment}
-                       </span>
+                       {businessType === 'residential' && (
+                         <span className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
+                           <MapPin className="w-3 h-3 text-gray-400 shrink-0" /> {terminology.unitLabel} {res.profiles?.apartment}
+                         </span>
+                       )}
                     </div>
                     {(() => {
                       const statusStyles: Record<string, string> = {

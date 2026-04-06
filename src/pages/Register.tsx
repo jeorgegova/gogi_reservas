@@ -139,7 +139,7 @@ export default function RegisterPage() {
             Crear Cuenta
           </CardTitle>
           <CardDescription className="text-blue-100/90 text-sm font-medium">
-            {currentOrg ? `Únete a ${currentOrg.name}` : 'Crea tu cuenta para empezar'}
+            {currentOrg ? `Únete a ${currentOrg.name}` : `Crea tu cuenta de ${getTerminology().userLabel.toLowerCase()} para empezar`}
           </CardDescription>
         </CardHeader>
 
@@ -193,27 +193,29 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="apartment" className="text-white font-medium ml-1">
-                  {getTerminology(currentOrg?.business_type).unitLabel}
-                </Label>
-                <Input
-                  id="apartment"
-                  type="text"
-                  placeholder={getTerminology(currentOrg?.business_type).unitPlaceholder}
-                  value={apartment}
-                  onChange={(e) => setApartment(e.target.value)}
-                  required
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50 focus:border-primary/50 transition-all duration-300"
-                />
-              </div>
+              {(!currentOrg || currentOrg.business_type === 'residential') && (
+                <div className="space-y-2">
+                  <Label htmlFor="apartment" className="text-white font-medium ml-1">
+                    {getTerminology(currentOrg?.business_type).unitLabel}
+                  </Label>
+                  <Input
+                    id="apartment"
+                    type="text"
+                    placeholder={getTerminology(currentOrg?.business_type).unitPlaceholder}
+                    value={apartment}
+                    onChange={(e) => setApartment(e.target.value)}
+                    required
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50 focus:border-primary/50 transition-all duration-300"
+                  />
+                </div>
+              )}
             </div>
 
             {!slug && (
               <div className="space-y-2">
                 <Label htmlFor="organization" className="text-white font-medium ml-1">
-                {getTerminology(currentOrg?.business_type).businessLabel}
-              </Label>
+                  {getTerminology(currentOrg?.business_type).businessLabel}
+                </Label>
                 <select
                   id="organization"
                   value={selectedOrgId}
@@ -262,7 +264,7 @@ export default function RegisterPage() {
               ) : (
                 <div className="flex items-center gap-2">
                   <UserPlus className="w-5 h-5" />
-                  Registrarse
+                  Registrarme como {getTerminology(currentOrg?.business_type).userLabel}
                 </div>
               )}
             </Button>

@@ -113,7 +113,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: 'Dashboard (informes)', path: '/admin', icon: LayoutDashboard },
       { name: `Calendario (${terminology.reservationLabel}s)`, path: '/dashboard', icon: Calendar },
       { name: `Gestión ${terminology.reservationLabel}s`, path: '/admin/reservations', icon: Calendar },
-      { name: terminology.areaLabel, path: '/admin/areas', icon: Building2 },
+      { name: terminology.areaLabel + 's', path: '/admin/areas', icon: Building2 },
       { name: terminology.userLabel + 's', path: '/admin/users', icon: User },
       { name: 'Suscripción', path: '/admin/subscription', icon: Crown },
       { name: 'Bonificaciones', path: '/admin/bonificaciones', icon: Gift },
@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       adminItems.unshift({ name: 'Gestión Organizaciones', path: '/super-admin/organizations', icon: Building2 });
     }
 
-    navItems = [...adminItems, { name: terminology.reservationLabel, path: '/reservations/new', icon: Calendar }, { name: 'Mantenimientos', path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
+    navItems = [...adminItems, { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar }, { name: 'Mantenimientos', path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
   }
 
   // Función para salir del modo soporte

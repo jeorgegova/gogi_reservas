@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useCommonAreasQuery } from '@/hooks/useCommonAreas';
 import { useCreateReservationMutation, useUpdateReservationMutation } from '@/hooks/useReservations';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as reservationService from '@/services/reservations';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -34,6 +34,7 @@ import { es } from 'date-fns/locale';
 
 export default function NewReservationPage() {
   const { profile, terminology } = useAuth();
+  const queryClient = useQueryClient();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
   const navigate = useNavigate();
   const { id } = useParams();
@@ -41,7 +42,6 @@ export default function NewReservationPage() {
   const isEditing = !!id;
 
   const [step, setStep] = useState(1);
-  const [users, setUsers] = useState<any[]>([]);
   const [selectedArea, setSelectedArea] = useState<any>(null);
   const isFree = selectedArea?.is_free || false;
   const [searchParams] = useSearchParams();
@@ -59,7 +59,6 @@ export default function NewReservationPage() {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [userSearchTerm, setUserSearchTerm] = useState<string>('');
 
-  const [blockingError, setBlockingError] = useState<string | null>(null);
   const [isErrorAlertOpen, setIsErrorAlertOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [userError, setUserError] = useState<string | null>(null);
@@ -107,39 +106,46 @@ export default function NewReservationPage() {
     return earliestBlock;
   };
 
-  const checkPendingReservations = async () => {
-    if (!profile) return;
+  // Fetch pending reservations to prevent duplicates
+  const targetUserIdForPendingCheck = (isAdmin && selectedUserId) ? selectedUserId : profile?.id;
+  const { data: pendingReservations = [] } = useQuery({
+    queryKey: ['pendingReservations', targetUserIdForPendingCheck, profile?.organization_id],
+    queryFn: async () => {
+      let query = supabase
+        .from('reservations')
+        .select('id')
+        .eq('user_id', targetUserIdForPendingCheck)
+        .eq('organization_id', profile?.organization_id)
+        .in('status', ['pending_payment', 'pending_validation']);
 
-    let query = supabase
-      .from('reservations')
-      .select('id')
-      .eq('user_id', profile.id)
-      .eq('organization_id', profile.organization_id)
-      .in('status', ['pending_payment', 'pending_validation']);
+      if (isEditing && id) {
+        query = query.neq('id', id);
+      }
 
-    if (isEditing && id) {
-      query = query.neq('id', id);
-    }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile?.organization_id && !!targetUserIdForPendingCheck,
+  });
 
-    const { data } = await query;
+  const hasPendingReservation = pendingReservations.length > 0;
 
-    if (data && data.length > 0) {
-      setBlockingError(`Tiene una ${terminology.reservationLabel.toLowerCase()} pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva ${terminology.reservationLabel.toLowerCase()}.`);
-    }
-  };
-
-  const fetchUsers = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, apartment')
-      .eq('organization_id', profile?.organization_id)
-      .eq('role', 'user')
-      .order('full_name');
-
-    if (data) {
-      setUsers(data);
-    }
-  };
+  // Fetch users for admin selection
+  const { data: users = [], isLoading: usersLoading } = useQuery({
+    queryKey: ['users', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, apartment')
+        .eq('organization_id', profile?.organization_id)
+        .eq('role', 'user')
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isAdmin && !!profile?.organization_id,
+  });
 
   // Fetch single reservation for edit using useQuery
   const { data: reservationToEdit } = useQuery({
@@ -158,22 +164,45 @@ export default function NewReservationPage() {
 
   useEffect(() => {
     if (profile?.organization_id) {
-      checkPendingReservations();
-      if (isAdmin) {
-        fetchUsers();
-      }
+      // Manual checks if needed
     }
-  }, [profile?.organization_id, isAdmin]);
+
+    // Suscripción en tiempo real para actualizar el estado de reservas pendientes
+    if (profile?.organization_id) {
+      const channel = supabase
+        .channel('reservation_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'reservations',
+            filter: `organization_id=eq.${profile.organization_id}`,
+          },
+          () => {
+            // Invalidar el query de reservas pendientes para el usuario actual o seleccionado
+            queryClient.invalidateQueries({
+              queryKey: ['pendingReservations', targetUserIdForPendingCheck, profile.organization_id],
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [profile?.organization_id, targetUserIdForPendingCheck, queryClient]);
 
   useEffect(() => {
     if (reservationToEdit && isEditing) {
       // Logic from fetchReservationToEdit
       if (reservationToEdit.user_id !== profile?.id && !isAdmin) {
-        setBlockingError(`No tienes permiso para editar esta ${terminology.reservationLabel.toLowerCase()}.`);
+        // We'll handle this error below
         return;
       }
       if (reservationToEdit.status !== 'pending_validation' && !isAdmin) {
-        setBlockingError(`La ${terminology.reservationLabel.toLowerCase()} ya se validó y no se puede editar.`);
+        // We'll handle this error below
         return;
       }
 
@@ -192,16 +221,27 @@ export default function NewReservationPage() {
   }, [reservationToEdit, isEditing, profile?.id, isAdmin]);
 
   useEffect(() => {
-    if (!subscriptionLoading) {
-      if (subscriptionStatus === 'cancelled') {
-        setBlockingError('Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.');
-      } else if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) {
-        setBlockingError('Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.');
-      } else {
-        setBlockingError(null);
-      }
-    }
+    // Subscription status is handled by blockingError derivation
   }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
+
+  const blockingError = (() => {
+    if (!subscriptionLoading) {
+      if (subscriptionStatus === 'cancelled') return 'Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.';
+      if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return 'Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.';
+    }
+    
+    if (isEditing && reservationToEdit) {
+      if (reservationToEdit.user_id !== profile?.id && !isAdmin) return `No tienes permiso para editar esta ${terminology.reservationLabel.toLowerCase()}.`;
+      if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return `La ${terminology.reservationLabel.toLowerCase()} ya se validó y no se puede editar.`;
+    }
+
+    // Pendings block users for NEW reservations, but only warn admins
+    if (!isAdmin && !isEditing && hasPendingReservation) {
+        return `Tiene una ${terminology.reservationLabel.toLowerCase()} pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva ${terminology.reservationLabel.toLowerCase()}.`;
+    }
+
+    return null;
+  })();
 
   // Lógica de ajuste automático de duración para no exceder la medianoche o la siguiente reserva
   useEffect(() => {
@@ -226,10 +266,10 @@ export default function NewReservationPage() {
 
 
 
-  const filteredUsers = users.filter((user: any) =>
+  const filteredUsers = (users || []).filter((user: any) =>
     user.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    user.apartment?.toLowerCase().includes(userSearchTerm.toLowerCase())
+    (terminology.unitLabel && user.apartment?.toLowerCase().includes(userSearchTerm.toLowerCase()))
   );
 
   const fetchBusySlots = async (areaId: string) => {
@@ -518,19 +558,21 @@ export default function NewReservationPage() {
 
     // Para áreas por jornada, validar selección
     if (selectedArea.pricing_type === 'jornada' && !selectedJornada) {
-      setBlockingError('Por favor selecciona una jornada (diurna, nocturna o completo)');
+      setErrorMessage('Por favor selecciona una jornada (diurna, nocturna o completo)');
+      setIsErrorAlertOpen(true);
       return;
     }
 
     // Limpiar errores anteriores
-    setBlockingError(null);
+    setErrorMessage('');
 
     const start = `${selectedDate}T${selectedStartTime}:00`;
     const end = getEndTime();
     const totalCost = calculateTotalCost();
 
     if (isAdmin && (!selectedUserId || selectedUserId.length === 0)) {
-      setBlockingError(`Por favor selecciona un ${terminology.userLabel.toLowerCase()} para la ${terminology.reservationLabel.toLowerCase()}`);
+      setErrorMessage(`Por favor selecciona un ${terminology.userLabel.toLowerCase()} para la ${terminology.reservationLabel.toLowerCase()}`);
+      setIsErrorAlertOpen(true);
       return;
     }
 
@@ -609,7 +651,7 @@ export default function NewReservationPage() {
               <span className={cn(
                 "text-sm font-medium transition-colors duration-300",
                 step >= 1 ? "text-gray-900" : "text-gray-400"
-              )}>Seleccionar área</span>
+              )}>Seleccionar {terminology.areaLabel.toLowerCase()}</span>
             </div>
 
             {/* Línea conectora */}
@@ -659,7 +701,12 @@ export default function NewReservationPage() {
         <>
           {/* Selector de usuario para admin */}
           {isAdmin && (
-            users.length > 0 ? (
+            usersLoading ? (
+              <div className="mb-6 p-8 bg-white border border-gray-100 rounded-xl flex flex-col items-center justify-center gap-3 animate-pulse">
+                <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                <p className="text-sm font-medium text-gray-500">Cargando {terminology.userLabel.toLowerCase()}s...</p>
+              </div>
+            ) : users.length > 0 ? (
               <Card className="mb-6 border-primary/20 bg-primary/5">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
@@ -692,9 +739,9 @@ export default function NewReservationPage() {
                     )}
                   >
                     <option value="">Seleccionar {terminology.userLabel.toLowerCase()}</option>
-                    {filteredUsers.map((user) => (
+                    {filteredUsers.map((user: any) => (
                       <option key={user.id} value={user.id}>
-                        {user.full_name || user.email} {user.apartment ? `- Apt ${user.apartment}` : ''}
+                        {user.full_name || user.email} {user.apartment ? `- ${terminology.unitLabel} ${user.apartment}` : ''}
                       </option>
                     ))}
                   </select>
@@ -705,14 +752,25 @@ export default function NewReservationPage() {
                     </div>
                   )}
                   {selectedUserId && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm font-medium">
-                          Usuario seleccionado: {users.find(u => u.id === selectedUserId)?.full_name || users.find(u => u.id === selectedUserId)?.email}
-                          {users.find(u => u.id === selectedUserId)?.apartment && ` - Apt ${users.find(u => u.id === selectedUserId)?.apartment}`}
-                        </span>
-                      </div>
+                    <div className="space-y-2">
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-green-700">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium">
+                                Usuario seleccionado: {(users as any[]).find(u => u.id === selectedUserId)?.full_name || (users as any[]).find(u => u.id === selectedUserId)?.email}
+                                {(users as any[]).find(u => u.id === selectedUserId)?.apartment && ` - Apt ${(users as any[]).find(u => u.id === selectedUserId)?.apartment}`}
+                                </span>
+                            </div>
+                        </div>
+                        {hasPendingReservation && (
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-amber-700 text-xs">
+                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-bold">¡Atención! Este {terminology.userLabel.toLowerCase()} ya tiene una {terminology.reservationLabel.toLowerCase()} pendiente.</p>
+                                    <p>Debe completar el pago o esperar validación antes de crear una nueva.</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                   )}
                 </CardContent>
@@ -723,9 +781,9 @@ export default function NewReservationPage() {
                   <Users className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-amber-900 tracking-tight">Esta organización no tiene usuarios para crear reservas</h3>
+                  <h3 className="text-sm font-bold text-amber-900 tracking-tight">Esta organización no tiene {terminology.userLabel.toLowerCase()}s para crear {terminology.reservationLabel.toLowerCase()}s</h3>
                   <p className="text-xs text-amber-700 mt-0.5">
-                    Debe registrar {terminology.userLabel.toLowerCase()}s en el módulo de usuarios antes de poder realizar {terminology.reservationLabel.toLowerCase()}s administrativas.
+                    Debe registrar {terminology.userLabel.toLowerCase()}s en el módulo de {terminology.userLabel.toLowerCase()}s antes de poder realizar {terminology.reservationLabel.toLowerCase()}s administrativas.
                   </p>
                 </div>
               </div>
@@ -738,9 +796,9 @@ export default function NewReservationPage() {
                 key={area.id}
                 className={cn(
                   "border-none shadow-sm bg-white transition-all overflow-hidden",
-                  (isAdmin && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:shadow-md cursor-pointer"
+                  (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:shadow-md cursor-pointer"
                 )}
-                onClick={() => (isAdmin && users.length === 0) ? null : handleAreaSelect(area)}
+                onClick={() => (isAdmin && !usersLoading && users.length === 0) ? null : handleAreaSelect(area)}
               >
                 <div className="relative h-40 overflow-hidden">
                   {area.image_url ? (
@@ -1267,7 +1325,7 @@ export default function NewReservationPage() {
           <CardContent className="py-4 space-y-4">
             <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-sm text-gray-500">Espacio</span>
+                <span className="text-sm text-gray-500">{terminology.areaLabel}</span>
                 <span className="font-medium">{selectedArea.name}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b">
@@ -1338,7 +1396,7 @@ export default function NewReservationPage() {
             <Button
               className="w-full"
               onClick={handleReserve}
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending || hasPendingReservation}
             >
               {createMutation.isPending || updateMutation.isPending
                 ? "Procesando..."

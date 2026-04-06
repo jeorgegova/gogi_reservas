@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
-  const { profile, fetchProfile, terminology } = useAuth();
+  const { profile, fetchProfile, terminology, businessType } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -121,7 +121,7 @@ export default function ProfilePage() {
         <CardHeader className="pt-4 text-center pb-2">
           <CardTitle className="text-xl font-bold text-gray-900">{profile.full_name}</CardTitle>
           <CardDescription className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            {terminology.userLabel} de {profile.apartment || 'N/A'} • {organizationName || 'Cargando...'}
+            {terminology.userLabel} {businessType === 'residential' && `de ${profile.apartment || 'N/A'}`} • {organizationName || 'Cargando...'}
           </CardDescription>
         </CardHeader>
 
@@ -167,15 +167,17 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold text-gray-400">{terminology.unitLabel}</Label>
-              <Input
-                className="h-10 rounded-lg text-sm"
-                value={formData.apartment}
-                onChange={e => setFormData({ ...formData, apartment: e.target.value })}
-                placeholder={terminology.unitPlaceholder}
-              />
-            </div>
+            {businessType === 'residential' && (
+              <div className="space-y-1.5">
+                <Label className="text-[10px] uppercase font-bold text-gray-400">{terminology.unitLabel}</Label>
+                <Input
+                  className="h-10 rounded-lg text-sm"
+                  value={formData.apartment}
+                  onChange={e => setFormData({ ...formData, apartment: e.target.value })}
+                  placeholder={terminology.unitPlaceholder}
+                />
+              </div>
+            )}
 
             <div className="pt-2">
               <Button
