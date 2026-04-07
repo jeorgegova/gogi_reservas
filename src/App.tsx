@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useEffect, useRef, useState } from 'react';
 import { Toaster } from 'sonner';
@@ -23,13 +23,45 @@ import PaymentMockPage from './pages/PaymentMock';
 import Bonificaciones from './pages/Bonificaciones';
 import AdminBonificaciones from './pages/admin/Bonificaciones';
 import VerifyEmail from './pages/VerifyEmail';
+import AdminSettingsPage from '@/pages/admin/AdminSettings';
 
 const OrganizationHome = () => {
-  const { profile, loading } = useAuth();
+  const { profile, loading, fetchOrgSettings, isGuest, setGuestMode } = useAuth();
+  const { slug } = useParams<{ slug: string }>();
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const hasProcessed = useRef(false);
+
+  useEffect(() => {
+    if (slug && !hasProcessed.current && !profile && !loading) {
+      hasProcessed.current = true;
+      fetchOrgSettings(slug).then(settings => {
+        if (settings && !settings.requires_auth && settings.guest_user_id) {
+          setGuestMode(settings.guest_user_id).finally(() => {
+            setSettingsLoading(false);
+          });
+        } else {
+          setSettingsLoading(false);
+        }
+      }).catch(() => {
+        setSettingsLoading(false);
+      });
+    } else if (profile || loading) {
+      setSettingsLoading(false);
+    }
+  }, [slug, profile, loading, fetchOrgSettings, setGuestMode]);
   
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
+  if (loading || (settingsLoading && !profile && !isGuest)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="text-sm font-medium text-gray-500 animate-pulse text-center">
+          Iniciando portal...
+        </p>
+      </div>
+    );
+  }
   
-  if (profile) {
+  if (profile || isGuest) {
     return (
       <DashboardLayout>
         <Calendario />
@@ -41,11 +73,14 @@ const OrganizationHome = () => {
 };
 
 const PrivateRoute = ({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) => {
-  const { profile, loading } = useAuth();
+  const { profile, loading, isGuest } = useAuth();
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
-  if (!profile) return <Navigate to="/" />; // Redirect to root for login
-  if (adminOnly && profile.role !== 'admin' && profile.role !== 'super_admin') return <Navigate to="/dashboard" />;
+  if (!profile && !isGuest) return <Navigate to="/" />; // Redirect to root for login
+  
+  if (isGuest && adminOnly) return <Navigate to="/dashboard" />;
+
+  if (adminOnly && profile?.role !== 'admin' && profile?.role !== 'super_admin') return <Navigate to="/dashboard" />;
 
   return <>{children}</>;
 };
@@ -111,9 +146,9 @@ const RootLoader = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Toaster position="top-center" richColors />
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <Toaster position="top-center" richColors />
         <Routes>
           {/* Root - muestra pantalla de carga o redirige */}
           <Route path="/" element={<RootLoader />} />
@@ -242,6 +277,16 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/admin/settings"
+            element={
+              <PrivateRoute adminOnly>
+                <DashboardLayout>
+                  <AdminSettingsPage />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
 
           <Route
             path="/super-admin/organizations"
@@ -307,8 +352,8 @@ function App() {
           {/* Catch-all to root */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

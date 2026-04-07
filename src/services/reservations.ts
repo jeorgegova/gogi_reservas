@@ -9,6 +9,8 @@ export interface Reservation {
   total_cost: number;
   status: 'pending_payment' | 'pending_validation' | 'approved' | 'rejected' | 'cancelled';
   organization_id: string;
+  guest_name?: string | null;
+  guest_phone?: string | null;
   common_areas?: { name: string };
   profiles?: { full_name: string };
 }

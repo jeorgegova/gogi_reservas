@@ -1,0 +1,236 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../lib/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Switch } from '../../components/ui/switch';
+import { Label } from '../../components/ui/label';
+import { Input } from '../../components/ui/input';
+import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function AdminSettingsPage() {
+  const { profile, terminology } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [requiresAuth, setRequiresAuth] = useState(true);
+  const [guestUserId, setGuestUserId] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [loginPhotoUrl, setLoginPhotoUrl] = useState('');
+
+  useEffect(() => {
+    if (profile?.organization_id) {
+      fetchSettings();
+    }
+  }, [profile]);
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('requires_auth, guest_user_id, logo_url, login_photo_url')
+        .eq('id', profile?.organization_id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setRequiresAuth(data.requires_auth ?? true);
+        setGuestUserId(data.guest_user_id);
+        setLogoUrl(data.logo_url || '');
+        setLoginPhotoUrl(data.login_photo_url || '');
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      toast.error('Error al cargar la configuración');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleAuth = async (checked: boolean) => {
+    setRequiresAuth(!checked); // Toggle value: if checked (permite sin registro), requires_auth = false
+  };
+
+  const handleSave = async () => {
+    if (!profile?.organization_id) return;
+    setSaving(true);
+    try {
+      let finalGuestId = guestUserId;
+
+      // Si habilitamos el modo SIN REGISTRO (requiresAuth == false)
+      if (!requiresAuth) {
+        // Siempre intentamos el setup_guest_user para asegurar que exista/se reuse
+        // La función SQL interna ya maneja el "if not exists"
+        const { data: newGuestId, error: rpcError } = await supabase.rpc('setup_guest_user', {
+          org_id: profile.organization_id,
+          org_slug: profile.organization_slug
+        });
+
+        if (rpcError) throw rpcError;
+        finalGuestId = newGuestId;
+        setGuestUserId(newGuestId);
+      }
+
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          requires_auth: requiresAuth,
+          guest_user_id: finalGuestId,
+          logo_url: logoUrl,
+          login_photo_url: loginPhotoUrl
+        })
+        .eq('id', profile.organization_id);
+
+      if (error) throw error;
+      toast.success('Configuración guardada exitosamente');
+    } catch (error: any) {
+      console.error('Error saving settings:', error);
+      toast.error('Error al guardar: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
+          <Settings className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Configuración del Sistema</h1>
+          <p className="text-gray-500 text-sm">Personaliza el comportamiento general de la plataforma.</p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 max-w-4xl">
+        {/* Acceso Público */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-gray-400" />
+              <CardTitle className="text-lg">Acceso y Registro</CardTitle>
+            </div>
+            <CardDescription>
+              Configura cómo los usuarios pueden ingresar al portal de {terminology.reservationLabel.toLowerCase()}s.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold text-gray-900">Permitir {terminology.reservationLabel.toLowerCase()}s sin registro</Label>
+                <p className="text-xs text-gray-500 max-w-md">
+                  Si activas esta opción, cualquier persona con el link de tu organización podrá ver el calendario y realizar {terminology.reservationLabel.toLowerCase()}s sin necesidad de crear una cuenta.
+                </p>
+              </div>
+              <Switch
+                checked={!requiresAuth}
+                onCheckedChange={handleToggleAuth}
+                className="data-[state=checked]:bg-green-500"
+              />
+            </div>
+
+            <div className="flex items-start gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+              <UserCheck className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">¿Cómo funciona?</h4>
+                <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
+                  <li>Las {terminology.reservationLabel.toLowerCase()}s anónimas se vincularán automáticamente a un perfil de "Invitado".</li>
+                  <li>Los invitados podrán ver el calendario de disponibilidad completa.</li>
+                  <li>Al finalizar una {terminology.reservationLabel.toLowerCase()}, el sistema les sugerirá registrarse para obtener beneficios.</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Identidad Visual */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-gray-400" />
+              <CardTitle className="text-lg">Identidad Visual</CardTitle>
+            </div>
+            <CardDescription>
+              Personaliza el logo y las imágenes de fondo de tu portal.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label className="text-sm font-bold text-gray-700">Logo de la Organización (URL)</Label>
+                <div className="flex flex-col gap-3">
+                  <Input 
+                    value={logoUrl} 
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLogoUrl(e.target.value)} 
+                    placeholder="https://ejemplo.com/logo.png"
+                    className="h-10 rounded-xl"
+                  />
+                  {logoUrl && (
+                    <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 flex justify-center">
+                      <img src={logoUrl} alt="Preview Logo" className="h-16 w-auto object-contain" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-bold text-gray-700">Fondo de Inicio de Sesión (URL)</Label>
+                <div className="flex flex-col gap-3">
+                  <Input 
+                    value={loginPhotoUrl} 
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoginPhotoUrl(e.target.value)} 
+                    placeholder="https://ejemplo.com/fondo.jpg"
+                    className="h-10 rounded-xl"
+                  />
+                  {loginPhotoUrl && (
+                    <div className="aspect-video bg-gray-50 rounded-xl border border-dashed border-gray-200 overflow-hidden">
+                      <img src={loginPhotoUrl} alt="Preview Background" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Guest Profile Status (informational) */}
+        {!requiresAuth && guestUserId && (
+          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-lg text-green-700 text-xs font-medium">
+            <CheckCircle2 className="w-4 h-4" />
+            Perfil de invitado configurado y activo.
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full md:w-auto h-11 px-8 rounded-xl font-bold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Guardar Configuración
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

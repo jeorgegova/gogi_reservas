@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,7 @@ export default function PaymentMockPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { profile, isGuest } = useAuth();
 
   useEffect(() => {
     fetchReservation();
@@ -50,7 +52,8 @@ export default function PaymentMockPage() {
 
     if (!error) {
       setSuccess(true);
-      setTimeout(() => navigate('/reservations/my'), 3000);
+      const targetPath = isGuest ? `/${profile?.organization_slug}` : '/reservations/my';
+      setTimeout(() => navigate(targetPath, { replace: true }), 3000);
     }
     setProcessing(false);
   };
@@ -124,9 +127,12 @@ export default function PaymentMockPage() {
 
             <Button
               className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-md"
-              onClick={() => navigate('/reservations/my')}
+              onClick={() => {
+                const targetPath = isGuest ? `/${profile?.organization_slug}` : '/reservations/my';
+                navigate(targetPath, { replace: true });
+              }}
             >
-              VER MIS RESERVAS
+              {isGuest ? 'VOLVER AL INICIO' : 'VER MIS RESERVAS'}
             </Button>
           </div>
         )}

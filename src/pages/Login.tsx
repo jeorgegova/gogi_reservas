@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, isGuest } = useAuth();
   const { slug } = useParams();
   const navigate = useNavigate();
   const [organization, setOrganization] = useState<any>(null);
@@ -40,16 +40,16 @@ export default function LoginPage() {
     }
   };
 
-  // Redirigir si ya está autenticado - solo ejecutar una vez
+  // Redirigir si ya está autenticado o es invitado - solo ejecutar una vez
   useEffect(() => {
-    // Solo redirigir si el componente está montado y el usuario está autenticado
-    if (profile && !authLoading) {
+    // Solo redirigir si el componente está montado y el usuario está autenticado o es invitado
+    if ((profile || isGuest) && !authLoading) {
       // Usar replace para evitar que el historial de navegación cause problemas
-      if (profile.role === 'super_admin') {
+      if (profile?.role === 'super_admin') {
         navigate('/super-admin/organizations', { replace: true });
       } else {
         // Redirigir al slug de la organización o al dashboard
-        const targetSlug = profile.organization_slug || slug;
+        const targetSlug = profile?.organization_slug || slug;
         if (targetSlug) {
           localStorage.setItem('lastOrganizationSlug', targetSlug);
           navigate(`/${targetSlug}`, { replace: true });
@@ -58,7 +58,7 @@ export default function LoginPage() {
         }
       }
     }
-  }, [profile, authLoading, slug, navigate]);
+  }, [profile, isGuest, authLoading, slug, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

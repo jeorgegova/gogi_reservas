@@ -67,7 +67,7 @@ export default function AdminReservationsPage() {
       .from('reservations')
       .select(`
         *,
-        profiles (full_name, apartment, email),
+        profiles (full_name, apartment, email, role),
         common_areas (name)
       `)
       .eq('organization_id', profile.organization_id)
@@ -132,6 +132,7 @@ export default function AdminReservationsPage() {
 
   const filteredReservations = reservations.filter(res => 
     res.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    res.guest_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (businessType === 'residential' && res.profiles?.apartment?.toLowerCase().includes(searchTerm.toLowerCase())) ||
     res.common_areas?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -219,8 +220,22 @@ export default function AdminReservationsPage() {
                   filteredReservations.map((res) => (
                     <tr key={res.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4">
-                        <div className="font-bold text-gray-900">{res.profiles?.full_name}</div>
-                        {businessType === 'residential' && (
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-gray-900">
+                            {res.guest_name || res.profiles?.full_name}
+                          </div>
+                          {res.profiles?.role === 'guest' && (
+                            <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-1.5 py-0.5 rounded border border-blue-100 uppercase tracking-tighter">
+                              Invitado
+                            </span>
+                          )}
+                        </div>
+                        {res.guest_phone && (
+                          <div className="text-[10px] text-primary font-medium mt-0.5">
+                            Tel: {res.guest_phone}
+                          </div>
+                        )}
+                        {businessType === 'residential' && res.profiles?.apartment && (
                           <div className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5">
                             <MapPin className="w-3 h-3 text-gray-300" />
                             {terminology.unitLabel} {res.profiles?.apartment}
@@ -263,7 +278,7 @@ export default function AdminReservationsPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
-                          {res.status === 'pending_validation' && (
+                          {(res.status === 'pending_validation' || res.status === 'pending_payment') && (
                             <>
                               <Button
                                 size="sm"
@@ -282,7 +297,7 @@ export default function AdminReservationsPage() {
                                 onClick={() => handleUpdateStatus(res.id, 'rejected')}
                               >
                                 <XCircle className="w-3.5 h-3.5 mr-1.5" />
-                                Rechazar
+                                Cancelar Reserva
                               </Button>
                             </>
                           )}
@@ -312,12 +327,24 @@ export default function AdminReservationsPage() {
                 <div key={res.id} className="p-4 bg-white hover:bg-gray-50 transition-colors flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <div className="flex flex-col min-w-0 pr-2">
-                       <h3 className="font-bold text-gray-900 truncate">{res.profiles?.full_name}</h3>
-                       {businessType === 'residential' && (
-                         <span className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
-                           <MapPin className="w-3 h-3 text-gray-400 shrink-0" /> {terminology.unitLabel} {res.profiles?.apartment}
-                         </span>
-                       )}
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-900 truncate">
+                            {res.guest_name || res.profiles?.full_name}
+                          </h3>
+                          {res.profiles?.role === 'guest' && (
+                            <span className="bg-blue-50 text-blue-600 text-[8px] font-black px-1 py-0.5 rounded border border-blue-100 uppercase tracking-tighter">
+                              Inv
+                            </span>
+                          )}
+                        </div>
+                        {res.guest_phone && (
+                          <span className="text-[10px] text-primary font-bold">Tel: {res.guest_phone}</span>
+                        )}
+                        {businessType === 'residential' && res.profiles?.apartment && (
+                          <span className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-gray-400 shrink-0" /> {terminology.unitLabel} {res.profiles?.apartment}
+                          </span>
+                        )}
                     </div>
                     {(() => {
                       const statusStyles: Record<string, string> = {
@@ -363,7 +390,7 @@ export default function AdminReservationsPage() {
                     </div>
                   </div>
 
-                  {res.status === 'pending_validation' && (
+                  {(res.status === 'pending_validation' || res.status === 'pending_payment') && (
                     <div className="flex items-center justify-end gap-2 mt-2 pt-3 border-t border-gray-50">
                       <Button
                         size="sm"
@@ -373,7 +400,7 @@ export default function AdminReservationsPage() {
                         onClick={() => handleUpdateStatus(res.id, 'rejected')}
                       >
                         <XCircle className="w-4 h-4 mr-1.5" />
-                        Rechazar
+                        Cancelar Reserva
                       </Button>
                       <Button
                         size="sm"

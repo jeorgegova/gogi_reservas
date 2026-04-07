@@ -9,25 +9,40 @@ interface Profile {
   full_name: string | null;
   phone: string | null;
   apartment: string | null;
-  role: 'user' | 'admin' | 'super_admin';
-  organization_id: string;
-  organization_slug?: string;
-}
+   role: 'user' | 'admin' | 'super_admin' | 'guest';
+   organization_id: string;
+   organization_slug?: string;
+   is_guest?: boolean;
+ }
+ 
+ interface OrganizationSettings {
+   requires_auth: boolean;
+   guest_user_id: string | null;
+   business_type: BusinessType;
+   name: string;
+ }
 
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
-  session: Session | null;
-  loading: boolean;
-  signOut: () => Promise<void>;
-  fetchProfile: () => Promise<void>;
-  impersonatedOrgId: string | null;
-  setImpersonatedOrgId: (id: string | null) => void;
-  /** Tipo de negocio de la organización activa */
-  businessType: BusinessType;
-  /** Diccionario de terminología adaptado al tipo de negocio */
-  terminology: BusinessTerminology;
-}
+   session: Session | null;
+   loading: boolean;
+   signOut: () => Promise<void>;
+   fetchProfile: () => Promise<void>;
+   impersonatedOrgId: string | null;
+   setImpersonatedOrgId: (id: string | null) => void;
+   /** Tipo de negocio de la organización activa */
+   businessType: BusinessType;
+   /** Diccionario de terminología adaptado al tipo de negocio */
+   terminology: BusinessTerminology;
+   isGuest: boolean;
+   orgSettings: OrganizationSettings | null;
+   fetchOrgSettings: (slug: string) => Promise<OrganizationSettings | null>;
+   setGuestMode: (guestUserId: string) => Promise<void>;
+   authModal: { isOpen: boolean; view: 'login' | 'register' };
+   openAuthModal: (view: 'login' | 'register') => void;
+   closeAuthModal: () => void;
+ }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -36,8 +51,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [businessType, setBusinessType] = useState<BusinessType>('residential');
-  // Ref para tener el perfil actualizado dentro de los callbacks de Supabase
+   const [businessType, setBusinessType] = useState<BusinessType>('residential');
+   const [orgSettings, setOrgSettings] = useState<OrganizationSettings | null>(null);
+   const [isGuest, setIsGuest] = useState(false);
+   const [authModal, setAuthModal] = useState<{ isOpen: boolean; view: 'login' | 'register' }>({
+     isOpen: false,
+     view: 'login',
+   });
+
+   const openAuthModal = (view: 'login' | 'register' = 'login') => {
+     setAuthModal({ isOpen: true, view });
+   };
+
+   const closeAuthModal = () => {
+     setAuthModal((prev) => ({ ...prev, isOpen: false }));
+   };
+ 
+   // Ref para tener el perfil actualizado dentro de los callbacks de Supabase
   const profileRef = useRef<Profile | null>(null);
   
   // Actualizar el ref cuando cambie el perfil
@@ -102,7 +132,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('useAuth: Finalizando loading del perfil');
       setLoading(false);
     }
-  };
+   };
+ 
+   const fetchOrgSettings = async (slug: string): Promise<OrganizationSettings | null> => {
+     try {
+       const { data, error } = await supabase
+         .from('organizations')
+         .select('requires_auth, guest_user_id, business_type, name')
+         .eq('slug', slug)
+         .single();
+ 
+       if (error) throw error;
+       if (data) {
+         const settings = data as OrganizationSettings;
+         setOrgSettings(settings);
+         setBusinessType(settings.business_type);
+         return settings;
+       }
+       return null;
+     } catch (error) {
+       console.error('useAuth: Error fetching org settings:', error);
+       return null;
+     }
+   };
+ 
+   const fetchGuestProfile = async (guestUserId: string) => {
+     setLoading(true);
+     try {
+       const { data, error } = await supabase
+         .from('profiles')
+         .select('*, organizations(slug, business_type)')
+         .eq('id', guestUserId)
+         .single();
+ 
+       if (error) throw error;
+       if (data) {
+         const profileData = {
+           ...data,
+           organization_slug: data.organizations?.slug,
+           is_guest: true
+         };
+         setProfile(profileData);
+         setIsGuest(true);
+       }
+     } catch (error) {
+       console.error('useAuth: Error fetching guest profile:', error);
+     } finally {
+       setLoading(false);
+     }
+   };
 
   useEffect(() => {
     console.log('useAuth: useEffect inicial disparado');
@@ -140,12 +218,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setLoading(false);
         }
         // Para INITIAL_SESSION y TOKEN_REFRESHED no hacemos nada si ya tenemos perfil
-      } else {
-        console.log('useAuth: Cambio de estado sin sesión, profile null, loading false');
-        setProfile(null);
-        setLoading(false);
-      }
-    });
+       } else {
+         console.log('useAuth: Cambio de estado sin sesión, profile null, loading false');
+         setProfile(null);
+         setIsGuest(false);
+         setLoading(false);
+       }
+     });
 
     return () => {
       console.log('useAuth: Cleanup useEffect (unsubscribe)');
@@ -167,21 +246,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     : profile;
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      profile: effectiveProfile, 
-      session, 
-      loading, 
-      signOut, 
-      fetchProfile: contextFetchProfile,
-      impersonatedOrgId,
-      setImpersonatedOrgId: handleSetImpersonatedOrgId,
-      businessType,
-      terminology: getTerminology(businessType),
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+     <AuthContext.Provider value={{ 
+       user, 
+       profile: effectiveProfile, 
+       session, 
+       loading, 
+       signOut, 
+       fetchProfile: contextFetchProfile,
+       impersonatedOrgId,
+       setImpersonatedOrgId: handleSetImpersonatedOrgId,
+       businessType,
+        terminology: getTerminology(businessType),
+       isGuest,
+       orgSettings,
+       fetchOrgSettings,
+       setGuestMode: fetchGuestProfile,
+       authModal,
+       openAuthModal,
+       closeAuthModal,
+     }}>
+       {children}
+     </AuthContext.Provider>
+   );
 };
 
 export const useAuth = () => {

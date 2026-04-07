@@ -17,14 +17,16 @@ import {
   Crown,
   Receipt,
   Gift,
+  Settings,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { AuthModal } from '../auth/AuthModal';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, terminology: terminologyHook } = useAuth();
+  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, terminology: terminologyHook, isGuest, openAuthModal } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [organization, setOrganization] = useState<any>(null);
   const [orgLoading, setOrgLoading] = useState(false);
@@ -97,6 +99,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Mi Perfil', path: '/profile', icon: User },
   ];
 
+  if (isGuest) {
+    navItems = [
+      { name: 'Calendario', path: `/${organization?.slug || ''}`, icon: LayoutDashboard },
+      { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar },
+      { name: 'Mantenimientos', path: '/maintenance', icon: Bell },
+    ];
+  }
+
   if (organization?.bonus_system_active) {
     navItems.splice(3, 0, { name: 'Bonificaciones', path: '/bonificaciones', icon: Gift });
   }
@@ -117,6 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: terminology.userLabel + 's', path: '/admin/users', icon: User },
       { name: 'Suscripción', path: '/admin/subscription', icon: Crown },
       { name: 'Bonificaciones', path: '/admin/bonificaciones', icon: Gift },
+      { name: 'Configuración', path: '/admin/settings', icon: Settings },
     ];
 
     // Si es super_admin y está en modo soporte, añadir gestión de organizaciones al principio
@@ -206,26 +217,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
 
             {/* Usuario y Cerrar Sesión - visible para todos los usuarios */}
-            {profile && !loading && (
+            {(profile || isGuest) && !loading && (
               <>
                 <div className="pt-4 pb-2 border-t border-gray-200">
                   <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-md">
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-semibold text-primary">{profile?.full_name?.charAt(0)}</span>
+                      <span className="text-xs font-semibold text-primary">{profile?.full_name?.charAt(0) || 'I'}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name}</p>
-                      <p className="text-xs text-gray-500 capitalize">{profile?.role}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name || 'Invitado'}</p>
+                      <p className="text-xs text-gray-500 capitalize">{profile?.role || 'Guest'}</p>
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={handleSignOut}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Cerrar Sesión
-                </button>
+                {isGuest ? (
+                  <button
+                    onClick={() => openAuthModal('login')}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    Iniciar Sesión
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Cerrar Sesión
+                  </button>
+                )}
               </>
             )}
           </nav>
@@ -243,8 +264,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
             <span className="font-bold text-gray-900 truncate">{organization?.name || 'GoGi Reservas'}</span>
           </div>
-          <button onClick={() => navigate('/profile')} className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-             <span className="text-xs font-semibold text-primary">{profile?.full_name?.charAt(0) || <User className="w-4 h-4 text-primary" />}</span>
+          <button onClick={() => isGuest ? navigate(`/${organization?.slug || ''}/login`) : navigate('/profile')} className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+             <span className="text-xs font-semibold text-primary">{profile?.full_name?.charAt(0) || (isGuest ? <User className="w-4 h-4 text-primary" /> : 'U')}</span>
           </button>
         </header>
 
@@ -359,6 +380,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+      
+      <AuthModal />
     </div>
   );
 }

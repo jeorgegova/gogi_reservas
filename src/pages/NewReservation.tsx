@@ -33,7 +33,7 @@ import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval
 import { es } from 'date-fns/locale';
 
 export default function NewReservationPage() {
-  const { profile, terminology } = useAuth();
+  const { profile, terminology, openAuthModal } = useAuth();
   const queryClient = useQueryClient();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
   const navigate = useNavigate();
@@ -64,13 +64,16 @@ export default function NewReservationPage() {
   const [userError, setUserError] = useState<string | null>(null);
   const [bonusConfig, setBonusConfig] = useState<any>(null);
   const [userReservationCount, setUserReservationCount] = useState(0);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0);
+  const [showPromoModal, setShowPromoModal] = useState(false);
 
   // React Query Hooks
   const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
   const createMutation = useCreateReservationMutation();
   const updateMutation = useUpdateReservationMutation();
-  
+
   const timeSlots = Array.from({ length: 14 }, (_, i) => {
     const hour = 8 + i;
     return `${hour.toString().padStart(2, '0')}:00`;
@@ -79,7 +82,7 @@ export default function NewReservationPage() {
   const getNextBlockStart = (startTime: string): Date | null => {
 
     if (!startTime) return null;
-    
+
     const start = parseISO(`${selectedDate}T${startTime}:00`);
     let earliestBlock: Date | null = null;
 
@@ -108,6 +111,8 @@ export default function NewReservationPage() {
 
   // Fetch pending reservations to prevent duplicates
   const targetUserIdForPendingCheck = (isAdmin && selectedUserId) ? selectedUserId : profile?.id;
+  const isGuestUser = !profile?.id || profile?.role === 'guest';
+
   const { data: pendingReservations = [] } = useQuery({
     queryKey: ['pendingReservations', targetUserIdForPendingCheck, profile?.organization_id],
     queryFn: async () => {
@@ -229,15 +234,19 @@ export default function NewReservationPage() {
       if (subscriptionStatus === 'cancelled') return 'Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.';
       if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return 'Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.';
     }
-    
+
     if (isEditing && reservationToEdit) {
       if (reservationToEdit.user_id !== profile?.id && !isAdmin) return `No tienes permiso para editar esta ${terminology.reservationLabel.toLowerCase()}.`;
       if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return `La ${terminology.reservationLabel.toLowerCase()} ya se validó y no se puede editar.`;
     }
 
     // Pendings block users for NEW reservations, but only warn admins
-    if (!isAdmin && !isEditing && hasPendingReservation) {
-        return `Tiene una ${terminology.reservationLabel.toLowerCase()} pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva ${terminology.reservationLabel.toLowerCase()}.`;
+    if (!isAdmin && !isEditing && hasPendingReservation && !isGuestUser) {
+      return `Tiene una ${terminology.reservationLabel.toLowerCase()} pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva ${terminology.reservationLabel.toLowerCase()}.`;
+    }
+
+    if (isGuestUser && isEditing) {
+      return `Como invitado no puedes editar ${terminology.reservationLabel.toLowerCase()}s. Por favor inicia sesión para gestionar tus citas.`;
     }
 
     return null;
@@ -248,7 +257,7 @@ export default function NewReservationPage() {
     if (selectedStartTime && selectedArea?.pricing_type !== 'jornada') {
       const startHour = parseInt(selectedStartTime.split(':')[0]);
       const maxAllowedByDay = 24 - startHour;
-      
+
       const nextBlock = getNextBlockStart(selectedStartTime) as Date | null;
       let maxAllowed = maxAllowedByDay;
 
@@ -302,16 +311,27 @@ export default function NewReservationPage() {
       setUserError('Por favor selecciona un usuario antes de elegir un área.');
       return;
     }
+
     setUserError(null);
     setSelectedArea(area);
     setSelectedJornada(null);
-    setStep(2);
     fetchBusySlots(area.id);
     fetchBonusInfo(area.id);
+
+    // Si es invitado, mostrar modal de sugerencia antes de pasar al paso 2
+    if (isGuestUser) {
+      setShowPromoModal(true);
+    } else {
+      setStep(2);
+    }
   };
 
   const fetchBonusInfo = async (areaId: string) => {
-    if (!profile?.id) return;
+    if (!profile?.id || isGuestUser) {
+      setBonusConfig(null);
+      setUserReservationCount(0);
+      return;
+    }
 
     try {
       const { data: org } = await supabase
@@ -319,7 +339,7 @@ export default function NewReservationPage() {
         .select('bonus_system_active')
         .eq('id', profile?.organization_id)
         .single();
-      
+
       if (!org?.bonus_system_active) {
         setBonusConfig(null);
         return;
@@ -331,7 +351,7 @@ export default function NewReservationPage() {
         .eq('common_area_id', areaId)
         .eq('is_active', true)
         .single();
-      
+
       setBonusConfig(config);
 
       if (config) {
@@ -361,7 +381,7 @@ export default function NewReservationPage() {
     if (bonusConfig) {
       const cycleLength = bonusConfig.reservations_required + 1;
       const progressInCycle = userReservationCount % cycleLength;
-      
+
       const isEligible = progressInCycle === bonusConfig.reservations_required;
       if (isEligible) {
         setAppliedDiscount(bonusConfig.discount_percentage);
@@ -563,6 +583,13 @@ export default function NewReservationPage() {
       return;
     }
 
+    // Validar datos de contacto para invitados
+    if (isGuestUser && (!guestName || !guestPhone)) {
+      setErrorMessage('Por favor ingresa tu nombre y teléfono de contacto');
+      setIsErrorAlertOpen(true);
+      return;
+    }
+
     // Limpiar errores anteriores
     setErrorMessage('');
 
@@ -586,7 +613,9 @@ export default function NewReservationPage() {
       end_datetime: end,
       total_cost: totalCost,
       organization_id: profile?.organization_id,
-      status: reservationStatus
+      status: reservationStatus,
+      guest_name: isGuestUser ? guestName : null,
+      guest_phone: isGuestUser ? guestPhone : null
     };
 
     try {
@@ -594,12 +623,19 @@ export default function NewReservationPage() {
         await updateMutation.mutateAsync({ id: id!, data: reservationData });
       } else {
         const result = await createMutation.mutateAsync(reservationData);
+        // Si el área no es gratuita, IR AL PAGO (incluyendo invitados)
         if (!isFree && result?.id) {
           navigate(`/payment/${result.id}`);
           return;
         }
       }
-      navigate('/reservations/my');
+
+      // Si el área es gratuita o no devolvió ID de pago, ir al inicio
+      const targetPath = isGuestUser
+        ? `/${profile?.organization_slug}`
+        : (isAdmin ? '/admin/reservations' : '/reservations/my');
+
+      navigate(targetPath);
     } catch (error: any) {
       setErrorMessage(error.message || `Error al procesar la ${terminology.reservationLabel.toLowerCase()}`);
       setIsErrorAlertOpen(true);
@@ -753,24 +789,24 @@ export default function NewReservationPage() {
                   )}
                   {selectedUserId && (
                     <div className="space-y-2">
-                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center gap-2 text-green-700">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-sm font-medium">
-                                Usuario seleccionado: {(users as any[]).find(u => u.id === selectedUserId)?.full_name || (users as any[]).find(u => u.id === selectedUserId)?.email}
-                                {(users as any[]).find(u => u.id === selectedUserId)?.apartment && ` - Apt ${(users as any[]).find(u => u.id === selectedUserId)?.apartment}`}
-                                </span>
-                            </div>
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm font-medium">
+                            Usuario seleccionado: {(users as any[]).find(u => u.id === selectedUserId)?.full_name || (users as any[]).find(u => u.id === selectedUserId)?.email}
+                            {(users as any[]).find(u => u.id === selectedUserId)?.apartment && ` - Apt ${(users as any[]).find(u => u.id === selectedUserId)?.apartment}`}
+                          </span>
                         </div>
-                        {hasPendingReservation && (
-                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-amber-700 text-xs">
-                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-bold">¡Atención! Este {terminology.userLabel.toLowerCase()} ya tiene una {terminology.reservationLabel.toLowerCase()} pendiente.</p>
-                                    <p>Debe completar el pago o esperar validación antes de crear una nueva.</p>
-                                </div>
-                            </div>
-                        )}
+                      </div>
+                      {hasPendingReservation && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-amber-700 text-xs">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold">¡Atención! Este {terminology.userLabel.toLowerCase()} ya tiene una {terminology.reservationLabel.toLowerCase()} pendiente.</p>
+                            <p>Debe completar el pago o esperar validación antes de crear una nueva.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -838,7 +874,7 @@ export default function NewReservationPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="p-4 pt-2">
-                  <Button 
+                  <Button
                     className="w-full"
                     disabled={isAdmin && users.length === 0}
                   >
@@ -1356,8 +1392,8 @@ export default function NewReservationPage() {
                   <div className="flex justify-between items-center pt-2">
                     <span className="text-sm font-medium">Total extra a pagar</span>
                     <span className="text-lg font-bold text-primary">
-                      {(calculateTotalCost() - (reservationToEdit?.total_cost || 0)) > 0 
-                        ? formatCurrency(calculateTotalCost() - (reservationToEdit?.total_cost || 0)) 
+                      {(calculateTotalCost() - (reservationToEdit?.total_cost || 0)) > 0
+                        ? formatCurrency(calculateTotalCost() - (reservationToEdit?.total_cost || 0))
                         : formatCurrency(0)}
                     </span>
                   </div>
@@ -1383,20 +1419,55 @@ export default function NewReservationPage() {
                 isFree ? "text-blue-500" : "text-amber-500"
               )} />
               <p className="text-sm text-gray-600">
-                {isEditing 
-                  ? `Al confirmar edición, la ${terminology.reservationLabel.toLowerCase()} quedarán pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos.` 
+                {isEditing
+                  ? `Al confirmar edición, la ${terminology.reservationLabel.toLowerCase()} quedarán pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos.`
                   : isFree
                     ? `Al confirmar, se generará la ${terminology.reservationLabel.toLowerCase()} pendiente de validación sin costo adicional.`
                     : "Al confirmar, se generará una solicitud pendiente de validación. Tienes 15 minutos para completar la transacción."
                 }
               </p>
             </div>
+
+            {/* Datos de contacto para invitados */}
+            {isGuestUser && (
+              <div className="space-y-4 p-4 bg-primary/5 rounded-xl border border-primary/10 animate-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-2 text-primary font-bold text-sm mb-1">
+                  <Users className="w-4 h-4" />
+                  Datos de contacto (Pago y Validación)
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="guestName" className="text-xs font-semibold uppercase tracking-wider text-gray-500">Nombre Completo</Label>
+                    <Input
+                      id="guestName"
+                      placeholder="Tu nombre completo"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      className="h-11 rounded-xl bg-white border-primary/20 focus:ring-primary/40"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="guestPhone" className="text-xs font-semibold uppercase tracking-wider text-gray-500">Teléfono / WhatsApp</Label>
+                    <Input
+                      id="guestPhone"
+                      placeholder="300 123 4567"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      className="h-11 rounded-xl bg-white border-primary/20 focus:ring-primary/40"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  * Usaremos estos datos para validar tu comprobante de pago y confirmar tu reserva.
+                </p>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button
               className="w-full"
               onClick={handleReserve}
-              disabled={createMutation.isPending || updateMutation.isPending || hasPendingReservation}
+              disabled={createMutation.isPending || updateMutation.isPending || (hasPendingReservation && !isGuestUser)}
             >
               {createMutation.isPending || updateMutation.isPending
                 ? "Procesando..."
@@ -1419,6 +1490,58 @@ export default function NewReservationPage() {
         onConfirm={() => setIsErrorAlertOpen(false)}
         variant="destructive"
       />
+      {/* Modal Promocional para Invitados - Aparece al SELECCIONAR área */}
+      {showPromoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="max-w-md w-full border-none shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="h-3 bg-primary" />
+            <CardHeader className="text-center pt-8 pb-4">
+              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <Users className="w-8 h-8 text-blue-600" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-gray-900">¡Reserva como invitado!</CardTitle>
+              <CardDescription className="text-base mt-2">
+                Para continuar con tu {terminology.reservationLabel.toLowerCase()} tienes dos opciones:
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-8 pb-8 space-y-6">
+              <div className="space-y-4">
+                <Button
+                  onClick={() => openAuthModal('register')}
+                  className="w-full h-12 font-bold shadow-lg shadow-primary/25 bg-primary hover:bg-primary/90"
+                >
+                  <Gift className="w-4 h-4 mr-2" />
+                  Registrarme y obtener beneficios
+                </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-400 font-bold">O también</span>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPromoModal(false);
+                    setStep(2);
+                  }}
+                  className="w-full h-12 font-medium border-gray-200 text-gray-600 hover:bg-gray-50"
+                >
+                  Continuar sin registro
+                </Button>
+              </div>
+
+              <p className="text-[10px] text-gray-400 text-center leading-relaxed">
+                * El registro te permite ver tu historial, recibir recordatorios y acumular beneficios en el sistema de bonificaciones.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

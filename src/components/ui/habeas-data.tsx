@@ -64,8 +64,8 @@ export function HabeasData({ onAccept, accepted }: HabeasDataProps) {
 
             {/* Expanded Content - Política de Privacidad */}
             {isExpanded && (
-                <Card className="bg-black/30 border-white/10 p-4 text-xs text-blue-100/80 space-y-3 animate-in slide-in-from-top-2 duration-300">
-                    <div className="space-y-2">
+                <Card className="bg-black/30 border-white/10 p-4 text-xs text-blue-100/80 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="max-h-32 overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                         <h4 className="font-semibold text-white text-sm">POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES</h4>
 
                         <p className="leading-relaxed">
@@ -77,13 +77,9 @@ export function HabeasData({ onAccept, accepted }: HabeasDataProps) {
                         <ul className="list-disc list-inside space-y-1 ml-1">
                             <li>Gestionar su registro como usuario del sistema de reservas</li>
                             <li>Comunicarnos con usted respecto a sus reservas y eventos</li>
-                            <li>Enviar notificaciones relacionadas con el uso de las áreas comunes</li>
+                            <li>Enviar notificaciones relacionadas con el servicio</li>
                             <li>Cumplir con obligaciones legales y contractuales</li>
                         </ul>
-
-                        <p className="leading-relaxed">
-                            <strong className="text-white">Responsable:</strong> Administración del Conjunto Residencial
-                        </p>
 
                         <p className="leading-relaxed">
                             <strong className="text-white">Derechos del titular:</strong> Usted tiene derecho a conocer,
