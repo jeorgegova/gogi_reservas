@@ -34,7 +34,7 @@ interface UserProfile {
 }
 
 export default function AdminUsersPage() {
-  const { profile, terminology, businessType } = useAuth();
+  const { profile, terminology, businessType, orgSettings } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,37 +66,64 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     if (!profile?.organization_id) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
+    const { data, error } = await supabase
+      .from('memberships')
+      .select(`
+        id,
+        user_id,
+        role,
+        phone,
+        apartment,
+        created_at,
+        profiles (
+          id,
+          email,
+          full_name
+        )
+      `)
       .eq('organization_id', profile.organization_id)
-      .order('full_name', { ascending: true });
-    setUsers(data || []);
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching memberships:', error);
+    } else {
+      const transformedUsers: UserProfile[] = (data || []).map((m: any) => ({
+        id: m.profiles.id,
+        email: m.profiles.email,
+        full_name: m.profiles.full_name,
+        role: m.role,
+        phone: m.phone,
+        apartment: m.apartment,
+        created_at: m.created_at
+      }));
+      setUsers(transformedUsers);
+    }
     setLoading(false);
   };
 
   const handleToggleRole = async () => {
-    if (!roleChangeUser) return;
+    if (!roleChangeUser || !profile?.organization_id) return;
     const newRole = roleChangeUser.role === 'admin' ? 'user' : 'admin';
     
     await supabase
-      .from('profiles')
+      .from('memberships')
       .update({ role: newRole })
-      .eq('id', roleChangeUser.id)
-      .eq('organization_id', profile?.organization_id);
+      .eq('user_id', roleChangeUser.id)
+      .eq('organization_id', profile.organization_id);
     fetchUsers();
     setIsRoleAlertOpen(false);
     setRoleChangeUser(null);
   };
 
   const handleDeleteUser = async () => {
-    if (!deletingUser) return;
+    if (!deletingUser || !profile?.organization_id) return;
     
     await supabase
-      .from('profiles')
+      .from('memberships')
       .delete()
-      .eq('id', deletingUser.id)
-      .eq('organization_id', profile?.organization_id);
+      .eq('user_id', deletingUser.id)
+      .eq('organization_id', profile.organization_id);
+      
     fetchUsers();
     setIsDeleteAlertOpen(false);
     setDeletingUser(null);
@@ -115,19 +142,26 @@ export default function AdminUsersPage() {
   };
 
   const handleSaveEdit = async () => {
-    if (!editingUser) return;
+    if (!editingUser || !profile?.organization_id) return;
     setIsSubmitting(true);
     
     const { error } = await supabase
-      .from('profiles')
+      .from('memberships')
       .update({
-        full_name: editForm.full_name,
+        role: editForm.role,
         apartment: editForm.apartment,
-        phone: editForm.phone,
-        role: editForm.role
+        phone: editForm.phone
       })
-      .eq('id', editingUser.id)
-      .eq('organization_id', profile?.organization_id);
+      .eq('user_id', editingUser.id)
+      .eq('organization_id', profile.organization_id);
+    
+    // También actualizamos el nombre global en profiles si cambió
+    if (editForm.full_name !== editingUser.full_name) {
+      await supabase
+        .from('profiles')
+        .update({ full_name: editForm.full_name })
+        .eq('id', editingUser.id);
+    }
     
     if (!error) {
       fetchUsers();
@@ -256,40 +290,46 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end">
-                          <DropdownMenu
-                            trigger={
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                                onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
-                              >
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            }
-                          >
-                            <DropdownMenuItem onClick={() => openEditModal(user)}>
-                              <Pencil className="h-4 w-4" />
-                              Editar {terminology.userLabel.toLowerCase()}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
-                              {user.role === 'admin' ? (
-                                <>
-                                  <ShieldOff className="h-4 w-4" />
-                                  Quitar admin
-                                </>
-                              ) : (
-                                <>
-                                  <Shield className="h-4 w-4" />
-                                  Hacer admin
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
-                              <Trash2 className="h-4 w-4" />
-                              Eliminar {terminology.userLabel.toLowerCase()}
-                            </DropdownMenuItem>
-                          </DropdownMenu>
+                          {user.id !== orgSettings?.guest_user_id ? (
+                            <DropdownMenu
+                              trigger={
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                                  onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
+                                >
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              }
+                            >
+                              <DropdownMenuItem onClick={() => openEditModal(user)}>
+                                <Pencil className="h-4 w-4" />
+                                Editar {terminology.userLabel.toLowerCase()}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
+                                {user.role === 'admin' ? (
+                                  <>
+                                    <ShieldOff className="h-4 w-4" />
+                                    Quitar admin
+                                  </>
+                                ) : (
+                                  <>
+                                    <Shield className="h-4 w-4" />
+                                    Hacer admin
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
+                                <Trash2 className="h-4 w-4" />
+                                Eliminar {terminology.userLabel.toLowerCase()}
+                              </DropdownMenuItem>
+                            </DropdownMenu>
+                          ) : (
+                            <div className="flex items-center gap-2 px-2 py-1 text-[10px] font-bold text-gray-400 bg-gray-50 border border-gray-100 rounded-md uppercase">
+                              Sin Acciones
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -325,40 +365,44 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
                     
-                    <DropdownMenu
-                      trigger={
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full shrink-0"
-                          onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      }
-                    >
-                      <DropdownMenuItem onClick={() => openEditModal(user)}>
-                        <Pencil className="h-4 w-4" />
-                        Editar {terminology.userLabel.toLowerCase()}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
-                        {user.role === 'admin' ? (
-                          <>
-                            <ShieldOff className="h-4 w-4" />
-                            Quitar admin
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="h-4 w-4" />
-                            Hacer admin
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
-                        <Trash2 className="h-4 w-4" />
-                        Eliminar {terminology.userLabel.toLowerCase()}
-                      </DropdownMenuItem>
-                    </DropdownMenu>
+                    {user.id !== orgSettings?.guest_user_id ? (
+                      <DropdownMenu
+                        trigger={
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full shrink-0"
+                            onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        }
+                      >
+                        <DropdownMenuItem onClick={() => openEditModal(user)}>
+                          <Pencil className="h-4 w-4" />
+                          Editar {terminology.userLabel.toLowerCase()}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
+                          {user.role === 'admin' ? (
+                            <>
+                              <ShieldOff className="h-4 w-4" />
+                              Quitar admin
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="h-4 w-4" />
+                              Hacer admin
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
+                          <Trash2 className="h-4 w-4" />
+                          Eliminar {terminology.userLabel.toLowerCase()}
+                        </DropdownMenuItem>
+                      </DropdownMenu>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Sin Acciones</span>
+                    )}
                   </div>
                   
                   <div className="flex items-center gap-3 mt-1">

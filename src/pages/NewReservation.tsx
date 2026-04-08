@@ -141,13 +141,29 @@ export default function NewReservationPage() {
     queryKey: ['users', profile?.organization_id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, apartment')
+        .from('memberships')
+        .select(`
+          user_id,
+          phone,
+          apartment,
+          profiles (
+            id,
+            full_name,
+            email
+          )
+        `)
         .eq('organization_id', profile?.organization_id)
-        .eq('role', 'user')
-        .order('full_name');
+        .eq('role', 'user');
+
       if (error) throw error;
-      return data || [];
+
+      // Transformar para mantener compatibilidad
+      return (data || []).map((m: any) => ({
+        id: m.profiles.id,
+        full_name: m.profiles.full_name,
+        email: m.profiles.email,
+        apartment: m.apartment
+      })).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
     },
     enabled: isAdmin && !!profile?.organization_id,
   });
@@ -590,6 +606,22 @@ export default function NewReservationPage() {
       return;
     }
 
+    // Validar si el invitado ya tiene una reserva pendiente por su teléfono
+    if (isGuestUser && guestPhone) {
+      const { count } = await supabase
+        .from('reservations')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', profile.organization_id)
+        .eq('guest_phone', guestPhone)
+        .in('status', ['pending_payment', 'pending_validation']);
+
+      if (count && count > 0) {
+        setErrorMessage(`Ya existe una ${terminology.reservationLabel.toLowerCase()} pendiente de validación asociada al teléfono ${guestPhone}. Por favor, espera a que sea procesada por la administración.`);
+        setIsErrorAlertOpen(true);
+        return;
+      }
+    }
+
     // Limpiar errores anteriores
     setErrorMessage('');
 
@@ -826,17 +858,17 @@ export default function NewReservationPage() {
             )
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {areasData.map((area: any) => (
               <Card
                 key={area.id}
                 className={cn(
-                  "border-none shadow-sm bg-white transition-all overflow-hidden",
-                  (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:shadow-md cursor-pointer"
+                  "border-none apple-shadow bg-white rounded-2xl transition-all overflow-hidden",
+                  (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:apple-shadow-hover hover:-translate-y-1 cursor-pointer"
                 )}
                 onClick={() => (isAdmin && !usersLoading && users.length === 0) ? null : handleAreaSelect(area)}
               >
-                <div className="relative h-40 overflow-hidden">
+                <div className="relative h-48 overflow-hidden">
                   {area.image_url ? (
                     <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
                   ) : (
@@ -875,7 +907,7 @@ export default function NewReservationPage() {
                 </CardContent>
                 <CardFooter className="p-4 pt-2">
                   <Button
-                    className="w-full"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 rounded-xl shadow-lg shadow-primary/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
                     disabled={isAdmin && users.length === 0}
                   >
                     Seleccionar
@@ -888,9 +920,9 @@ export default function NewReservationPage() {
       )}
 
       {step === 2 && selectedArea && (
-        <Card className="border-none shadow-sm bg-white overflow-hidden">
-          <CardHeader className="flex flex-row items-center gap-4 p-4 border-b">
-            <Button variant="ghost" size="icon" onClick={() => setStep(1)}>
+        <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
+          <CardHeader className="flex flex-row items-center gap-4 p-4 border-b border-gray-50">
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100" onClick={() => setStep(1)}>
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <div>
@@ -992,7 +1024,7 @@ export default function NewReservationPage() {
                     </div>
                   ) : (
                     <>
-                      <Label className="text-sm font-medium">Duración (horas)</Label>
+                      <Label className="text-sm font-semibold text-gray-700">Duración (horas)</Label>
                       <div className="flex gap-2">
                         {[1, 2, 3, 4].filter(h => {
                           const maxByArea = selectedArea.max_hours_per_reservation;
@@ -1013,7 +1045,10 @@ export default function NewReservationPage() {
                           <Button
                             key={h}
                             variant={duration === h ? "default" : "outline"}
-                            className="flex-1"
+                            className={cn(
+                              "flex-1 h-11 transition-all duration-300 rounded-xl",
+                              duration === h ? "bg-primary text-white shadow-md shadow-primary/20 scale-105" : "border-gray-200"
+                            )}
                             onClick={() => setDuration(h)}
                           >
                             {h}h
@@ -1101,17 +1136,22 @@ export default function NewReservationPage() {
                               setJornadaError(null);
                             }}
                             className={cn(
-                              "w-full h-14 justify-start gap-3",
-                              selectedJornada === 'diurna' ? "bg-primary border-primary" : "border-gray-200",
-                              isDisabled && "opacity-50 cursor-not-allowed"
+                              "w-full h-16 justify-start gap-4 transition-all duration-300 rounded-2xl",
+                              selectedJornada === 'diurna' ? "bg-primary text-white apple-shadow hover:scale-[1.01] border-none" : "border-gray-200 apple-shadow bg-white hover:bg-gray-50",
+                              isDisabled && "opacity-50 cursor-not-allowed grayscale"
                             )}
                           >
-                            <Sun className="w-5 h-5" />
-                            <div className="text-left flex-1">
-                              <div className="font-medium">Diurna</div>
-                              <div className="text-xs opacity-80">{startTime} - {endTime}</div>
+                            <div className={cn(
+                              "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                              selectedJornada === 'diurna' ? "bg-white/20" : "bg-primary/10"
+                            )}>
+                              <Sun className={cn("w-6 h-6", selectedJornada === 'diurna' ? "text-white" : "text-primary")} />
                             </div>
-                            <div className="ml-auto font-bold">
+                            <div className="text-left flex-1">
+                              <div className="font-bold text-base">Diurna</div>
+                              <div className="text-xs opacity-80 font-medium">{startTime} - {endTime}</div>
+                            </div>
+                            <div className="ml-auto font-black text-lg">
                               {isFree ? 'Gratis' : formatCurrency(selectedArea.cost_jornada_diurna || 0)}
                             </div>
                           </Button>
@@ -1274,19 +1314,19 @@ export default function NewReservationPage() {
                               disabled={isOccupied}
                               onClick={() => setSelectedStartTime(time)}
                               className={cn(
-                                "w-full h-12 text-sm font-medium rounded-lg transition-all duration-200",
+                                "w-full h-14 text-sm font-bold rounded-xl transition-all duration-300",
                                 selectedStartTime === time
-                                  ? "bg-primary text-white border-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
+                                  ? "bg-primary text-white border-none scale-105 apple-shadow z-10"
                                   : isInRange && !isOccupied
-                                    ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/30"
-                                    : "border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300",
-                                info.status === 'reserved' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed",
-                                info.status === 'maintenance' && "bg-red-50 text-red-400 border-red-200 cursor-not-allowed hover:bg-red-50 hover:border-red-200"
+                                    ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                                    : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 apple-shadow-sm",
+                                info.status === 'reserved' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
+                                info.status === 'maintenance' && "bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed"
                               )}
                             >
                               {time}
                               {info.status === 'maintenance' && (
-                                <Hammer className="w-3 h-3 ml-1.5" />
+                                <Hammer className="w-3 h-3 ml-1" />
                               )}
                             </Button>
 
@@ -1330,7 +1370,7 @@ export default function NewReservationPage() {
             <div className="pt-6 border-t border-gray-100">
               <Button
                 size="lg"
-                className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm transition-colors"
+                className="w-full h-12 text-base font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-200/50 transition-all border-none"
                 disabled={!selectedStartTime || (selectedArea.pricing_type === 'jornada' && !selectedJornada)}
                 onClick={() => {
                   if (selectedArea.pricing_type === 'jornada') {
@@ -1352,46 +1392,48 @@ export default function NewReservationPage() {
       )}
 
       {step === 3 && selectedArea && (
-        <Card className="border-none shadow-sm bg-white overflow-hidden max-w-2xl mx-auto">
-          <CardHeader className="pb-4 text-center border-b">
-            <ClipboardCheck className="w-8 h-8 text-primary mx-auto mb-2" />
-            <CardTitle className="text-xl font-bold">Confirmación Final</CardTitle>
-            <CardDescription>Revisa los detalles antes del pago</CardDescription>
+        <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden max-w-2xl mx-auto">
+          <CardHeader className="pb-6 text-center border-b border-gray-50 pt-8">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ClipboardCheck className="w-8 h-8 text-primary shadow-sm" />
+            </div>
+            <CardTitle className="text-2xl font-black text-gray-900 tracking-tight">Confirmación Final</CardTitle>
+            <CardDescription className="text-gray-500 font-medium">Revisa los detalles antes de finalizar</CardDescription>
           </CardHeader>
-          <CardContent className="py-4 space-y-4">
-            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-              <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-sm text-gray-500">{terminology.areaLabel}</span>
-                <span className="font-medium">{selectedArea.name}</span>
+          <CardContent className="py-6 space-y-6">
+            <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{terminology.areaLabel}</span>
+                <span className="font-bold text-gray-900">{selectedArea.name}</span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-sm text-gray-500">Fecha</span>
-                <span className="font-medium">{selectedDate}</span>
+              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Fecha</span>
+                <span className="font-bold text-gray-900">{selectedDate}</span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-sm text-gray-500">
+              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
                   {selectedArea.pricing_type === 'jornada' ? 'Jornada' : 'Horario'}
                 </span>
-                <span className="font-medium">
+                <span className="font-bold text-gray-900 text-right">
                   {selectedArea.pricing_type === 'jornada'
                     ? getJornadaScheduleText()
                     : `${selectedStartTime} - ${format(addHours(new Date(`${selectedDate}T${selectedStartTime}:00`), duration), 'HH:mm')}`
                   }
                 </span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-sm text-gray-500">Hora de entrada</span>
-                <span className="font-medium">{selectedStartTime}</span>
+              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Hora de entrada</span>
+                <span className="font-bold text-gray-900">{selectedStartTime}</span>
               </div>
               {isEditing ? (
                 <>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-amber-600 font-medium">Abono previo (en validación)</span>
-                    <span className="font-medium text-amber-600">{formatCurrency(reservationToEdit?.total_cost || 0)}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                    <span className="text-sm text-amber-600 font-bold uppercase tracking-wider">Abono previo</span>
+                    <span className="font-black text-amber-600">{formatCurrency(reservationToEdit?.total_cost || 0)}</span>
                   </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-sm font-medium">Total extra a pagar</span>
-                    <span className="text-lg font-bold text-primary">
+                  <div className="flex justify-between items-center pt-4">
+                    <span className="text-base font-black text-gray-900 uppercase tracking-tighter italic">Total extra a pagar</span>
+                    <span className="text-3xl font-black text-primary drop-shadow-sm">
                       {(calculateTotalCost() - (reservationToEdit?.total_cost || 0)) > 0
                         ? formatCurrency(calculateTotalCost() - (reservationToEdit?.total_cost || 0))
                         : formatCurrency(0)}
@@ -1399,9 +1441,9 @@ export default function NewReservationPage() {
                   </div>
                 </>
               ) : (
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-sm font-medium">{isFree ? 'Costo' : 'Total a pagar'}</span>
-                  <span className="text-lg font-bold text-primary">
+                <div className="flex justify-between items-center pt-4">
+                  <span className="text-base font-black text-gray-900 uppercase tracking-tighter italic">{isFree ? 'Costo' : 'Total a pagar'}</span>
+                  <span className="text-3xl font-black text-primary drop-shadow-sm">
                     {isFree ? 'Gratis' : formatCurrency(calculateTotalCost())}
                   </span>
                 </div>
@@ -1409,18 +1451,18 @@ export default function NewReservationPage() {
             </div>
 
             <div className={cn(
-              "border rounded-lg p-3 flex gap-3",
+              "border rounded-2xl p-4 flex gap-4 transition-all duration-300",
               isFree
-                ? "bg-blue-50 border-blue-200"
-                : "bg-amber-50 border-amber-200"
+                ? "bg-indigo-50 border-indigo-100 text-indigo-800"
+                : "bg-amber-50 border-amber-100 text-amber-800"
             )}>
               <AlertCircle className={cn(
-                "w-5 h-5 shrink-0",
-                isFree ? "text-blue-500" : "text-amber-500"
+                "w-6 h-6 shrink-0 mt-0.5",
+                isFree ? "text-indigo-500" : "text-amber-500"
               )} />
-              <p className="text-sm text-gray-600">
+              <p className="text-sm font-medium leading-relaxed opacity-90">
                 {isEditing
-                  ? `Al confirmar edición, la ${terminology.reservationLabel.toLowerCase()} quedarán pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos.`
+                  ? `Al confirmar edición, la ${terminology.reservationLabel.toLowerCase()} quedará pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos.`
                   : isFree
                     ? `Al confirmar, se generará la ${terminology.reservationLabel.toLowerCase()} pendiente de validación sin costo adicional.`
                     : "Al confirmar, se generará una solicitud pendiente de validación. Tienes 15 minutos para completar la transacción."
@@ -1430,52 +1472,54 @@ export default function NewReservationPage() {
 
             {/* Datos de contacto para invitados */}
             {isGuestUser && (
-              <div className="space-y-4 p-4 bg-primary/5 rounded-xl border border-primary/10 animate-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center gap-2 text-primary font-bold text-sm mb-1">
-                  <Users className="w-4 h-4" />
-                  Datos de contacto (Pago y Validación)
+              <div className="space-y-4 p-6 bg-primary/5 rounded-2xl border border-primary/10 animate-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-2 text-primary font-black text-base mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  Datos de contacto
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="guestName" className="text-xs font-semibold uppercase tracking-wider text-gray-500">Nombre Completo</Label>
+                    <Label htmlFor="guestName" className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Nombre Completo</Label>
                     <Input
                       id="guestName"
                       placeholder="Tu nombre completo"
                       value={guestName}
                       onChange={(e) => setGuestName(e.target.value)}
-                      className="h-11 rounded-xl bg-white border-primary/20 focus:ring-primary/40"
+                      className="h-12 rounded-xl bg-white border-gray-200 focus:ring-primary/20 focus:border-primary apple-shadow-sm transition-all text-gray-900 font-medium"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="guestPhone" className="text-xs font-semibold uppercase tracking-wider text-gray-500">Teléfono / WhatsApp</Label>
+                    <Label htmlFor="guestPhone" className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Teléfono / WhatsApp</Label>
                     <Input
                       id="guestPhone"
                       placeholder="300 123 4567"
                       value={guestPhone}
                       onChange={(e) => setGuestPhone(e.target.value)}
-                      className="h-11 rounded-xl bg-white border-primary/20 focus:ring-primary/40"
+                      className="h-12 rounded-xl bg-white border-gray-200 focus:ring-primary/20 focus:border-primary apple-shadow-sm transition-all text-gray-900 font-medium"
                     />
                   </div>
                 </div>
-                <p className="text-[10px] text-gray-400">
-                  * Usaremos estos datos para validar tu comprobante de pago y confirmar tu reserva.
+                <p className="text-[11px] text-gray-400 font-medium px-1 leading-tight">
+                  Usaremos estos datos para validar tu comprobante de pago y confirmar tu reserva de forma segura.
                 </p>
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
+          <CardFooter className="flex flex-col gap-4 p-8 pt-2">
             <Button
-              className="w-full"
+              className="w-full bg-primary hover:bg-primary/95 text-white font-black text-lg h-14 rounded-2xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
               onClick={handleReserve}
               disabled={createMutation.isPending || updateMutation.isPending || (hasPendingReservation && !isGuestUser)}
             >
               {createMutation.isPending || updateMutation.isPending
-                ? "Procesando..."
+                ? "Procesando solicitud..."
                 : isFree ? `Confirmar ${terminology.reservationLabel} Gratis` : "Confirmar y proceder al pago"}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={() => setStep(2)}>
+            <Button variant="ghost" className="w-full text-gray-500 font-bold hover:bg-gray-50 h-10 rounded-xl" onClick={() => setStep(2)}>
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Modificar datos
+              Modificar detalles
             </Button>
           </CardFooter>
         </Card>
@@ -1508,7 +1552,7 @@ export default function NewReservationPage() {
               <div className="space-y-4">
                 <Button
                   onClick={() => openAuthModal('register')}
-                  className="w-full h-12 font-bold shadow-lg shadow-primary/25 bg-primary hover:bg-primary/90"
+                  className="w-full h-12 font-bold shadow-lg shadow-indigo-200/50 bg-indigo-600 hover:bg-indigo-700 text-white"
                 >
                   <Gift className="w-4 h-4 mr-2" />
                   Registrarme y obtener beneficios

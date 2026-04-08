@@ -1,5 +1,40 @@
 @import "tailwindcss";
 
+@layer base {
+  :root {
+    color-scheme: light;
+    --background: 0, 0%, 100%;
+    --foreground: 222.2, 84%, 4.9%;
+
+    --card: 0, 0%, 100%;
+    --card-foreground: 222.2, 84%, 4.9%;
+
+    --popover: 0, 0%, 100%;
+    --popover-foreground: 222.2, 84%, 4.9%;
+
+    --primary: 221.2, 83.2%, 53.3%;
+    --primary-foreground: 210, 40%, 98%;
+
+    --secondary: 210, 40%, 96.1%;
+    --secondary-foreground: 222.2, 47.4%, 11.2%;
+
+    --muted: 210, 40%, 96.1%;
+    --muted-foreground: 215.4, 16.3%, 46.9%;
+
+    --accent: 210, 40%, 96.1%;
+    --accent-foreground: 222.2, 47.4%, 11.2%;
+
+    --destructive: 0, 84.2%, 60.2%;
+    --destructive-foreground: 210, 40%, 98%;
+
+    --border: 214.3, 31.8%, 91.4%;
+    --input: 214.3, 31.8%, 91.4%;
+    --ring: 221.2, 83.2%, 53.3%;
+
+    --radius: 0.75rem; /* Incremented for Apple-style rounding */
+  }
+}
+
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -23,90 +58,18 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-
-  --animate-fade-in: fade-in 0.3s ease-in-out;
-  --animate-zoom-in: zoom-in 0.2s ease-out;
-
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  @keyframes zoom-in {
-    from { transform: scale(0.95); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
 }
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
-}
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 @layer utilities {
@@ -117,10 +80,22 @@
   .animate-slow-zoom {
     animation: slowZoom 20s ease-in-out infinite alternate;
   }
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .apple-shadow {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+  .apple-shadow-hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
 }
 
-/* FullCalendar Modernization */
-.compact-calendar .fc {
+/* FullCalendar Modernization & Bug Fixes */
+.fc {
   --fc-button-bg-color: hsl(var(--primary));
   --fc-button-border-color: hsl(var(--primary));
   --fc-button-hover-bg-color: hsl(var(--primary) / 0.9);
@@ -133,132 +108,85 @@
   font-family: inherit;
 }
 
-.compact-calendar .fc .fc-button {
-  @apply rounded-xl font-bold px-4 py-2 transition-all shadow-sm transform active:scale-95;
-  text-transform: capitalize;
+.fc .fc-button {
+  border-radius: 0.75rem !important; /* Force Apple-style rounding */
+  font-weight: 600 !important;
+  padding: 0.5rem 1rem !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  text-transform: capitalize !important;
+  border: none !important;
 }
 
-.compact-calendar .fc .fc-toolbar-title {
-  @apply text-lg sm:text-2xl font-bold tracking-tight text-gray-900;
+/* Fix for the 'whiteout' bug on calendar buttons */
+.fc .fc-button-primary:not(:disabled):hover {
+  background-color: hsl(var(--primary) / 0.9) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
 }
 
-.compact-calendar .fc .fc-col-header-cell-cushion {
-  @apply py-3 text-xs sm:text-sm font-semibold text-gray-500 uppercase;
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: hsl(var(--primary)) !important;
+  color: white !important;
+  transform: scale(0.96);
 }
 
-.compact-calendar .fc .fc-daygrid-day-number {
-  @apply p-2 text-xs sm:text-sm font-medium;
+.fc .fc-button-block {
+  background-color: transparent !important;
+  color: hsl(var(--foreground)) !important;
 }
 
-.compact-calendar .fc .fc-event {
-  @apply rounded-md border-none shadow-sm px-1.5 py-0.5 m-0.5 cursor-pointer transition-transform hover:scale-[1.02];
+.fc .fc-toolbar-title {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em;
+  color: #111827;
 }
 
-.compact-calendar .fc .fc-event-title {
-  @apply font-semibold text-[10px] sm:text-xs overflow-hidden text-ellipsis;
+.fc .fc-col-header-cell-cushion {
+  padding: 0.75rem 0.5rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  text-transform: uppercase;
+  text-decoration: none !important;
 }
 
-/* Mobile Specific Optimizations */
-@media (max-width: 640px) {
-  .compact-calendar .fc .fc-toolbar {
-    @apply flex-col gap-3 items-center;
-  }
-  
-  .compact-calendar .fc .fc-toolbar-chunk {
-    @apply flex justify-center w-full;
-  }
+.fc .fc-daygrid-day-number {
+  padding: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  color: #374151 !important;
+}
 
-  .compact-calendar .fc .fc-header-toolbar {
-    margin-bottom: 1.5rem !important;
-  }
+/* Hover effect for day cells to ensure content stays visible */
+.fc-daygrid-day:hover {
+  background-color: hsl(var(--primary) / 0.03) !important;
+}
 
-  .compact-calendar .fc .fc-button {
-    @apply px-2 py-1 text-xs;
-  }
+.fc .fc-event {
+  border-radius: 6px !important;
+  border: none !important;
+  padding: 2px 4px !important;
+  transition: transform 0.2s ease;
+}
 
-  .fc-view-harness {
-    height: auto !important;
-  }
-
-  .fc-daygrid-day-frame {
-    padding: 0 !important;
-    min-height: 20px !important;
-  }
-  
-  @media (min-width: 640px) {
-    .fc-daygrid-day-frame {
-      min-height: 28px !important;
-    }
-  }
-
-  .fc-daygrid-day-top {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: flex-end !important;
-  }
-
-  /* Centrar puntos solo en móvil */
-  @media (max-width: 639px) {
-    .fc-daygrid-day-events {
-      display: flex !important;
-      flex-wrap: wrap !important;
-      justify-content: center !important;
-      gap: 1px !important;
-      margin-top: -8px !important;
-    }
-  }
-
-  /* Alineación normal en escritorio */
-  @media (min-width: 640px) {
-    .fc-daygrid-day-events {
-      display: block !important;
-      margin-top: 0 !important;
-    }
-  }
-
-  .fc-daygrid-event-harness {
-    margin: 0 !important;
-  }
-
-  .fc-event {
-    margin: 1px 0 !important;
-    background: transparent !important;
-    border: none !important;
-  }
-
-  /* Números y nombres de días en negrita y negro */
-  .fc-col-header-cell-cushion,
-  .fc-daygrid-day-number {
-    font-weight: 700 !important;
-    color: #111827 !important;
-    text-decoration: none !important;
-    padding: 1px 4px !important;
-  }
-
-  .fc-col-header-cell-cushion {
-    font-size: 10px !important;
-    text-transform: uppercase !important;
-  }
-
-  /* Estilos específicos para vistas de tiempo (semana/día) */
-  .fc-timegrid-event {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border: 1px solid #f3f4f6 !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-  }
-
-  .fc-event-main {
-    padding: 0 !important;
-  }
-
-  .fc-event-main-frame {
-    padding: 0 !important;
-  }
+.fc .fc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 /* Tooltip Premium Style */
 .calendar-tooltip {
-  @apply animate-fade-in animate-zoom-in;
-  backdrop-filter: blur(8px);
-  background-color: rgba(255, 255, 255, 0.95) !important;
+  animation: calendar-tooltip-in 0.2s ease-out;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+@keyframes calendar-tooltip-in {
+  from { opacity: 0; transform: scale(0.95) translateY(5px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }

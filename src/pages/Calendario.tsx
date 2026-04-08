@@ -151,10 +151,6 @@ export default function Calendario() {
                 .eq('role', 'user');
 
             // Areas are now from useCommonAreasQuery (areasData)
-            // const { data: areasData } = await supabase
-            //     .from('common_areas')
-            //     .select('*')
-            //     .eq('organization_id', profile?.organization_id);
 
             // Procesar datos para gráficos
             const processedData = processAdminData(allReservations || [], areasData || [], usersData?.length || 0);
@@ -423,7 +419,7 @@ export default function Calendario() {
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="border-none shadow-sm bg-white overflow-hidden group">
+                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
                         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.reservationLabel}s Hoy</h3>
@@ -437,7 +433,7 @@ export default function Calendario() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none shadow-sm bg-white overflow-hidden group">
+                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
                         <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ingresos Mes</h3>
@@ -451,7 +447,7 @@ export default function Calendario() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none shadow-sm bg-white overflow-hidden group">
+                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
                         <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Por Validar</h3>
@@ -465,7 +461,7 @@ export default function Calendario() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none shadow-sm bg-white overflow-hidden group">
+                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
                         <div className="absolute top-0 left-0 w-1 h-full bg-rose-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ocupación</h3>
@@ -483,7 +479,7 @@ export default function Calendario() {
                 {/* Charts Row 1 */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Reservas por Mes */}
-                    <Card className="border-none shadow-sm bg-white">
+                    <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-gray-50 p-4">
                             <div className="flex items-center gap-2">
                                 <BarChart3 className="w-5 h-5 text-primary" />
@@ -530,7 +526,7 @@ export default function Calendario() {
                     </Card>
 
                     {/* Ingresos por Mes */}
-                    <Card className="border-none shadow-sm bg-white">
+                    <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-gray-50 p-4">
                             <div className="flex items-center gap-2">
                                 <DollarSign className="w-5 h-5 text-emerald-500" />
@@ -567,7 +563,7 @@ export default function Calendario() {
                 {/* Charts Row 2 */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Áreas más ocupadas */}
-                    <Card className="border-none shadow-sm bg-white lg:col-span-2">
+                    <Card className="border-none apple-shadow bg-white lg:col-span-2 rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-gray-50 p-4">
                             <div className="flex items-center gap-2">
                                 <Activity className="w-5 h-5 text-amber-500" />
@@ -720,7 +716,7 @@ export default function Calendario() {
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button asChild className="h-12 rounded-xl shadow-md bg-primary hover:bg-primary/90">
+                    <Button asChild className="h-12 rounded-xl apple-shadow hover:apple-shadow-hover bg-primary hover:bg-primary/90 text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
                         <Link to="/admin/reservations">
                             <Calendar className="w-4 h-4 mr-2" />
                             Gestionar {terminology.reservationLabel}s
@@ -759,7 +755,7 @@ export default function Calendario() {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3 space-y-6">
-                    <Card className="border-none shadow-sm bg-white">
+                    <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden mb-6">
                         <CardHeader className="border-b border-gray-50 p-4 flex flex-row items-center justify-between">
                             <div>
                                 <h3 className="text-lg font-bold text-gray-900">Calendario de Actividades</h3>
@@ -891,28 +887,28 @@ export default function Calendario() {
                                             >
                                                 <div className="flex justify-end w-full p-0.5">
                                                     <span className={cn(
-                                                        "text-[10px] sm:text-xs font-bold text-gray-900 px-1 hover:text-primary transition-colors",
-                                                        arg.isToday && "bg-primary text-white w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:text-white"
+                                                        "text-[10px] sm:text-xs font-semibold text-gray-900 px-1 transition-colors",
+                                                        arg.isToday 
+                                                            ? "bg-primary text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm" 
+                                                            : "hover:text-primary"
                                                     )}>
                                                         {arg.dayNumberText}
                                                     </span>
                                                 </div>
 
-                                                {isBookable && (
-                                                    <div className="absolute bottom-0 right-0 p-0.5 z-10 w-full flex justify-end">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const dateStr = format(arg.date, 'yyyy-MM-dd');
-                                                                navigate(`/reservations/new?date=${dateStr}`);
-                                                            }}
-                                                            className="w-5 h-5 sm:w-4 sm:h-4 text-gray-400 transition-all hover:text-primary hover:bg-gray-100 rounded flex items-center justify-center bg-white/50 backdrop-blur-sm sm:bg-transparent"
-                                                            title={`Agregar ${terminology.reservationLabel.toLowerCase()}`}
-                                                        >
-                                                            <span className="text-sm sm:text-xs font-bold leading-none">+</span>
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                <div className="absolute bottom-1 right-1 p-0.5 z-10 w-full flex justify-end">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const dateStr = format(arg.date, 'yyyy-MM-dd');
+                                                            navigate(`/reservations/new?date=${dateStr}`);
+                                                        }}
+                                                        className="w-5 h-5 sm:w-6 sm:h-6 text-primary transition-all hover:bg-primary/10 rounded-full flex items-center justify-center bg-white/50 backdrop-blur-sm sm:bg-transparent"
+                                                        title={`Agregar ${terminology.reservationLabel.toLowerCase()}`}
+                                                    >
+                                                        <span className="text-lg sm:text-sm font-semibold leading-none">+</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         );
                                     }}
@@ -1080,7 +1076,7 @@ export default function Calendario() {
                 </div>
 
                 <div className="space-y-6">
-                    <Card className="border-none shadow-sm bg-white">
+                    <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-gray-50 p-4">
                             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                 <Bell className="w-4 h-4 text-primary" /> Avisos
@@ -1120,7 +1116,7 @@ export default function Calendario() {
                         </CardContent>
                     </Card>
 
-                    <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-md">
+                    <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white font-semibold h-12 rounded-xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] border-none">
                         <Link to="/reservations/new">Nueva {terminology.reservationLabel}</Link>
                     </Button>
                 </div>

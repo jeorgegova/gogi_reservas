@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { profile, loading: authLoading, isGuest } = useAuth();
+  const { profile, loading: authLoading, isGuest, setGuestMode } = useAuth();
   const { slug } = useParams();
   const navigate = useNavigate();
   const [organization, setOrganization] = useState<any>(null);
@@ -44,18 +44,25 @@ export default function LoginPage() {
   useEffect(() => {
     // Solo redirigir si el componente está montado y el usuario está autenticado o es invitado
     if ((profile || isGuest) && !authLoading) {
-      // Usar replace para evitar que el historial de navegación cause problemas
       if (profile?.role === 'super_admin') {
         navigate('/super-admin/organizations', { replace: true });
-      } else {
-        // Redirigir al slug de la organización o al dashboard
-        const targetSlug = profile?.organization_slug || slug;
-        if (targetSlug) {
-          localStorage.setItem('lastOrganizationSlug', targetSlug);
-          navigate(`/${targetSlug}`, { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
+        return;
+      }
+
+      // Si hay un slug en la URL, asegurarnos de que el perfil esté asociado a ese slug
+      // antes de permitir el ingreso para evitar redirecciones a la org anterior
+      if (slug && profile && profile.organization_slug !== slug) {
+        console.log('Login: Esperando a que el perfil se asocie con la organización actual...', { profileSlug: profile.organization_slug, urlSlug: slug });
+        return;
+      }
+
+      const targetSlug = slug || profile?.organization_slug;
+      if (targetSlug) {
+        console.log('Login: Redirigiendo a:', targetSlug);
+        localStorage.setItem('lastOrganizationSlug', targetSlug);
+        navigate(`/${targetSlug}`, { replace: true });
+      } else if (!slug) {
+        navigate('/dashboard', { replace: true });
       }
     }
   }, [profile, isGuest, authLoading, slug, navigate]);
@@ -84,6 +91,15 @@ export default function LoginPage() {
       setError(translateAuthError(err.message || 'Error al iniciar sesión'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    if (organization?.guest_user_id && slug) {
+      setLoading(true);
+      await setGuestMode(organization.guest_user_id);
+      localStorage.setItem('lastOrganizationSlug', slug);
+      navigate(`/${slug}`, { replace: true });
     }
   };
 
@@ -221,6 +237,19 @@ export default function LoginPage() {
               <span className={cn("text-[10px] font-bold uppercase tracking-widest", !slug ? "text-gray-400" : "text-white/40")}>o</span>
               <div className={cn("h-px flex-1", !slug ? "bg-gray-100" : "bg-white/20")}></div>
             </div>
+
+            {organization && !organization.requires_auth && organization.guest_user_id && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGuestLogin}
+                className="w-full h-12 text-base font-semibold rounded-2xl bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-md transition-all duration-300"
+                disabled={loading}
+              >
+                Continuar como Invitado
+              </Button>
+            )}
+
             <div className={cn("text-sm text-center", !slug ? "text-gray-500" : "text-blue-100/80")}>
               ¿No tienes una cuenta?{' '}
               <Link to={slug ? `/${slug}/register` : "/register"} className={cn("font-bold hover:underline decoration-2 underline-offset-4 transition-all", !slug ? "text-indigo-600 decoration-indigo-500/50" : "text-white decoration-primary/50")}>

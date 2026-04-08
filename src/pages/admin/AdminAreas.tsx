@@ -192,19 +192,19 @@ export default function AdminAreasPage() {
             });
             setIsEditing(true);
           }}
-          className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 font-semibold h-11 px-5 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+          className="bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 font-black h-12 px-6 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
         >
           <Plus className="w-4 h-4 mr-2" /> Nueva {terminology.areaLabel}
         </Button>
       </div>
 
       {isEditing && (
-        <Card className="border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
-          <div className="bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900">{currentArea.id ? `Editar ${terminology.areaLabel}` : `Crear Nueva ${terminology.areaLabel}`}</h2>
-            <p className="text-sm text-gray-500">Completa los detalles del espacio</p>
+        <Card className="border-none apple-shadow rounded-2xl overflow-hidden mt-6">
+          <div className="bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-5 border-b border-gray-50">
+            <h2 className="text-xl font-black text-gray-900 tracking-tight">{currentArea.id ? `Editar ${terminology.areaLabel}` : `Crear Nueva ${terminology.areaLabel}`}</h2>
+            <p className="text-sm font-medium text-gray-500 mt-1">Completa los detalles del espacio</p>
           </div>
-          <CardContent className="p-6 space-y-6">
+          <CardContent className="p-8 space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
@@ -393,9 +393,9 @@ export default function AdminAreasPage() {
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
-                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} className="h-11 px-6 font-medium rounded-xl border-gray-200 hover:bg-gray-50">Cancelar</Button>
-                <Button type="submit" className="h-11 px-6 font-semibold rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 text-primary-foreground">Guardar</Button>
+              <div className="flex justify-end gap-4 pt-6 border-t border-gray-100 mt-8">
+                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} className="h-12 px-6 font-bold rounded-xl border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">Cancelar</Button>
+                <Button type="submit" className="h-12 px-8 font-black rounded-xl bg-primary hover:bg-primary/95 shadow-lg shadow-primary/20 text-white border-none transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">Guardar cambios</Button>
               </div>
             </form>
           </CardContent>
@@ -404,12 +404,12 @@ export default function AdminAreasPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          [1, 2, 3].map(i => <div key={i} className="h-64 bg-gray-100 animate-pulse rounded-xl" />)
+          [1, 2, 3].map(i => <div key={i} className="h-64 bg-gray-100 animate-pulse rounded-2xl" />)
         ) : (
           areas.map((area) => (
             <Card key={area.id}
               className={cn(
-                "overflow-hidden border-none shadow-sm bg-white transition-all hover:shadow-md",
+                "overflow-hidden border-none apple-shadow rounded-2xl bg-white transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1",
                 !area.is_active && "opacity-60 grayscale"
               )}
             >

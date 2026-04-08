@@ -46,6 +46,20 @@ export default {
         md: `calc(var(--radius) - 2px)`,
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        "fade-in": {
+          "from": { opacity: "0" },
+          "to": { opacity: "1" },
+        },
+        "zoom-in": {
+          "from": { transform: "scale(0.95)", opacity: "0" },
+          "to": { transform: "scale(1)", opacity: "1" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 0.3s ease-in-out",
+        "zoom-in": "zoom-in 0.2s ease-out",
+      },
     },
   },
   plugins: [],

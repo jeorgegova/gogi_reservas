@@ -17,6 +17,9 @@ export default function AdminSettingsPage() {
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState('');
   const [loginPhotoUrl, setLoginPhotoUrl] = useState('');
+  const [orgName, setOrgName] = useState('');
+  const [orgPhone, setOrgPhone] = useState('');
+  const [orgAddress, setOrgAddress] = useState('');
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -29,7 +32,7 @@ export default function AdminSettingsPage() {
     try {
       const { data, error } = await supabase
         .from('organizations')
-        .select('requires_auth, guest_user_id, logo_url, login_photo_url')
+        .select('requires_auth, guest_user_id, logo_url, login_photo_url, name, phone, address')
         .eq('id', profile?.organization_id)
         .single();
 
@@ -39,6 +42,9 @@ export default function AdminSettingsPage() {
         setGuestUserId(data.guest_user_id);
         setLogoUrl(data.logo_url || '');
         setLoginPhotoUrl(data.login_photo_url || '');
+        setOrgName(data.name || '');
+        setOrgPhone(data.phone || '');
+        setOrgAddress(data.address || '');
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -78,7 +84,10 @@ export default function AdminSettingsPage() {
           requires_auth: requiresAuth,
           guest_user_id: finalGuestId,
           logo_url: logoUrl,
-          login_photo_url: loginPhotoUrl
+          login_photo_url: loginPhotoUrl,
+          name: orgName,
+          phone: orgPhone,
+          address: orgAddress
         })
         .eq('id', profile.organization_id);
 
@@ -148,6 +157,54 @@ export default function AdminSettingsPage() {
                   <li>Los invitados podrán ver el calendario de disponibilidad completa.</li>
                   <li>Al finalizar una {terminology.reservationLabel.toLowerCase()}, el sistema les sugerirá registrarse para obtener beneficios.</li>
                 </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Información de la Organización */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Settings className="w-5 h-5 text-gray-400" />
+              <CardTitle className="text-lg">Perfil de la Organización</CardTitle>
+            </div>
+            <CardDescription>
+              Actualiza la información de contacto y nombre de tu organización.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="orgName" className="text-sm font-bold text-gray-700">Nombre de la Organización</Label>
+              <Input 
+                id="orgName"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                placeholder="Nombre de tu empresa"
+                className="h-10 rounded-xl"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="orgPhone" className="text-sm font-bold text-gray-700">Teléfono de Contacto</Label>
+                <Input 
+                  id="orgPhone"
+                  value={orgPhone}
+                  onChange={(e) => setOrgPhone(e.target.value)}
+                  placeholder="+57 300 123 4567"
+                  className="h-10 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="orgAddress" className="text-sm font-bold text-gray-700">Dirección Física</Label>
+                <Input 
+                  id="orgAddress"
+                  value={orgAddress}
+                  onChange={(e) => setOrgAddress(e.target.value)}
+                  placeholder="Calle 123 #45-67"
+                  className="h-10 rounded-xl"
+                />
               </div>
             </div>
           </CardContent>

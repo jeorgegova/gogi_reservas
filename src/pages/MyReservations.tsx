@@ -127,14 +127,14 @@ export default function MyReservationsPage() {
             <p className="text-gray-500 text-sm">Historial y estado de tus solicitudes.</p>
           </div>
         </div>
-        <Button asChild className="bg-primary hover:bg-primary/95 shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+        <Button asChild className="bg-primary hover:bg-primary/95 shadow-lg shadow-primary/20 text-white font-black h-12 px-6 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none">
           <Link to="/reservations/new">Nueva {terminology.reservationLabel}</Link>
         </Button>
       </div>
 
       {/* Indicadores Financieros */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="md:col-span-1 border-none shadow-sm bg-primary/5 border-l-4 border-primary overflow-hidden group">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-1 border-none apple-shadow rounded-2xl bg-primary/5 border-l-4 border-primary overflow-hidden group hover:apple-shadow-hover transition-all duration-300">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Total Invertido</p>
@@ -149,7 +149,7 @@ export default function MyReservationsPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-1 border-none shadow-sm bg-blue-50/50 border-l-4 border-blue-500 overflow-hidden group">
+        <Card className="md:col-span-1 border-none apple-shadow rounded-2xl bg-blue-50/50 border-l-4 border-blue-500 overflow-hidden group hover:apple-shadow-hover transition-all duration-300">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'Aprobados' : 'Aprobadas'}</p>
@@ -166,8 +166,8 @@ export default function MyReservationsPage() {
       </div>
 
       {/* Barra de Filtros */}
-      <Card className="border-none shadow-sm overflow-visible bg-white/80 backdrop-blur-sm sticky top-0 z-10 transition-all hover:bg-white">
-        <CardContent className="p-4">
+      <Card className="border-none apple-shadow rounded-2xl overflow-visible bg-white/80 backdrop-blur-sm sticky top-0 z-10 transition-all hover:bg-white hover:apple-shadow-hover">
+        <CardContent className="p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1.5">
@@ -259,7 +259,7 @@ export default function MyReservationsPage() {
           filteredReservations.map((res) => (
             <div
               key={res.id}
-              className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden relative"
+              className="group bg-white rounded-2xl border border-gray-100 apple-shadow hover:apple-shadow-hover hover:-translate-y-1 transition-all duration-300 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden relative"
             >
               {/* Status indicator bar (left) */}
               <div className={cn(

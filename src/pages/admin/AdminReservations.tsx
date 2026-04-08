@@ -283,20 +283,20 @@ export default function AdminReservationsPage() {
                               <Button
                                 size="sm"
                                 disabled={!!blockingError}
-                                className="h-8 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium text-white shadow-lg shadow-green-500/25"
+                                className="h-10 px-4 bg-green-600 hover:bg-green-700 text-xs font-bold text-white shadow-md shadow-green-600/20 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                                 onClick={() => handleUpdateStatus(res.id, 'approved')}
                               >
-                                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                                <CheckCircle className="w-4 h-4 mr-1.5" />
                                 Aprobar
                               </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
                                 disabled={!!blockingError}
-                                className="h-8 px-3 text-xs font-medium shadow-lg shadow-red-500/25"
+                                className="h-10 px-4 text-xs font-bold shadow-md shadow-red-500/20 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                                 onClick={() => handleUpdateStatus(res.id, 'rejected')}
                               >
-                                <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                                <XCircle className="w-4 h-4 mr-1.5" />
                                 Cancelar Reserva
                               </Button>
                             </>
@@ -396,7 +396,7 @@ export default function AdminReservationsPage() {
                         size="sm"
                         variant="destructive"
                         disabled={!!blockingError}
-                        className="h-9 px-3 text-xs font-medium w-full flex-1 shadow-lg shadow-red-500/25"
+                        className="h-10 px-4 text-xs font-bold w-full flex-1 rounded-xl transition-all duration-300"
                         onClick={() => handleUpdateStatus(res.id, 'rejected')}
                       >
                         <XCircle className="w-4 h-4 mr-1.5" />
@@ -405,7 +405,7 @@ export default function AdminReservationsPage() {
                       <Button
                         size="sm"
                         disabled={!!blockingError}
-                        className="h-9 px-3 bg-green-600 hover:bg-green-700 text-xs font-medium w-full flex-1 text-white shadow-lg shadow-green-500/25"
+                        className="h-10 px-4 bg-green-600 hover:bg-green-700 text-xs font-bold w-full flex-1 text-white rounded-xl transition-all duration-300"
                         onClick={() => handleUpdateStatus(res.id, 'approved')}
                       >
                         <CheckCircle className="w-4 h-4 mr-1.5" />

@@ -75,23 +75,59 @@ export function AuthModal() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // 1. Pre-verificación: ¿Ya existe el perfil para este correo?
+      const { data: exists, error: checkError } = await supabase
+        .rpc('check_user_exists', { email_to_check: email });
+
+      if (checkError) console.error('Error al verificar existencia de correo:', checkError);
+
+      if (exists) {
+        setError('Ya tienes una cuenta con este correo. Por favor inicia sesión; te vincularemos automáticamente a esta organización.');
+        setView('login');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Intentar registrar nuevo usuario en Supabase Auth
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             full_name: fullName,
-            phone: phone,
-            apartment: apartment,
-            organization_id: organization?.id,
             habeas_data_accepted: true,
             habeas_data_accepted_at: new Date().toISOString(),
           },
         },
       });
 
-      if (error) throw error;
+      // 2. Si el usuario ya existe (error específico de Supabase)
+      if (signUpError) {
+        if (signUpError.message.includes('User already registered') || signUpError.status === 400) {
+          setError('Ya tienes una cuenta con este correo. Por favor inicia sesión para unirte a esta organización.');
+          setView('login');
+          setLoading(false);
+          return;
+        }
+        throw signUpError;
+      }
+
+      // 3. Crear la membresía inicial si el registro fue exitoso
+      if (authData.user && organization?.id) {
+        const { error: membershipError } = await supabase
+          .from('memberships')
+          .insert({
+            user_id: authData.user.id,
+            organization_id: organization.id,
+            phone: phone,
+            apartment: apartment,
+            role: 'user'
+          });
+        
+        if (membershipError) console.error('Error al crear membresía:', membershipError);
+      }
+
       setIsSuccessAlertOpen(true);
     } catch (err: any) {
       setError(translateAuthError(err.message) || 'Error al registrarse');
@@ -170,6 +206,7 @@ export function AuthModal() {
                     onChange={e => setFullName(e.target.value)} 
                     placeholder="Juan Pérez" 
                     required 
+                    autoComplete="name"
                     className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50"
                   />
                 </div>
@@ -182,6 +219,7 @@ export function AuthModal() {
                       onChange={e => setPhone(e.target.value)} 
                       placeholder="300 123 4567" 
                       required 
+                      autoComplete="tel"
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50"
                     />
                   </div>
@@ -209,6 +247,7 @@ export function AuthModal() {
                 onChange={e => setEmail(e.target.value)} 
                 placeholder="tu@correo.com" 
                 required 
+                autoComplete="email"
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50"
               />
             </div>
@@ -222,6 +261,7 @@ export function AuthModal() {
                 onChange={e => setPassword(e.target.value)} 
                 placeholder="••••••••" 
                 required 
+                autoComplete={view === 'login' ? 'current-password' : 'new-password'}
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50"
               />
             </div>

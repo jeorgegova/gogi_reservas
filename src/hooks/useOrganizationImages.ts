@@ -9,7 +9,13 @@ export function useOrganizationImages(slug: string | undefined) {
   }>({ logo_url: null, login_photo_url: null });
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug) {
+      setCachedImages({ logo_url: null, login_photo_url: null });
+      return;
+    }
+
+    // Reset state before trying to fetch new images to avoid flickering old data
+    setCachedImages({ logo_url: null, login_photo_url: null });
 
     // Intentar obtener del caché local
     const cachedLogo = localStorage.getItem(`${IMAGE_CACHE_PREFIX}${slug}_logo`);
