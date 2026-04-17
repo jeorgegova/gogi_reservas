@@ -19,7 +19,7 @@ import SuperAdminSubscriptionPlans from './pages/super-admin/SubscriptionPlans';
 import SuperAdminSubscriptionPayments from './pages/super-admin/SubscriptionPayments';
 import ProfilePage from './pages/Profile';
 import MaintenancePage from './pages/Maintenance';
-import PaymentMockPage from './pages/PaymentMock';
+import PaymentPage from './pages/Payment';
 import Bonificaciones from './pages/Bonificaciones';
 import AdminBonificaciones from './pages/admin/Bonificaciones';
 import VerifyEmail from './pages/VerifyEmail';
@@ -344,7 +344,7 @@ function App() {
             path="/payment/:id"
             element={
               <PrivateRoute>
-                <PaymentMockPage />
+                <PaymentPage />
               </PrivateRoute>
             }
           />

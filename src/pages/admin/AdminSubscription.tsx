@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { createSubscriptionPayment } from '@/lib/paymentService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
@@ -34,10 +35,9 @@ export default function AdminSubscription() {
   const { profile } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [renewing, setRenewing] = useState(false);
-  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
@@ -124,8 +124,7 @@ export default function AdminSubscription() {
 
       let subscriptionId = subscription?.id;
 
-      // If no existing subscription, create a new one
-      if (!subscription) {
+      if (!subscriptionId) {
         const startDate = new Date().toISOString();
         const endDate = new Date(Date.now() + selectedPlan.duration_in_days * 24 * 60 * 60 * 1000).toISOString();
 
@@ -136,7 +135,7 @@ export default function AdminSubscription() {
             plan_id: planId,
             start_date: startDate,
             end_date: endDate,
-            status: 'pending', // Set to pending until super_admin approves payment
+            status: 'pending',
             auto_renew: false
           })
           .select()
@@ -148,10 +147,9 @@ export default function AdminSubscription() {
 
         subscriptionId = newSubscription.id;
 
-        // Update organization subscription_status
         const { error: orgError } = await supabase
           .from('organizations')
-          .update({ 
+          .update({
             subscription_status: 'pending',
             subscription_end_date: endDate
           })
@@ -161,7 +159,6 @@ export default function AdminSubscription() {
           console.error('Error updating organization subscription_status:', orgError);
         }
       } else {
-        // Create new subscription for renewal from current date
         const startDate = new Date().toISOString();
         const endDate = new Date(Date.now() + selectedPlan.duration_in_days * 24 * 60 * 60 * 1000).toISOString();
 
@@ -172,7 +169,7 @@ export default function AdminSubscription() {
             plan_id: planId,
             start_date: startDate,
             end_date: endDate,
-            status: 'pending', // Set to pending until super_admin approves payment
+            status: 'pending',
             auto_renew: false
           })
           .select()
@@ -184,7 +181,6 @@ export default function AdminSubscription() {
 
         subscriptionId = newSubscription.id;
 
-        // Update organization subscription_status
         const { error: orgError } = await supabase
           .from('organizations')
           .update({
@@ -198,30 +194,16 @@ export default function AdminSubscription() {
         }
       }
 
-      // Create payment record
-      const { error: paymentError } = await supabase
-        .from('subscription_payments')
-        .insert({
-          subscription_id: subscriptionId,
-          amount: selectedPlan.price,
-          payment_method: 'bank_transfer',
-          status: 'pending',
-          transaction_id: `${subscription ? 'renewal' : 'activation'}-${Date.now()}`
-        });
+      const result = await createSubscriptionPayment(subscriptionId);
 
-      if (paymentError) {
-        throw paymentError;
+      if (result.checkout_url) {
+        window.location.href = result.checkout_url;
+        return;
       }
-
-      setValidationMessage(`La suscripción ha sido ${subscription ? 'renovada' : 'activada'} y está en estado de validación mientras el administrador del sistema valida el pago.`);
-
-      // Refresh subscription data
-      await fetchSubscription();
-      await fetchPendingPayments();
-
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error managing subscription:', error);
-      alert('Error al gestionar la suscripción: ' + error.message);
+      alert('Error al gestionar la suscripción: ' + errorMsg);
     } finally {
       setRenewing(false);
     }
@@ -287,13 +269,6 @@ export default function AdminSubscription() {
           <p className="text-gray-600">Gestiona tu suscripción y planes disponibles</p>
         </div>
       </div>
-
-      {validationMessage && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-blue-600" />
-          <p className="text-sm text-blue-800">{validationMessage}</p>
-        </div>
-      )}
 
       {/* Current Subscription */}
       <Card>

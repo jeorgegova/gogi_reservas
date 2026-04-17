@@ -83,7 +83,6 @@ export default function AdminReservationsPage() {
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
-    // First update the reservation status
     const { error: updateError } = await supabase
       .from('reservations')
       .update({
@@ -98,32 +97,40 @@ export default function AdminReservationsPage() {
       return;
     }
 
-    // If approving, create a payment record
     if (newStatus === 'approved') {
-      // Get the reservation details to create payment
-      const { data: reservation } = await supabase
-        .from('reservations')
-        .select('total_cost')
-        .eq('id', id)
-        .single();
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('reservation_id', id)
+        .maybeSingle();
 
-      if (reservation && reservation.total_cost > 0) {
-        const { error: paymentError } = await supabase
+      if (!existingPayment) {
+        const { data: reservation } = await supabase
+          .from('reservations')
+          .select('total_cost')
+          .eq('id', id)
+          .single();
+
+        if (reservation && reservation.total_cost > 0) {
+          await supabase
+            .from('payments')
+            .insert({
+              reservation_id: id,
+              amount: reservation.total_cost,
+              payment_method: 'admin_approval',
+              status: 'completed',
+              validated_by: profile?.id,
+              validated_at: new Date().toISOString()
+            });
+        }
+      } else {
+        await supabase
           .from('payments')
-          .insert({
-            reservation_id: id,
-            amount: reservation.total_cost,
-            payment_method: 'admin_approval', // or whatever method
-            status: 'completed',
+          .update({
             validated_by: profile?.id,
             validated_at: new Date().toISOString()
-          });
-
-        if (paymentError) {
-          console.error('Error creating payment:', paymentError);
-          // Note: We don't fail the approval if payment creation fails
-          // Could add user notification here
-        }
+          })
+          .eq('reservation_id', id);
       }
     }
 
@@ -180,6 +187,7 @@ export default function AdminReservationsPage() {
                 <option value="all">Todos los estados</option>
                 <option value="pending_validation">Pendiente Validación</option>
                 <option value="pending_payment">Pendiente Pago</option>
+                <option value="paid">Pagado (Wompi)</option>
                 <option value="approved">Aprobadas</option>
                 <option value="rejected">Rechazadas</option>
                 <option value="cancelled">Canceladas</option>
@@ -259,26 +267,35 @@ export default function AdminReservationsPage() {
                       <td className="px-6 py-4">
                          {(() => {
                            const statusStyles: Record<string, string> = {
-                             'approved': 'bg-green-50 text-green-700 border-green-100',
-                             'pending_validation': 'bg-amber-50 text-amber-700 border-amber-100',
-                             'pending_payment': 'bg-red-50 text-red-700 border-red-100',
-                             'rejected': 'bg-gray-50 text-gray-600 border-gray-100',
-                             'cancelled': 'bg-gray-50 text-gray-400 border-gray-100',
-                           };
+                              'approved': 'bg-green-50 text-green-700 border-green-100',
+                              'paid': 'bg-blue-50 text-blue-700 border-blue-100',
+                              'pending_validation': 'bg-amber-50 text-amber-700 border-amber-100',
+                              'pending_payment': 'bg-red-50 text-red-700 border-red-100',
+                              'rejected': 'bg-gray-50 text-gray-600 border-gray-100',
+                              'cancelled': 'bg-gray-50 text-gray-400 border-gray-100',
+                            };
+                            const statusLabels: Record<string, string> = {
+                              'approved': 'Aprobada',
+                              'paid': 'Pagado',
+                              'pending_validation': 'Pend. Validación',
+                              'pending_payment': 'Pend. Pago',
+                              'rejected': 'Rechazada',
+                              'cancelled': 'Cancelada',
+                            };
                            const style = statusStyles[res.status] || 'bg-gray-50 text-gray-600 border-gray-100';
-                           return (
-                             <div className={cn(
-                               "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
-                               style
-                             )}>
-                               {res.status.replace('_', ' ')}
-                             </div>
-                           )
-                         })()}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          {(res.status === 'pending_validation' || res.status === 'pending_payment') && (
+                              return (
+                              <div className={cn(
+                                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
+                                style
+                              )}>
+                                {statusLabels[res.status] || res.status.replace('_', ' ')}
+                              </div>
+                            )
+                          })()}
+                       </td>
+                       <td className="px-6 py-4 text-right">
+                         <div className="flex justify-end gap-2">
+                           {(res.status === 'pending_validation' || res.status === 'pending_payment' || res.status === 'paid') && (
                             <>
                               <Button
                                 size="sm"
@@ -349,10 +366,19 @@ export default function AdminReservationsPage() {
                     {(() => {
                       const statusStyles: Record<string, string> = {
                         'approved': 'bg-green-50 text-green-700 border-green-100',
+                        'paid': 'bg-blue-50 text-blue-700 border-blue-100',
                         'pending_validation': 'bg-amber-50 text-amber-700 border-amber-100',
                         'pending_payment': 'bg-red-50 text-red-700 border-red-100',
                         'rejected': 'bg-gray-50 text-gray-600 border-gray-100',
                         'cancelled': 'bg-gray-50 text-gray-400 border-gray-100',
+                      };
+                      const statusLabels: Record<string, string> = {
+                        'approved': 'Aprobada',
+                        'paid': 'Pagado',
+                        'pending_validation': 'Pend. Validación',
+                        'pending_payment': 'Pend. Pago',
+                        'rejected': 'Rechazada',
+                        'cancelled': 'Cancelada',
                       };
                       const style = statusStyles[res.status] || 'bg-gray-50 text-gray-600 border-gray-100';
                       return (
@@ -360,9 +386,9 @@ export default function AdminReservationsPage() {
                           "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase shrink-0 whitespace-nowrap",
                           style
                         )}>
-                          {res.status.replace('_', ' ').substring(0, 15)}
+                          {statusLabels[res.status] || res.status.replace('_', ' ').substring(0, 15)}
                         </div>
-                      )
+                      );
                     })()}
                   </div>
 
@@ -390,7 +416,7 @@ export default function AdminReservationsPage() {
                     </div>
                   </div>
 
-                  {(res.status === 'pending_validation' || res.status === 'pending_payment') && (
+                  {(res.status === 'pending_validation' || res.status === 'pending_payment' || res.status === 'paid') && (
                     <div className="flex items-center justify-end gap-2 mt-2 pt-3 border-t border-gray-50">
                       <Button
                         size="sm"

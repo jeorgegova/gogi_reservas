@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Switch } from '../../components/ui/switch';
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
-import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck } from 'lucide-react';
+import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AdminSettingsPage() {
@@ -20,6 +20,7 @@ export default function AdminSettingsPage() {
   const [orgName, setOrgName] = useState('');
   const [orgPhone, setOrgPhone] = useState('');
   const [orgAddress, setOrgAddress] = useState('');
+  const [autoApprovePayments, setAutoApprovePayments] = useState(false);
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -32,7 +33,7 @@ export default function AdminSettingsPage() {
     try {
       const { data, error } = await supabase
         .from('organizations')
-        .select('requires_auth, guest_user_id, logo_url, login_photo_url, name, phone, address')
+        .select('requires_auth, guest_user_id, logo_url, login_photo_url, name, phone, address, auto_approve_payments')
         .eq('id', profile?.organization_id)
         .single();
 
@@ -45,6 +46,7 @@ export default function AdminSettingsPage() {
         setOrgName(data.name || '');
         setOrgPhone(data.phone || '');
         setOrgAddress(data.address || '');
+        setAutoApprovePayments(data.auto_approve_payments ?? false);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -55,7 +57,7 @@ export default function AdminSettingsPage() {
   };
 
   const handleToggleAuth = async (checked: boolean) => {
-    setRequiresAuth(!checked); // Toggle value: if checked (permite sin registro), requires_auth = false
+    setRequiresAuth(!checked);
   };
 
   const handleSave = async () => {
@@ -64,10 +66,7 @@ export default function AdminSettingsPage() {
     try {
       let finalGuestId = guestUserId;
 
-      // Si habilitamos el modo SIN REGISTRO (requiresAuth == false)
       if (!requiresAuth) {
-        // Siempre intentamos el setup_guest_user para asegurar que exista/se reuse
-        // La función SQL interna ya maneja el "if not exists"
         const { data: newGuestId, error: rpcError } = await supabase.rpc('setup_guest_user', {
           org_id: profile.organization_id,
           org_slug: profile.organization_slug
@@ -87,7 +86,8 @@ export default function AdminSettingsPage() {
           login_photo_url: loginPhotoUrl,
           name: orgName,
           phone: orgPhone,
-          address: orgAddress
+          address: orgAddress,
+          auto_approve_payments: autoApprovePayments,
         })
         .eq('id', profile.organization_id);
 
@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
           <CardContent className="p-6 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="orgName" className="text-sm font-bold text-gray-700">Nombre de la Organización</Label>
-              <Input 
+              <Input
                 id="orgName"
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
@@ -188,7 +188,7 @@ export default function AdminSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="orgPhone" className="text-sm font-bold text-gray-700">Teléfono de Contacto</Label>
-                <Input 
+                <Input
                   id="orgPhone"
                   value={orgPhone}
                   onChange={(e) => setOrgPhone(e.target.value)}
@@ -198,7 +198,7 @@ export default function AdminSettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="orgAddress" className="text-sm font-bold text-gray-700">Dirección Física</Label>
-                <Input 
+                <Input
                   id="orgAddress"
                   value={orgAddress}
                   onChange={(e) => setOrgAddress(e.target.value)}
@@ -209,7 +209,44 @@ export default function AdminSettingsPage() {
             </div>
           </CardContent>
         </Card>
-        
+
+        {/* Pagos */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-gray-400" />
+              <CardTitle className="text-lg">Configuración de Pagos</CardTitle>
+            </div>
+            <CardDescription>
+              Configura el comportamiento de los pagos con Wompi.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold text-gray-900">Auto-aprobar reservas pagadas</Label>
+                <p className="text-xs text-gray-500 max-w-md">
+                  Si activas esta opción, las reservas se aprobarán automáticamente al confirmarse el pago. Si la desactivas, quedarán en estado "pendiente de validación" para que un administrador las revise.
+                </p>
+              </div>
+              <Switch
+                checked={autoApprovePayments}
+                onCheckedChange={setAutoApprovePayments}
+                className="data-[state=checked]:bg-green-500"
+              />
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+              <CreditCard className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">Proveedor de pagos</h4>
+                <p className="text-xs text-blue-800">
+                  Los pagos se procesan a través de Wompi. Los fondos se reciben directamente en tu cuenta bancaria registrada en Wompi.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Identidad Visual */}
         <Card className="border-none shadow-sm overflow-hidden">
           <CardHeader className="bg-gray-50/50 border-b border-gray-100">
@@ -226,9 +263,9 @@ export default function AdminSettingsPage() {
               <div className="space-y-3">
                 <Label className="text-sm font-bold text-gray-700">Logo de la Organización (URL)</Label>
                 <div className="flex flex-col gap-3">
-                  <Input 
-                    value={logoUrl} 
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLogoUrl(e.target.value)} 
+                  <Input
+                    value={logoUrl}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLogoUrl(e.target.value)}
                     placeholder="https://ejemplo.com/logo.png"
                     className="h-10 rounded-xl"
                   />
@@ -243,9 +280,9 @@ export default function AdminSettingsPage() {
               <div className="space-y-3">
                 <Label className="text-sm font-bold text-gray-700">Fondo de Inicio de Sesión (URL)</Label>
                 <div className="flex flex-col gap-3">
-                  <Input 
-                    value={loginPhotoUrl} 
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoginPhotoUrl(e.target.value)} 
+                  <Input
+                    value={loginPhotoUrl}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoginPhotoUrl(e.target.value)}
                     placeholder="https://ejemplo.com/fondo.jpg"
                     className="h-10 rounded-xl"
                   />
