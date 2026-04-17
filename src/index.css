@@ -190,3 +190,201 @@
   from { opacity: 0; transform: scale(0.95) translateY(5px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* ═══════════════════════════════════════════════════════
+   FullCalendar — Mobile Responsive (< 768px)
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* ---- Toolbar Layout ---- */
+  .fc .fc-toolbar {
+    flex-wrap: wrap !important;
+    gap: 14px !important;
+    justify-content: center !important;
+    padding: 0 4px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .fc .fc-toolbar-chunk {
+    flex: 0 0 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+  }
+
+  /* ---- Prev / Next — Circular Buttons ---- */
+  .fc .fc-prev-button,
+  .fc .fc-next-button {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #fff !important;
+    color: #374151 !important;
+    border: 1.5px solid #e5e7eb !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .fc .fc-prev-button.fc-button-primary:not(:disabled):hover,
+  .fc .fc-next-button.fc-button-primary:not(:disabled):hover {
+    background: #f9fafb !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    transform: scale(1.06) !important;
+  }
+
+  .fc .fc-prev-button.fc-button-primary:not(:disabled):active,
+  .fc .fc-prev-button.fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-next-button.fc-button-primary:not(:disabled):active,
+  .fc .fc-next-button.fc-button-primary:not(:disabled).fc-button-active {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    transform: scale(0.94) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  .fc .fc-prev-button .fc-icon,
+  .fc .fc-next-button .fc-icon {
+    font-size: 16px !important;
+  }
+
+  /* ---- Title ---- */
+  .fc .fc-toolbar-title {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    line-height: 1.3 !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  /* ---- Today Button ---- */
+  .fc .fc-today-button {
+    padding: 8px 18px !important;
+    font-size: 12px !important;
+    border-radius: 20px !important;
+    background: #fff !important;
+    color: #374151 !important;
+    border: 1.5px solid #e5e7eb !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .fc .fc-today-button:not(:disabled):hover {
+    background: #f9fafb !important;
+    border-color: #d1d5db !important;
+    color: #111827 !important;
+  }
+
+  .fc .fc-today-button:disabled {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+  }
+
+  /* ---- View Switcher — Segmented Control ---- */
+  .fc .fc-button-group {
+    background: #f3f4f6 !important;
+    border-radius: 24px !important;
+    padding: 3px !important;
+    gap: 0 !important;
+    border: none !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .fc .fc-button-group .fc-button {
+    border-radius: 20px !important;
+    background: transparent !important;
+    color: #6b7280 !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 8px 16px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+    text-transform: capitalize !important;
+    outline: none !important;
+    position: relative !important;
+  }
+
+  .fc .fc-button-group .fc-button:hover {
+    background: rgba(255, 255, 255, 0.6) !important;
+    color: #374151 !important;
+  }
+
+  .fc .fc-button-group .fc-button.fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-button-group .fc-button-primary:not(:disabled).fc-button-active {
+    background: #fff !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), 0 0 0 0.5px rgba(0, 0, 0, 0.04) !important;
+    border: none !important;
+  }
+
+  .fc .fc-button-group .fc-button:disabled {
+    opacity: 0.35 !important;
+  }
+
+  /* ---- Column Headers ---- */
+  .fc .fc-col-header-cell-cushion {
+    padding: 8px 2px !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  /* ---- Day Numbers ---- */
+  .fc .fc-daygrid-day-number {
+    font-size: 11px !important;
+    padding: 3px 5px !important;
+  }
+
+  /* ---- Mobile Month View — Minimal Event Dots ---- */
+  .mobile-month-view .fc-daygrid-event {
+    background: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-month-view .fc-daygrid-event:hover {
+    background: transparent !important;
+  }
+
+  /* ---- "+N more" Link ---- */
+  .fc .fc-more-link {
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    color: hsl(var(--primary)) !important;
+  }
+
+  /* ---- Grid Refinements ---- */
+  .fc .fc-scrollgrid {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .fc .fc-daygrid-day-frame {
+    min-height: auto !important;
+  }
+
+  /* ---- Week / Day Time Slots ---- */
+  .fc .fc-timegrid-slot-label {
+    font-size: 10px !important;
+    padding: 0 4px !important;
+  }
+
+  .fc .fc-timegrid-slot {
+    height: 40px !important;
+  }
+}

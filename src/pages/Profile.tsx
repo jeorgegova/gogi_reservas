@@ -9,12 +9,16 @@ import {
   User,
   Loader2,
   Lock,
-  ChevronDown
+  ChevronDown,
+  LogOut
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
-  const { profile, fetchProfile, terminology, businessType } = useAuth();
+  const { profile, fetchProfile, terminology, businessType, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -277,10 +281,27 @@ export default function ProfilePage() {
           </div>
         </CardContent>
 
-        <CardFooter className="bg-gray-50/50 p-4 border-t border-gray-100">
+        <CardFooter className="bg-gray-50/50 p-4 border-t border-gray-100 flex flex-col items-center gap-4">
           <p className="text-[10px] text-gray-400 font-medium text-center w-full">
             Tus datos están protegidos. Para cambiar de rol, contacta a la administración.
           </p>
+          <Button
+            variant="outline"
+            className="w-full max-w-xs font-bold border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all duration-200"
+            disabled={loggingOut}
+            onClick={async () => {
+              setLoggingOut(true);
+              await signOut();
+              navigate('/login');
+            }}
+          >
+            {loggingOut ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <LogOut className="w-4 h-4 mr-2" />
+            )}
+            Cerrar Sesión
+          </Button>
         </CardFooter>
       </Card>
     </div>

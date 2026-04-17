@@ -420,7 +420,6 @@ export default function Calendario() {
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.reservationLabel}s Hoy</h3>
                             <Activity className="w-4 h-4 text-indigo-500" />
@@ -434,7 +433,6 @@ export default function Calendario() {
                     </Card>
 
                     <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ingresos Mes</h3>
                             <DollarSign className="w-4 h-4 text-emerald-500" />
@@ -448,7 +446,6 @@ export default function Calendario() {
                     </Card>
 
                     <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Por Validar</h3>
                             <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -462,7 +459,6 @@ export default function Calendario() {
                     </Card>
 
                     <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-rose-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ocupación</h3>
                             <Target className="w-4 h-4 text-rose-500" />
@@ -777,24 +773,14 @@ export default function Calendario() {
                         </CardHeader>
                         <CardContent className="p-1 sm:p-2">
                             <div className={`calendar-container compact-calendar ${isMobile ? 'mobile-month-view' : ''}`}>
-                                <style>{`
-                                    /* Eliminar estilos por defecto del evento en móvil para vista 'Mes' para mostrar solo el punto */
-                                    .mobile-month-view .fc-daygrid-event {
-                                        background: transparent !important;
-                                        border: none !important;
-                                        margin: 0 !important;
-                                        padding: 0 !important;
-                                        box-shadow: none !important;
-                                    }
-                                    .mobile-month-view .fc-daygrid-event:hover {
-                                        background: transparent !important;
-                                    }
-                                `}</style>
                                 <FullCalendar
                                     ref={calendarRef}
                                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                                     initialView="dayGridMonth"
-                                    headerToolbar={{
+                                    headerToolbar={isMobile ? {
+                                        left: 'prev title next',
+                                        right: 'today dayGridMonth,timeGridWeek,timeGridDay'
+                                    } : {
                                         left: 'prev,next today',
                                         center: 'title',
                                         right: 'dayGridMonth,timeGridWeek,timeGridDay'

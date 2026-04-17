@@ -406,7 +406,7 @@ export default function AdminAreasPage() {
         {loading ? (
           [1, 2, 3].map(i => <div key={i} className="h-64 bg-gray-100 animate-pulse rounded-2xl" />)
         ) : (
-          areas.map((area) => (
+          areas.filter(area => !(isEditing && currentArea.id && area.id === currentArea.id)).map((area) => (
             <Card key={area.id}
               className={cn(
                 "overflow-hidden border-none apple-shadow rounded-2xl bg-white transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1",
