@@ -194,7 +194,7 @@ export default function AdminSubscription() {
         }
       }
 
-      const result = await createSubscriptionPayment(subscriptionId);
+      const result = await createSubscriptionPayment(subscriptionId!);
 
       if (result.checkout_url) {
         window.location.href = result.checkout_url;
