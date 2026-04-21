@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminReservationsPage() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
   
   const [reservations, setReservations] = useState<any[]>([]);
@@ -147,8 +147,8 @@ export default function AdminReservationsPage() {
             <ClipboardList className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de Reservas</h1>
-            <p className="text-gray-500 text-sm">Valida y gestiona las solicitudes del conjunto.</p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.reservationLabel}s</h1>
+            <p className="text-gray-500 text-sm">Valida y gestiona las solicitudes de {terminology.userLabel.toLowerCase()}s.</p>
             {blockingError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
                 <p className="text-sm text-red-800 font-medium">{blockingError}</p>
@@ -164,7 +164,7 @@ export default function AdminReservationsPage() {
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input 
-                placeholder="Buscar por nombre, apto..." 
+                placeholder={`Buscar por nombre, ${terminology.unitLabel.toLowerCase()}...`} 
                 className="pl-10 h-9 rounded-lg text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -192,7 +192,7 @@ export default function AdminReservationsPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-gray-50/30 border-b border-gray-100">
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario / Apto</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario / {terminology.unitLabel}</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Área</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha / Hora</th>
                   <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Costo</th>
@@ -211,9 +211,9 @@ export default function AdminReservationsPage() {
                   ))
                 ) : filteredReservations.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                       No se encontraron reservas.
-                    </td>
+<td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                       No se encontraron {terminology.reservationLabel.toLowerCase()}s.
+                     </td>
                   </tr>
                 ) : (
                   filteredReservations.map((res) => (
@@ -222,7 +222,7 @@ export default function AdminReservationsPage() {
                         <div className="font-bold text-gray-900">{res.profiles?.full_name}</div>
                         <div className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 text-gray-300" />
-                          Apto {res.profiles?.apartment}
+                          {terminology.unitLabel} {res.profiles?.apartment}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-gray-600 font-medium">{res.common_areas?.name}</td>
@@ -302,9 +302,9 @@ export default function AdminReservationsPage() {
                 </div>
               ))
             ) : filteredReservations.length === 0 ? (
-              <div className="px-6 py-12 text-center text-gray-400 text-sm">
-                 No se encontraron reservas.
-              </div>
+<div className="px-6 py-12 text-center text-gray-400 text-sm">
+                  No se encontraron {terminology.reservationLabel.toLowerCase()}s.
+               </div>
             ) : (
               filteredReservations.map((res) => (
                 <div key={res.id} className="p-4 bg-white hover:bg-gray-50 transition-colors flex flex-col gap-3">
@@ -312,7 +312,7 @@ export default function AdminReservationsPage() {
                     <div className="flex flex-col min-w-0 pr-2">
                        <h3 className="font-bold text-gray-900 truncate">{res.profiles?.full_name}</h3>
                        <span className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
-                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" /> Apto {res.profiles?.apartment}
+                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" /> {terminology.unitLabel} {res.profiles?.apartment}
                        </span>
                     </div>
                     {(() => {

@@ -40,7 +40,7 @@ interface Notice {
 }
 
 export default function MaintenancePage() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const navigate = useNavigate();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
   const [blockingError, setBlockingError] = useState<string | null>(null);
@@ -341,7 +341,7 @@ export default function MaintenancePage() {
           </div>
           <p className="text-gray-500 text-sm ml-1">
             {isAdmin
-              ? "Informa a los residentes sobre cierres o novedades."
+              ? `Informa a los ${terminology.userLabel.toLowerCase()}s sobre cierres o novedades.`
               : "Mantente informado sobre las novedades y mantenimientos de las zonas comunes."}
           </p>
         </div>
@@ -365,7 +365,7 @@ export default function MaintenancePage() {
                   {editingNotice ? 'Editar Comunicado' : 'Nuevo Comunicado'}
                 </h2>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  {editingNotice ? 'Modifica los datos del comunicado' : 'Publica una noticia para todos los residentes'}
+                  {editingNotice ? 'Modifica los datos del comunicado' : `Publica una noticia para todos los ${terminology.userLabel.toLowerCase()}s`}
                 </p>
               </div>
               <Button
@@ -549,7 +549,7 @@ export default function MaintenancePage() {
             <h3 className="text-lg font-semibold text-gray-700 mb-1">No hay avisos publicados</h3>
             <p className="text-sm text-gray-500 text-center max-w-sm">
               {isAdmin
-                ? "Crea el primer aviso para informar a los residentes sobre mantenimientos o cierres."
+                ? `Crea el primer aviso para informar a los ${terminology.userLabel.toLowerCase()}s sobre mantenimientos o cierres.`
                 : "No hay avisos de mantenimiento activos en este momento."}
             </p>
             {isAdmin && (

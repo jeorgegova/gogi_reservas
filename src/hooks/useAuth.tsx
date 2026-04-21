@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { getTerminology, type BusinessTerminology, type BusinessType } from '../lib/terminology';
 
 interface Profile {
   id: string;
@@ -22,6 +23,10 @@ interface AuthContextType {
   fetchProfile: () => Promise<void>;
   impersonatedOrgId: string | null;
   setImpersonatedOrgId: (id: string | null) => void;
+  /** Tipo de negocio de la organización activa */
+  businessType: BusinessType;
+  /** Diccionario de terminología adaptado al tipo de negocio */
+  terminology: BusinessTerminology;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [businessType, setBusinessType] = useState<BusinessType>('residential');
   // Ref para tener el perfil actualizado dentro de los callbacks de Supabase
   const profileRef = useRef<Profile | null>(null);
   
@@ -64,8 +70,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     
     // Solo mostramos el estado de carga global si no tenemos perfil actual o es la carga inicial
-    // Esto previene que al cambiar de pestaña y que Supabase refresque el token,
-    // se desmonte toda la app por el estado loading.
     if (!profileRef.current || isInitialLoad) {
       setLoading(true);
     }
@@ -73,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*, organizations(slug)')
+        .select('*, organizations(slug, business_type)')
         .eq('id', userId)
         .single();
 
@@ -86,7 +90,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           ...data,
           organization_slug: data.organizations?.slug
         };
-        console.log('useAuth: Perfil obtenido exitosamente:', profileData);
+        // Cargar business_type de la organización
+        const orgBusinessType = (data.organizations?.business_type as BusinessType) || 'residential';
+        setBusinessType(orgBusinessType);
+        console.log('useAuth: Perfil obtenido exitosamente:', profileData, '| business_type:', orgBusinessType);
         setProfile(profileData);
       }
     } catch (error) {
@@ -168,7 +175,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       signOut, 
       fetchProfile: contextFetchProfile,
       impersonatedOrgId,
-      setImpersonatedOrgId: handleSetImpersonatedOrgId
+      setImpersonatedOrgId: handleSetImpersonatedOrgId,
+      businessType,
+      terminology: getTerminology(businessType),
     }}>
       {children}
     </AuthContext.Provider>

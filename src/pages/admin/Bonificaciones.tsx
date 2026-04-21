@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function AdminBonificaciones() {
-  const { profile } = useAuth();
+  const { profile, terminology } = useAuth();
   const [bonusSystemActive, setBonusSystemActive] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
   const [progressData, setProgressData] = useState<any[]>([]);
@@ -241,7 +241,7 @@ export default function AdminBonificaciones() {
             <Gift className="w-8 h-8 text-primary" />
             Módulo de Bonificaciones
           </h1>
-          <p className="text-gray-500">Configura recompensas para tus residentes leales.</p>
+          <p className="text-gray-500">Configura recompensas para tus {terminology.userLabel.toLowerCase()}s leales.</p>
         </div>
         
         <Card className="border-none shadow-sm bg-white p-4">
@@ -276,13 +276,13 @@ export default function AdminBonificaciones() {
                 <Settings className={cn("w-5 h-5 text-primary")} />
                 Nueva Configuración
               </CardTitle>
-              <CardDescription>Define metas de reserva pagada por área común.</CardDescription>
+              <CardDescription>Define metas de {terminology.reservationLabel.toLowerCase()} pagada por {terminology.areaLabel.toLowerCase()}.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSaveConfig} className="space-y-4">
 
                 <div className="space-y-2">
-                  <Label>Área Común</Label>
+                  <Label>{terminology.areaLabel}</Label>
                   <select 
                     value={selectedAreaId}
                     onChange={(e) => setSelectedAreaId(e.target.value)}
@@ -298,7 +298,7 @@ export default function AdminBonificaciones() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Meta Reservas</Label>
+                    <Label>Meta {terminology.reservationLabel}s</Label>
                     <Input 
                       type="number" 
                       min="1" 
@@ -384,7 +384,7 @@ export default function AdminBonificaciones() {
                       <div className="space-y-4 mt-2 animate-in fade-in duration-300">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
-                            <Label className="text-xs">Meta Reservas</Label>
+                            <Label className="text-xs">Meta {terminology.reservationLabel}s</Label>
                             <Input 
                               type="number" 
                               min="1" 
@@ -432,7 +432,7 @@ export default function AdminBonificaciones() {
                         </div>
                         <div className="flex items-center gap-1 text-gray-500 text-xs">
                           <CheckCircle2 className="w-3 h-3" />
-                          Cada {config.reservations_required} reservas pagadas
+                          Cada {config.reservations_required} {terminology.reservationLabel.toLowerCase()}s pagadas
                         </div>
                       </div>
                     )}
@@ -456,7 +456,7 @@ export default function AdminBonificaciones() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input 
-                    placeholder="Buscar residente o área..." 
+                    placeholder={`Buscar ${terminology.userLabel.toLowerCase()} o ${terminology.areaLabel.toLowerCase()}...`} 
                     className="pl-9 w-full md:w-64 h-9"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -471,8 +471,8 @@ export default function AdminBonificaciones() {
                   <thead>
                     <tr className="bg-gray-50 text-gray-500 font-medium uppercase text-[10px] tracking-wider border-b">
                       <th className="px-6 py-3">Usuario / Apt</th>
-                      <th className="px-6 py-3">Área Común</th>
-                      <th className="px-6 py-3 text-center">Reservas Pagadas</th>
+                      <th className="px-6 py-3">{terminology.areaLabel}</th>
+                      <th className="px-6 py-3 text-center">{terminology.reservationLabel}s Pagadas</th>
                       <th className="px-6 py-3">Estado</th>
                     </tr>
                   </thead>
@@ -509,7 +509,7 @@ export default function AdminBonificaciones() {
                                 <div className="flex flex-col gap-2">
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded border">
-                                      Pagadas: {item.count}
+                                      {terminology.reservationLabel}: {item.count}
                                     </span>
 
                                     {bonusesEarned > 0 && (
@@ -627,7 +627,7 @@ export default function AdminBonificaciones() {
                         {config ? (
                           <div className="flex flex-col gap-1.5">
                             <div className="flex justify-between items-end">
-                               <span className="text-xs font-bold text-gray-900">Pagadas: {item.count}</span>
+                               <span className="text-xs font-bold text-gray-900">{terminology.reservationLabel}: {item.count}</span>
                                <span className="text-[10px] text-gray-400 font-medium">
                                  {isExactlyAtGoal ? 'Próximo:' : ''} {progressInCycle}/{goal} ({Math.floor(percentage)}%)
                                </span>

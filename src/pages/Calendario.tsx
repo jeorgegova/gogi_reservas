@@ -49,7 +49,7 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 export default function Calendario() {
     const navigate = useNavigate();
-    const { profile } = useAuth();
+    const { profile, terminology } = useAuth();
     const location = useLocation();
     const isAdminPage = location.pathname === '/admin';
     // Only show analytics on /admin route, not on /dashboard
@@ -387,7 +387,7 @@ export default function Calendario() {
                             Panel de Administración
                         </h1>
                         <p className="text-gray-500 text-sm">
-                            Estadísticas y métricas del sistema de reservas.
+                            Estadísticas y métricas del sistema de {terminology.reservationLabel.toLowerCase()}s.
                         </p>
                     </div>
 
@@ -412,7 +412,7 @@ export default function Calendario() {
                                 onChange={(e) => setSelectedAreaId(e.target.value)}
                                 className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer"
                             >
-                                <option value="all">Todas las áreas</option>
+                                <option value="all">Todas las {terminology.areaLabel.toLowerCase()}s</option>
                                 {areasData.map(area => (
                                     <option key={area.id} value={area.id}>{area.name}</option>
                                 ))}
@@ -426,7 +426,7 @@ export default function Calendario() {
                     <Card className="border-none shadow-sm bg-white overflow-hidden group">
                         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reservas Hoy</h3>
+                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.reservationLabel}s Hoy</h3>
                             <Activity className="w-4 h-4 text-indigo-500" />
                         </CardHeader>
                         <CardContent>
@@ -488,8 +488,8 @@ export default function Calendario() {
                             <div className="flex items-center gap-2">
                                 <BarChart3 className="w-5 h-5 text-primary" />
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900">Reservas por Mes</h3>
-                                    <p className="text-xs text-gray-500">Evolución de reservas en los últimos 12 meses</p>
+                                    <h3 className="text-lg font-bold text-gray-900">{terminology.reservationLabel}s por Mes</h3>
+                                    <p className="text-xs text-gray-500">Evolución de {terminology.reservationLabel.toLowerCase()}s en los últimos 12 meses</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -536,7 +536,7 @@ export default function Calendario() {
                                 <DollarSign className="w-5 h-5 text-emerald-500" />
                                 <div>
                                     <h3 className="text-lg font-bold text-gray-900">Ingresos por Mes</h3>
-                                    <p className="text-xs text-gray-500">Ingresos generados por reservas aprobadas</p>
+                                    <p className="text-xs text-gray-500">Ingresos generados por {terminology.reservationLabel.toLowerCase()}s aprobadas</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -572,8 +572,8 @@ export default function Calendario() {
                             <div className="flex items-center gap-2">
                                 <Activity className="w-5 h-5 text-amber-500" />
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900">Áreas Más Occupadas</h3>
-                                    <p className="text-xs text-gray-500">Distribución de reservas por área común</p>
+                                    <h3 className="text-lg font-bold text-gray-900">{terminology.areaLabel}s Más Occupadas</h3>
+                                    <p className="text-xs text-gray-500">Distribución de {terminology.reservationLabel.toLowerCase()}s por {terminology.areaLabel.toLowerCase()}</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -609,7 +609,7 @@ export default function Calendario() {
                             <div className="flex items-center gap-2">
                                 <PieChart className="w-5 h-5 text-rose-500" />
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900">Estado de Reservas</h3>
+                                    <h3 className="text-lg font-bold text-gray-900">Estado de {terminology.reservationLabel}s</h3>
                                     <p className="text-xs text-gray-500">Distribución por estado</p>
                                 </div>
                             </div>
@@ -655,8 +655,8 @@ export default function Calendario() {
                         <div className="flex items-center gap-2">
                             <Calendar className="w-5 h-5 text-primary" />
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">Reservas Recientes</h3>
-                                <p className="text-xs text-gray-500">Últimas reservas realizadas en el sistema</p>
+<h3 className="text-lg font-bold text-gray-900">{terminology.reservationLabel}s Recientes</h3>
+                                        <p className="text-xs text-gray-500">Últimas {terminology.reservationLabel.toLowerCase()}s realizadas en el sistema</p>
                             </div>
                         </div>
                     </CardHeader>
@@ -723,13 +723,13 @@ export default function Calendario() {
                     <Button asChild className="h-12 rounded-xl shadow-md bg-primary hover:bg-primary/90">
                         <Link to="/admin/reservations">
                             <Calendar className="w-4 h-4 mr-2" />
-                            Gestionar Reservas
+                            Gestionar {terminology.reservationLabel}s
                         </Link>
                     </Button>
                     <Button asChild variant="outline" className="h-12 rounded-xl shadow-sm">
                         <Link to="/admin/areas">
                             <Activity className="w-4 h-4 mr-2" />
-                            Configurar Áreas
+                            Configurar {terminology.areaLabel}s
                         </Link>
                     </Button>
                     <Button asChild variant="outline" className="h-12 rounded-xl shadow-sm">
@@ -748,10 +748,10 @@ export default function Calendario() {
         <div className="space-y-6 animate-fade-in duration-500">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                    {isAdmin ? 'Dashboard del Conjunto' : 'Calendario'}
+                    {isAdmin ? `Dashboard del ${terminology.businessLabel}` : 'Calendario'}
                 </h1>
                 <p className="text-gray-500 text-sm">
-                    Resumen general y estado de las áreas comunes.
+                    Resumen general y estado de las {terminology.areaLabel.toLowerCase()}s.
                 </p>
             </div>
 
@@ -763,7 +763,7 @@ export default function Calendario() {
                         <CardHeader className="border-b border-gray-50 p-4 flex flex-row items-center justify-between">
                             <div>
                                 <h3 className="text-lg font-bold text-gray-900">Calendario de Actividades</h3>
-                                <p className="text-xs text-gray-500">Visualización de disponibilidad por área</p>
+                                <p className="text-xs text-gray-500">Visualización de disponibilidad por {terminology.areaLabel.toLowerCase()}</p>
                             </div>
                             <div className="flex items-center gap-2 bg-gray-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-100">
                                 <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400" />
@@ -907,7 +907,7 @@ export default function Calendario() {
                                                                 navigate(`/reservations/new?date=${dateStr}`);
                                                             }}
                                                             className="w-5 h-5 sm:w-4 sm:h-4 text-gray-400 transition-all hover:text-primary hover:bg-gray-100 rounded flex items-center justify-center bg-white/50 backdrop-blur-sm sm:bg-transparent"
-                                                            title="Agregar reserva"
+                                                            title={`Agregar ${terminology.reservationLabel.toLowerCase()}`}
                                                         >
                                                             <span className="text-sm sm:text-xs font-bold leading-none">+</span>
                                                         </button>
@@ -1121,7 +1121,7 @@ export default function Calendario() {
                     </Card>
 
                     <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-md">
-                        <Link to="/reservations/new">Nueva Reserva</Link>
+                        <Link to="/reservations/new">Nueva {terminology.reservationLabel}</Link>
                     </Button>
                 </div>
             </div>
