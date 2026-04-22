@@ -6,8 +6,20 @@ import { Button } from '../../components/ui/button';
 import { Switch } from '../../components/ui/switch';
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
-import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard } from 'lucide-react';
+import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '../../lib/utils';
+
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+interface ScheduleEntry {
+  id?: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+}
 
 export default function AdminSettingsPage() {
   const { profile, terminology } = useAuth();
@@ -21,12 +33,57 @@ export default function AdminSettingsPage() {
   const [orgPhone, setOrgPhone] = useState('');
   const [orgAddress, setOrgAddress] = useState('');
   const [autoApprovePayments, setAutoApprovePayments] = useState(false);
+  const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
 
   useEffect(() => {
     if (profile?.organization_id) {
       fetchSettings();
+      fetchSchedules();
     }
   }, [profile]);
+
+  const fetchSchedules = async () => {
+    if (!profile?.organization_id) return;
+    const { data } = await supabase
+      .from('operation_schedules')
+      .select('*')
+      .eq('organization_id', profile.organization_id)
+      .order('day_of_week');
+
+    if (data && data.length > 0) {
+      setSchedules(data);
+    } else {
+      setSchedules(DAY_NAMES.map((_, i) => ({
+        day_of_week: i,
+        start_time: '09:00',
+        end_time: '18:00',
+        is_active: i >= 1 && i <= 5,
+      })));
+    }
+  };
+
+  const handleScheduleChange = (dayOfWeek: number, field: keyof ScheduleEntry, value: any) => {
+    setSchedules(prev => prev.map(s =>
+      s.day_of_week === dayOfWeek ? { ...s, [field]: value } : s
+    ));
+  };
+
+  const saveSchedules = async () => {
+    if (!profile?.organization_id) return;
+    const rows = schedules.map(s => ({
+      ...(s.id ? { id: s.id } : {}),
+      organization_id: profile.organization_id,
+      day_of_week: s.day_of_week,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      is_active: s.is_active,
+    }));
+    const { error } = await supabase
+      .from('operation_schedules')
+      .upsert(rows, { onConflict: 'organization_id,day_of_week' });
+    if (error) throw error;
+    await fetchSchedules();
+  };
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -92,6 +149,7 @@ export default function AdminSettingsPage() {
         .eq('id', profile.organization_id);
 
       if (error) throw error;
+      await saveSchedules();
       toast.success('Configuración guardada exitosamente');
     } catch (error: any) {
       console.error('Error saving settings:', error);
@@ -294,6 +352,61 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Horario de Operación */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-gray-400" />
+              <CardTitle className="text-lg">Horario de Operación</CardTitle>
+            </div>
+            <CardDescription>
+              Define los días y horarios en que tu organización atiende. El motor de reservas usará esta configuración para mostrar disponibilidad.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-3">
+            {schedules.map(schedule => (
+              <div
+                key={schedule.day_of_week}
+                className={cn(
+                  "flex items-center gap-4 p-3 rounded-xl border transition-all",
+                  schedule.is_active ? "bg-white border-gray-100" : "bg-gray-50 border-gray-100 opacity-50"
+                )}
+              >
+                <Switch
+                  checked={schedule.is_active}
+                  onCheckedChange={(checked) => handleScheduleChange(schedule.day_of_week, 'is_active', checked)}
+                  className="data-[state=checked]:bg-green-500"
+                />
+                <span className={cn(
+                  "w-10 text-xs font-bold",
+                  schedule.is_active ? "text-gray-900" : "text-gray-400"
+                )}>
+                  {DAY_SHORT[schedule.day_of_week]}
+                </span>
+                {schedule.is_active ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      type="time"
+                      value={schedule.start_time}
+                      onChange={e => handleScheduleChange(schedule.day_of_week, 'start_time', e.target.value)}
+                      className="h-8 rounded-lg text-xs w-28"
+                    />
+                    <span className="text-gray-400 text-xs">a</span>
+                    <Input
+                      type="time"
+                      value={schedule.end_time}
+                      onChange={e => handleScheduleChange(schedule.day_of_week, 'end_time', e.target.value)}
+                      className="h-8 rounded-lg text-xs w-28"
+                    />
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400 flex-1">No laborable</span>
+                )}
+              </div>
+            ))}
           </CardContent>
         </Card>
 

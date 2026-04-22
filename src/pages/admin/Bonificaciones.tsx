@@ -163,9 +163,13 @@ export default function AdminBonificaciones() {
       setSelectedAreaId('');
       setReservationsRequired(5);
       setDiscountPercentage(10);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving config:', error);
-      toast.error('Error al guardar la configuración');
+      if (error?.code === '23505') {
+        toast.error(`Ya existe una bonificación para este ${terminology.areaLabel.toLowerCase()}`);
+      } else {
+        toast.error('Error al guardar la configuración');
+      }
     } finally {
       setIsSubmitting(false);
     }

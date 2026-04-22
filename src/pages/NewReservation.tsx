@@ -26,7 +26,8 @@ import {
   Users,
   Search,
   HelpCircle,
-  Gift
+  Gift,
+  Package
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
@@ -68,6 +69,10 @@ export default function NewReservationPage() {
   const [guestPhone, setGuestPhone] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [showPromoModal, setShowPromoModal] = useState(false);
+
+  const [availableAddons, setAvailableAddons] = useState<any[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
+  const [operationSchedules, setOperationSchedules] = useState<any[]>([]);
 
   // React Query Hooks
   const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
@@ -331,10 +336,16 @@ export default function NewReservationPage() {
     setUserError(null);
     setSelectedArea(area);
     setSelectedJornada(null);
+    setSelectedAddons([]);
     fetchBusySlots(area.id);
     fetchBonusInfo(area.id);
+    fetchAddons(area.id);
+    fetchOperationSchedules();
 
-    // Si es invitado, mostrar modal de sugerencia antes de pasar al paso 2
+    if (area.pricing_type === 'fixed') {
+      setSelectedStartTime('09:00');
+    }
+
     if (isGuestUser) {
       setShowPromoModal(true);
     } else {
@@ -388,6 +399,68 @@ export default function NewReservationPage() {
       setBonusConfig(null);
       setUserReservationCount(0);
     }
+  };
+
+  const fetchAddons = async (areaId: string) => {
+    const { data } = await supabase
+      .from('common_area_addons')
+      .select('*, service_addons(*)')
+      .eq('common_area_id', areaId);
+    if (data) {
+      const mapped = data
+        .filter((row: any) => row.service_addons?.is_active)
+        .map((row: any) => ({
+          id: row.addon_id,
+          name: row.service_addons?.name || '',
+          description: row.service_addons?.description || '',
+          additional_cost: row.custom_price ?? row.service_addons?.base_cost ?? 0,
+          additional_duration_minutes: row.service_addons?.duration_minutes || 0,
+        }));
+      setAvailableAddons(mapped);
+    } else {
+      setAvailableAddons([]);
+    }
+    setSelectedAddons([]);
+  };
+
+  const fetchOperationSchedules = async () => {
+    if (!profile?.organization_id) return;
+    const { data } = await supabase
+      .from('operation_schedules')
+      .select('*')
+      .eq('organization_id', profile.organization_id)
+      .eq('is_active', true);
+    setOperationSchedules(data || []);
+  };
+
+  const toggleAddon = (addon: any) => {
+    setSelectedAddons(prev => {
+      const exists = prev.find((a: any) => a.id === addon.id);
+      if (exists) return prev.filter((a: any) => a.id !== addon.id);
+      return [...prev, addon];
+    });
+  };
+
+  const getTotalAddonCost = () => selectedAddons.reduce((sum: number, a: any) => sum + (a.additional_cost || 0), 0);
+  const getTotalAddonDuration = () => selectedAddons.reduce((sum: number, a: any) => sum + (a.additional_duration_minutes || 0), 0);
+
+  const getTotalServiceDurationMinutes = () => {
+    if (!selectedArea) return 60;
+    const base = selectedArea.estimated_duration_minutes || 60;
+    return base + getTotalAddonDuration();
+  };
+
+  const getOperationHoursForDate = (dateStr: string) => {
+    const date = parseISO(dateStr);
+    const dow = date.getDay();
+    const schedule = operationSchedules.find(s => s.day_of_week === dow);
+    if (!schedule) return null;
+    return { start: schedule.start_time, end: schedule.end_time };
+  };
+
+  const isDateWithinOperationSchedule = (dateStr: string) => {
+    if (operationSchedules.length === 0) return true;
+    return !!getOperationHoursForDate(dateStr);
   };
 
 
@@ -453,7 +526,9 @@ export default function NewReservationPage() {
     if (!selectedArea) return 0;
 
     let finalBaseCost = 0;
-    if (selectedArea.pricing_type === 'jornada') {
+    if (selectedArea.pricing_type === 'fixed') {
+      finalBaseCost = selectedArea.fixed_cost || 0;
+    } else if (selectedArea.pricing_type === 'jornada') {
       if (selectedJornada === 'diurna') finalBaseCost = selectedArea.cost_jornada_diurna || 0;
       else if (selectedJornada === 'nocturna') finalBaseCost = selectedArea.cost_jornada_nocturna || 0;
       else if (selectedJornada === 'ambos') finalBaseCost = selectedArea.cost_jornada_ambos || 0;
@@ -461,11 +536,14 @@ export default function NewReservationPage() {
       finalBaseCost = selectedArea.cost_per_hour * duration;
     }
 
+    const addonCost = getTotalAddonCost();
+    const totalBeforeDiscount = finalBaseCost + addonCost;
+
     if (appliedDiscount > 0) {
-      return finalBaseCost * (1 - appliedDiscount / 100);
+      return totalBeforeDiscount * (1 - appliedDiscount / 100);
     }
 
-    return finalBaseCost;
+    return totalBeforeDiscount;
   };
 
   // Obtener la hora de fin de la jornada según la configuración del área
@@ -480,6 +558,12 @@ export default function NewReservationPage() {
   // Determinar la hora de fin según el tipo de precio
   const getEndTime = () => {
     if (!selectedArea || !selectedStartTime) return '';
+
+    if (selectedArea.pricing_type === 'fixed') {
+      const totalMinutes = getTotalServiceDurationMinutes();
+      const startDate = parseISO(`${selectedDate}T${selectedStartTime}:00`);
+      return format(addHours(startDate, totalMinutes / 60), "yyyy-MM-dd'T'HH:mm:ss");
+    }
 
     if (selectedArea.pricing_type === 'jornada') {
       const endTime = getJornadaEndTime();
@@ -655,7 +739,20 @@ export default function NewReservationPage() {
         await updateMutation.mutateAsync({ id: id!, data: reservationData });
       } else {
         const result = await createMutation.mutateAsync(reservationData);
-        // Si el área no es gratuita, IR AL PAGO (incluyendo invitados)
+
+        if (selectedAddons.length > 0 && result?.id) {
+          try {
+            const addonInserts = selectedAddons.map((addon: any) => ({
+              reservation_id: result.id,
+              addon_id: addon.id,
+              charged_price: addon.additional_cost || 0,
+            }));
+            await supabase.from('reservation_addons').insert(addonInserts);
+          } catch (addonError) {
+            console.error('Error saving reservation add-ons:', addonError);
+          }
+        }
+
         if (!isFree && result?.id) {
           navigate(`/payment/${result.id}`);
           return;
@@ -879,9 +976,11 @@ export default function NewReservationPage() {
                   <div className="absolute top-2 right-2 bg-primary px-3 py-1 rounded-full text-xs font-bold text-white">
                     {area.is_free
                       ? 'Gratuito'
-                      : area.pricing_type === 'jornada'
-                        ? 'Por Jornada'
-                        : `${formatCurrency(area.cost_per_hour)}/h`}
+                      : area.pricing_type === 'fixed'
+                        ? formatCurrency(area.fixed_cost)
+                        : area.pricing_type === 'jornada'
+                          ? 'Por Jornada'
+                          : `${formatCurrency(area.cost_per_hour)}/h`}
                   </div>
                 </div>
                 <CardHeader className="p-4">
@@ -892,7 +991,12 @@ export default function NewReservationPage() {
                 </CardHeader>
                 <CardContent className="px-4 pb-2">
                   <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                    {area.pricing_type === 'jornada' ? (
+                    {area.pricing_type === 'fixed' ? (
+                      <>
+                        <Clock className="w-3 h-3" />
+                        <span>{area.estimated_duration_minutes || 60} min</span>
+                      </>
+                    ) : area.pricing_type === 'jornada' ? (
                       <>
                         <Calendar className="w-3 h-3" />
                         <span>Jornada Completa</span>
@@ -927,7 +1031,12 @@ export default function NewReservationPage() {
             </Button>
             <div>
               <CardTitle className="text-xl font-bold">{selectedArea.name}</CardTitle>
-              <CardDescription>Configura tu horario</CardDescription>
+              <CardDescription>
+                {selectedArea.pricing_type === 'fixed'
+                  ? `Duración: ${getTotalServiceDurationMinutes()} min`
+                  : 'Configura tu horario'
+                }
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
@@ -967,17 +1076,18 @@ export default function NewReservationPage() {
                         const hasReservation = daysWithReservations.has(dateStr);
                         const isSelected = dateStr === selectedDate;
                         const isPast = day < new Date() && !isToday(day);
+                        const notInSchedule = !isDateWithinOperationSchedule(dateStr);
 
                         return (
                           <button
                             key={dateStr}
-                            disabled={isPast}
+                            disabled={isPast || notInSchedule}
                             onClick={() => handleDateChange(dateStr)}
                             className={cn(
                               "w-7 h-7 text-xs rounded-full flex items-center justify-center transition-colors",
                               isSelected && "bg-primary text-white",
-                              !isSelected && !isPast && "hover:bg-gray-100",
-                              isPast && "text-gray-300 cursor-not-allowed",
+                              !isSelected && !isPast && !notInSchedule && "hover:bg-gray-100",
+                              (isPast || notInSchedule) && "text-gray-300 cursor-not-allowed",
                               hasReservation && !isSelected && !isPast && "bg-amber-100 text-amber-700",
                               isToday(day) && !isSelected && "ring-1 ring-primary ring-inset"
                             )}
@@ -1000,64 +1110,86 @@ export default function NewReservationPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  {selectedArea.pricing_type === 'jornada' ? (
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="w-5 h-5 text-primary" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">
-                            {selectedJornada
-                              ? `Jornada seleccionada: ${selectedJornada === 'diurna' ? 'Diurna' : selectedJornada === 'nocturna' ? 'Nocturna' : 'Completo'}`
-                              : 'Selecciona una jornada disponible'
-                            }
-                          </p>
-                          {selectedJornada && (
-                            <p className="text-lg font-bold text-primary">
-                              {selectedJornada === 'diurna' && `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_diurna || '18:00'}`}
-                              {selectedJornada === 'nocturna' && `${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`}
-                              {selectedJornada === 'ambos' && `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`}
+                {/* For fixed-price (commercial): no duration/jornada selector needed */}
+                {selectedArea.pricing_type !== 'fixed' && (
+                  <div className="space-y-2">
+                    {selectedArea.pricing_type === 'jornada' ? (
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-3">
+                          <Calendar className="w-5 h-5 text-primary" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">
+                              {selectedJornada
+                                ? `Jornada seleccionada: ${selectedJornada === 'diurna' ? 'Diurna' : selectedJornada === 'nocturna' ? 'Nocturna' : 'Completo'}`
+                                : 'Selecciona una jornada disponible'
+                              }
                             </p>
-                          )}
+                            {selectedJornada && (
+                              <p className="text-lg font-bold text-primary">
+                                {selectedJornada === 'diurna' && `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_diurna || '18:00'}`}
+                                {selectedJornada === 'nocturna' && `${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`}
+                                {selectedJornada === 'ambos' && `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      <Label className="text-sm font-semibold text-gray-700">Duración (horas)</Label>
-                      <div className="flex gap-2">
-                        {[1, 2, 3, 4].filter(h => {
-                          const maxByArea = selectedArea.max_hours_per_reservation;
-                          if (h > maxByArea) return false;
-                          if (selectedStartTime) {
-                            const startHour = parseInt(selectedStartTime.split(':')[0]);
-                            if (startHour + h > 24) return false;
+                    ) : (
+                      <>
+                        <Label className="text-sm font-semibold text-gray-700">Duración (horas)</Label>
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4].filter(h => {
+                            const maxByArea = selectedArea.max_hours_per_reservation;
+                            if (h > maxByArea) return false;
+                            if (selectedStartTime) {
+                              const startHour = parseInt(selectedStartTime.split(':')[0]);
+                              if (startHour + h > 24) return false;
 
-                            const nextBlock = getNextBlockStart(selectedStartTime) as Date | null;
-                            if (nextBlock) {
-                              const start = parseISO(`${selectedDate}T${selectedStartTime}:00`);
-                              const diffHours = (nextBlock.getTime() - start.getTime()) / (1000 * 60 * 60);
-                              return h <= diffHours;
+                              const nextBlock = getNextBlockStart(selectedStartTime) as Date | null;
+                              if (nextBlock) {
+                                const start = parseISO(`${selectedDate}T${selectedStartTime}:00`);
+                                const diffHours = (nextBlock.getTime() - start.getTime()) / (1000 * 60 * 60);
+                                return h <= diffHours;
+                              }
                             }
-                          }
-                          return true;
-                        }).map(h => (
-                          <Button
-                            key={h}
-                            variant={duration === h ? "default" : "outline"}
-                            className={cn(
-                              "flex-1 h-11 transition-all duration-300 rounded-xl",
-                              duration === h ? "bg-primary text-white shadow-md shadow-primary/20 scale-105" : "border-gray-200"
-                            )}
-                            onClick={() => setDuration(h)}
-                          >
-                            {h}h
-                          </Button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                            return true;
+                          }).map(h => (
+                            <Button
+                              key={h}
+                              variant={duration === h ? "default" : "outline"}
+                              className={cn(
+                                "flex-1 h-11 transition-all duration-300 rounded-xl",
+                                duration === h ? "bg-primary text-white shadow-md shadow-primary/20 scale-105" : "border-gray-200"
+                              )}
+                              onClick={() => setDuration(h)}
+                            >
+                              {h}h
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Fixed-price info card */}
+                {selectedArea.pricing_type === 'fixed' && (
+                  <div className="p-4 bg-primary/5 border border-primary/10 rounded-lg">
+                    <div className="flex items-center gap-2 text-primary font-medium text-sm">
+                      <Clock className="w-4 h-4" />
+                      <span>Duración del servicio: {getTotalServiceDurationMinutes()} minutos</span>
+                    </div>
+                    {(() => {
+                      const hours = getOperationHoursForDate(selectedDate);
+                      return hours ? (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Horario de atención: {hours.start} - {hours.end}
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+
                 {!isFree && (
                   <div className="bg-gray-50 p-4 rounded-lg relative overflow-hidden">
                     {appliedDiscount > 0 && (
@@ -1067,7 +1199,7 @@ export default function NewReservationPage() {
                     )}
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-primary/10 rounded-lg">
-                        {selectedArea.pricing_type === 'jornada' ? (
+                        {selectedArea.pricing_type === 'fixed' || selectedArea.pricing_type === 'jornada' ? (
                           <Calendar className="w-5 h-5 text-primary" />
                         ) : (
                           <Clock className="w-5 h-5 text-primary" />
@@ -1087,6 +1219,37 @@ export default function NewReservationPage() {
                         </div>
                       </div>
                     </div>
+                    {selectedAddons.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Desglose:</p>
+                        <p className="text-[10px] text-gray-500">
+                          {selectedArea.pricing_type === 'fixed'
+                            ? `${terminology.areaLabel}: ${formatCurrency(selectedArea.fixed_cost || 0)}`
+                            : selectedArea.pricing_type === 'jornada'
+                              ? `${terminology.areaLabel}: ${formatCurrency(selectedJornada === 'diurna' ? selectedArea.cost_jornada_diurna : selectedJornada === 'nocturna' ? selectedArea.cost_jornada_nocturna : selectedArea.cost_jornada_ambos)}`
+                              : `${duration}h × ${formatCurrency(selectedArea.cost_per_hour)} = ${formatCurrency(selectedArea.cost_per_hour * duration)}`
+                          }
+                        </p>
+                        {selectedAddons.map((addon: any) => {
+                          const dHours = Math.floor(addon.additional_duration_minutes / 60);
+                          const dMins = addon.additional_duration_minutes % 60;
+                          const durLabel = dHours > 0 ? `${dHours}h${dMins > 0 ? ` ${dMins}min` : ''}` : `${dMins} min`;
+                          return (
+                            <p key={addon.id} className="text-[10px] text-gray-500">
+                              + {addon.name}: {formatCurrency(addon.additional_cost)} ({durLabel})
+                            </p>
+                          );
+                        })}
+                        {selectedArea.pricing_type !== 'fixed' && selectedArea.pricing_type !== 'jornada' && getTotalAddonDuration() > 0 && selectedDate && selectedStartTime && (
+                          <div className="mt-1 pt-1 border-t border-gray-100 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-primary" />
+                            <span className="text-[10px] font-bold text-primary">
+                              Hora de salida: {format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), duration + getTotalAddonDuration() / 60), 'HH:mm')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {bonusConfig && appliedDiscount === 0 && (
                       <div className="mt-3 text-[10px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 flex items-center gap-1.5">
                         <Gift className="w-3 h-3" />
@@ -1099,10 +1262,75 @@ export default function NewReservationPage() {
               </div>
 
               <div className="space-y-4">
+                {/* Add-ons Selection */}
+                {availableAddons.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Package className="w-4 h-4 text-primary" />
+                      Servicios adicionales (opcionales)
+                    </Label>
+                    <div className="space-y-2">
+                      {availableAddons.map((addon: any) => {
+                        const isSelected = selectedAddons.some((a: any) => a.id === addon.id);
+                        return (
+                          <button
+                            key={addon.id}
+                            onClick={() => toggleAddon(addon)}
+                            className={cn(
+                              "w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all",
+                              isSelected
+                                ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10"
+                                : "bg-white border-gray-100 hover:border-gray-200"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors",
+                              isSelected ? "bg-primary border-primary" : "border-gray-300"
+                            )}>
+                              {isSelected && <span className="text-white text-xs font-bold">✓</span>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-900">{addon.name}</span>
+                                <span className="text-sm font-bold text-primary">
+                                  {addon.additional_cost > 0 ? `+${formatCurrency(addon.additional_cost)}` : 'Gratis'}
+                                </span>
+                              </div>
+                              {addon.description && (
+                                <p className="text-[10px] text-gray-400 truncate">{addon.description}</p>
+                              )}
+                              {addon.additional_duration_minutes > 0 && (
+                                <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                                  <Clock className="w-3 h-3" />+{addon.additional_duration_minutes} min
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <Label className="text-sm font-medium text-gray-700">
-                  {selectedArea.pricing_type === 'jornada' ? 'Jornadas disponibles' : 'Horas disponibles'}
+                  {selectedArea.pricing_type === 'fixed'
+                    ? 'Fecha de la cita'
+                    : selectedArea.pricing_type === 'jornada'
+                      ? 'Jornadas disponibles'
+                      : 'Horas disponibles'
+                  }
                 </Label>
-                {selectedArea.pricing_type === 'jornada' ? (
+                {selectedArea.pricing_type === 'fixed' ? (
+                  <div className="p-6 bg-primary/5 rounded-xl border border-primary/10 text-center">
+                    <Calendar className="w-8 h-8 text-primary mx-auto mb-2" />
+                    <p className="text-sm font-bold text-gray-900">
+                      {selectedDate ? format(parseISO(selectedDate), "EEEE d 'de' MMMM", { locale: es }) : 'Selecciona una fecha'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      La hora se asignará automáticamente según disponibilidad
+                    </p>
+                  </div>
+                ) : selectedArea.pricing_type === 'jornada' ? (
                   <div className="space-y-3">
                     {/* Jornada Diurna */}
                     {(() => {
@@ -1282,17 +1510,26 @@ export default function NewReservationPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {/* Visualización del rango de horas seleccionadas */}
-                    {selectedStartTime && duration > 0 && (
-                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                          <Clock className="w-4 h-4" />
-                          <span>
-                            {terminology.reservationLabel} de {selectedStartTime} a {format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), duration), 'HH:mm')} ({duration} {duration === 1 ? 'hora' : 'horas'})
-                          </span>
+                    {(() => {
+                      const addonMin = getTotalAddonDuration();
+                      const totalHours = duration + addonMin / 60;
+                      const endTimeStr = selectedStartTime
+                        ? format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalHours), 'HH:mm')
+                        : '';
+                      const hoursLabel = Number.isInteger(totalHours)
+                        ? `${totalHours} ${totalHours === 1 ? 'hora' : 'horas'}`
+                        : `${totalHours} horas`;
+                      return selectedStartTime && duration > 0 ? (
+                        <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                          <div className="flex items-center gap-2 text-sm text-primary font-medium">
+                            <Clock className="w-4 h-4" />
+                            <span>
+                              {terminology.reservationLabel} de {selectedStartTime} a {endTimeStr} ({hoursLabel})
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      ) : null;
+                    })()}
 
                     <div className="grid grid-cols-4 gap-3">
                       {timeSlots.map((time: string) => {
@@ -1300,11 +1537,17 @@ export default function NewReservationPage() {
 
                         const isOccupied = info.status !== 'available';
 
-                        // Calcular si este horario está dentro del rango seleccionado
                         const isInRange = selectedStartTime && duration > 0 && (() => {
+                          const addonMin = getTotalAddonDuration();
+                          const totalHours = duration + addonMin / 60;
                           const selectedHour = parseInt(selectedStartTime.split(':')[0]);
+                          const selectedMin = parseInt(selectedStartTime.split(':')[1]) || 0;
                           const currentHour = parseInt(time.split(':')[0]);
-                          return currentHour >= selectedHour && currentHour < selectedHour + duration;
+                          const currentMin = parseInt(time.split(':')[1]) || 0;
+                          const selectedTotalMin = selectedHour * 60 + selectedMin;
+                          const currentTotalMin = currentHour * 60 + currentMin;
+                          const endTotalMin = selectedTotalMin + Math.round(totalHours * 60);
+                          return currentTotalMin >= selectedTotalMin && currentTotalMin < endTotalMin;
                         })();
 
                         return (
@@ -1371,7 +1614,11 @@ export default function NewReservationPage() {
               <Button
                 size="lg"
                 className="w-full h-12 text-base font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-200/50 transition-all border-none"
-                disabled={!selectedStartTime || (selectedArea.pricing_type === 'jornada' && !selectedJornada)}
+                disabled={
+                  !selectedDate ||
+                  (selectedArea.pricing_type !== 'fixed' && !selectedStartTime) ||
+                  (selectedArea.pricing_type === 'jornada' && !selectedJornada)
+                }
                 onClick={() => {
                   if (selectedArea.pricing_type === 'jornada') {
                     const availability = checkJornadaAvailability();
@@ -1380,6 +1627,12 @@ export default function NewReservationPage() {
                       return;
                     }
                     setJornadaError(null);
+                  }
+                  if (selectedArea.pricing_type === 'fixed') {
+                    const opHours = getOperationHoursForDate(selectedDate);
+                    if (opHours) {
+                      setSelectedStartTime(opHours.start);
+                    }
                   }
                   setStep(3);
                 }}
@@ -1412,19 +1665,60 @@ export default function NewReservationPage() {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
                 <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  {selectedArea.pricing_type === 'jornada' ? 'Jornada' : 'Horario'}
+                  {selectedArea.pricing_type === 'fixed' ? 'Duración' : 'Horario'}
                 </span>
                 <span className="font-bold text-gray-900 text-right">
-                  {selectedArea.pricing_type === 'jornada'
-                    ? getJornadaScheduleText()
-                    : `${selectedStartTime} - ${format(addHours(new Date(`${selectedDate}T${selectedStartTime}:00`), duration), 'HH:mm')}`
+                  {selectedArea.pricing_type === 'fixed'
+                    ? `${getTotalServiceDurationMinutes()} min`
+                    : selectedArea.pricing_type === 'jornada'
+                      ? getJornadaScheduleText()
+                      : (() => {
+                          const totalHours = duration + getTotalAddonDuration() / 60;
+                          const endTime = selectedStartTime && selectedDate
+                            ? format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalHours), 'HH:mm')
+                            : '--:--';
+                          const extraMin = getTotalAddonDuration();
+                          return (
+                            <span className="flex flex-col items-end">
+                              <span>{selectedStartTime} - {endTime}</span>
+                              {extraMin > 0 && (
+                                <span className="text-[10px] text-primary font-medium">
+                                  Incluye +{extraMin} min por add-ons
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()
                   }
                 </span>
               </div>
+              {selectedArea.pricing_type !== 'fixed' && (
               <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
                 <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Hora de entrada</span>
                 <span className="font-bold text-gray-900">{selectedStartTime}</span>
               </div>
+              )}
+              {selectedAddons.length > 0 && (
+                <div className="py-2 border-b border-gray-200/50">
+                  <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Add-ons</span>
+                  <div className="mt-1 space-y-1">
+                    {selectedAddons.map((addon: any) => {
+                      const dHours = Math.floor(addon.additional_duration_minutes / 60);
+                      const dMins = addon.additional_duration_minutes % 60;
+                      const durLabel = dHours > 0 ? `${dHours}h${dMins > 0 ? ` ${dMins}min` : ''}` : dMins > 0 ? `${dMins} min` : '';
+                      return (
+                        <div key={addon.id} className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">
+                            {addon.name}
+                            {durLabel && <span className="text-[10px] text-gray-400 ml-1">(+{durLabel})</span>}
+                          </span>
+                          <span className="font-bold text-gray-900">{formatCurrency(addon.additional_cost)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {isEditing ? (
                 <>
                   <div className="flex justify-between items-center py-2 border-b border-gray-200/50">

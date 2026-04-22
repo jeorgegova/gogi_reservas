@@ -821,7 +821,7 @@ export default function SuperAdminOrganizations() {
                                 <div className="font-bold text-gray-900">{org.name}</div>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   <div className="text-[10px] text-indigo-600 font-mono tracking-tighter">/{org.slug}</div>
-                                  {org.business_type && org.business_type !== 'residential' && (
+                                  {org.business_type && (
                                     <div className={cn(
                                       "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold border uppercase",
                                       getTerminology(org.business_type).badgeColor

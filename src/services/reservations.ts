@@ -13,6 +13,7 @@ export interface Reservation {
   guest_phone?: string | null;
   common_areas?: { name: string };
   profiles?: { full_name: string };
+  reservation_addons?: { addon_id: string; service_addons?: { name: string; additional_cost: number } }[];
 }
 
 export const getReservations = async (

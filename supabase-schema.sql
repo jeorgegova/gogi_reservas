@@ -82,7 +82,7 @@ CREATE TABLE public.common_areas (
   image_url text,
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
-  pricing_type text DEFAULT 'hourly'::text CHECK (pricing_type = ANY (ARRAY['hourly'::text, 'jornada'::text])),
+  pricing_type text DEFAULT 'hourly'::text CHECK (pricing_type = ANY (ARRAY['hourly'::text, 'jornada'::text, 'fixed'::text])),
   cost_jornada_diurna numeric DEFAULT 0,
   cost_jornada_nocturna numeric DEFAULT 0,
   cost_jornada_ambos numeric DEFAULT 0,
@@ -90,6 +90,8 @@ CREATE TABLE public.common_areas (
   jornada_hours_nocturna integer DEFAULT 6,
   organization_id uuid,
   is_free boolean DEFAULT false,
+  fixed_cost numeric DEFAULT 0,
+  estimated_duration_minutes integer DEFAULT 60,
   CONSTRAINT common_areas_pkey PRIMARY KEY (id),
   CONSTRAINT common_areas_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
 );
@@ -206,6 +208,42 @@ CREATE TABLE public.subscriptions (
   CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
   CONSTRAINT subscriptions_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
   CONSTRAINT subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.subscription_plans(id)
+);
+CREATE TABLE public.service_addons (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  common_area_id uuid NOT NULL,
+  organization_id uuid NOT NULL,
+  name text NOT NULL,
+  description text,
+  additional_cost numeric DEFAULT 0,
+  additional_duration_minutes integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT service_addons_pkey PRIMARY KEY (id),
+  CONSTRAINT service_addons_common_area_id_fkey FOREIGN KEY (common_area_id) REFERENCES public.common_areas(id) ON DELETE CASCADE,
+  CONSTRAINT service_addons_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE
+);
+CREATE TABLE public.operation_schedules (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL,
+  day_of_week smallint NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  start_time text NOT NULL DEFAULT '09:00',
+  end_time text NOT NULL DEFAULT '18:00',
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT operation_schedules_pkey PRIMARY KEY (id),
+  CONSTRAINT operation_schedules_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE,
+  CONSTRAINT operation_schedules_unique_org_day UNIQUE (organization_id, day_of_week)
+);
+CREATE TABLE public.reservation_addons (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reservation_id uuid NOT NULL,
+  addon_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reservation_addons_pkey PRIMARY KEY (id),
+  CONSTRAINT reservation_addons_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.reservations(id) ON DELETE CASCADE,
+  CONSTRAINT reservation_addons_addon_id_fkey FOREIGN KEY (addon_id) REFERENCES public.service_addons(id) ON DELETE CASCADE,
+  CONSTRAINT reservation_addons_unique UNIQUE (reservation_id, addon_id)
 );
 
 
