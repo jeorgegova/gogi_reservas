@@ -42,27 +42,24 @@ export default function LoginPage() {
 
   // Redirigir si ya está autenticado o es invitado - solo ejecutar una vez
   useEffect(() => {
-    // Solo redirigir si el componente está montado y el usuario está autenticado o es invitado
     if ((profile || isGuest) && !authLoading) {
       if (profile?.role === 'super_admin') {
         navigate('/super-admin/organizations', { replace: true });
         return;
       }
 
-      // Si hay un slug en la URL, asegurarnos de que el perfil esté asociado a ese slug
-      // antes de permitir el ingreso para evitar redirecciones a la org anterior
-      if (slug && profile && profile.organization_slug !== slug) {
-        console.log('Login: Esperando a que el perfil se asocie con la organización actual...', { profileSlug: profile.organization_slug, urlSlug: slug });
+      if (isGuest && profile?.organization_slug === slug) {
+        navigate(`/${slug}`, { replace: true });
         return;
       }
 
-      const targetSlug = slug || profile?.organization_slug;
-      if (targetSlug) {
-        console.log('Login: Redirigiendo a:', targetSlug);
-        localStorage.setItem('lastOrganizationSlug', targetSlug);
-        navigate(`/${targetSlug}`, { replace: true });
-      } else if (!slug) {
-        navigate('/dashboard', { replace: true });
+      if (profile && !isGuest && profile.organization_slug === slug) {
+        const targetSlug = slug || profile?.organization_slug;
+        if (targetSlug) {
+          localStorage.setItem('lastOrganizationSlug', targetSlug);
+          navigate(`/${targetSlug}`, { replace: true });
+        }
+        return;
       }
     }
   }, [profile, isGuest, authLoading, slug, navigate]);

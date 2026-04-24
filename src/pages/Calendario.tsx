@@ -6,7 +6,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatCurrency, detoxTime, formatDate, formatDateTimeISO } from '@/lib/utils';
+import { formatCurrency, detoxTime, formatDate, formatDateTimeISO, formatTime } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useCommonAreasQuery } from '@/hooks/useCommonAreas';
 import { useReservationsQuery } from '@/hooks/useReservations';
@@ -681,7 +681,7 @@ export default function Calendario() {
                                                 {formatDate(res.start_datetime)}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-600">
-                                                {format(new Date(res.start_datetime), 'HH:mm')} - {format(new Date(res.end_datetime), 'HH:mm')}
+                                                {formatTime(res.start_datetime)} - {formatTime(res.end_datetime)}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${res.status === 'approved' ? 'bg-green-50 text-green-700 border border-green-100' :
@@ -951,7 +951,7 @@ export default function Calendario() {
                                                         <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Estado</strong><br/> ${getStatusLabel(props.status)}
                                                     </div>
                                                     <div style="font-size: 12px; color: #4b5563;">
-                                                        <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Horario</strong><br/> ${start ? format(start, 'HH:mm') : ''} - ${end ? format(end, 'HH:mm') : ''}
+                                                        <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Horario</strong><br/> ${start ? formatTime(start) : ''} - ${end ? formatTime(end) : ''}
                                                     </div>
                                                 </div>
                                             `;
@@ -970,7 +970,7 @@ export default function Calendario() {
                                                          <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Severidad</strong><br/> ${props.severity === 'critical' ? 'Crítica' : props.severity === 'warning' ? 'Advertencia' : 'Normal'}
                                                     </div>
                                                     <div style="font-size: 11px; color: #6b7280;">
-                                                         <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Horario</strong><br/> ${start ? format(start, 'HH:mm') : ''} - ${end ? format(end, 'HH:mm') : ''}
+                                                         <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Horario</strong><br/> ${start ? formatTime(start) : ''} - ${end ? formatTime(end) : ''}
                                                     </div>
                                                     ${observation}
                                                 </div>
@@ -1048,9 +1048,10 @@ export default function Calendario() {
                                     locale="es"
                                     timeZone="local"
                                     eventTimeFormat={{
-                                        hour: '2-digit',
+                                        hour: 'numeric',
                                         minute: '2-digit',
-                                        hour12: false
+                                        meridiem: 'short',
+                                        hour12: true
                                     }}
                                     slotMinTime="08:00:00"
                                     slotMaxTime="22:00:00"

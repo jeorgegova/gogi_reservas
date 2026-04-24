@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data: globalProfile, error: globalError } = await supabase
         .from('profiles')
-        .select('*, organizations(slug, business_type)')
+        .select('*, organizations!profiles_organization_id_fkey(slug, business_type)')
         .eq('id', userId)
         .single();
 
@@ -231,11 +231,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const fetchGuestProfile = async (guestUserId: string) => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*, organizations(slug, business_type)')
+        .select('*, organizations!profiles_organization_id_fkey(slug, business_type)')
         .eq('id', guestUserId)
         .single();
 
@@ -253,8 +252,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error('useAuth: Error fetching guest profile:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

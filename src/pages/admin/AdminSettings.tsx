@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Switch } from '../../components/ui/switch';
-import { Label } from '../../components/ui/label';
-import { Input } from '../../components/ui/input';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '../../lib/utils';
+import { cn, formatTime } from '@/lib/utils';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -19,6 +19,8 @@ interface ScheduleEntry {
   start_time: string;
   end_time: string;
   is_active: boolean;
+  break_start?: string | null;
+  break_end?: string | null;
 }
 
 export default function AdminSettingsPage() {
@@ -58,6 +60,8 @@ export default function AdminSettingsPage() {
         start_time: '09:00',
         end_time: '18:00',
         is_active: i >= 1 && i <= 5,
+        break_start: null,
+        break_end: null,
       })));
     }
   };
@@ -77,6 +81,8 @@ export default function AdminSettingsPage() {
       start_time: s.start_time,
       end_time: s.end_time,
       is_active: s.is_active,
+      break_start: s.break_start || null,
+      break_end: s.break_end || null,
     }));
     const { error } = await supabase
       .from('operation_schedules')
@@ -387,20 +393,70 @@ export default function AdminSettingsPage() {
                   {DAY_SHORT[schedule.day_of_week]}
                 </span>
                 {schedule.is_active ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <Input
-                      type="time"
-                      value={schedule.start_time}
-                      onChange={e => handleScheduleChange(schedule.day_of_week, 'start_time', e.target.value)}
-                      className="h-8 rounded-lg text-xs w-28"
-                    />
-                    <span className="text-gray-400 text-xs">a</span>
-                    <Input
-                      type="time"
-                      value={schedule.end_time}
-                      onChange={e => handleScheduleChange(schedule.day_of_week, 'end_time', e.target.value)}
-                      className="h-8 rounded-lg text-xs w-28"
-                    />
+                  <div className="flex flex-col gap-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col">
+                        <Input
+                          type="time"
+                          value={schedule.start_time}
+                          onChange={e => handleScheduleChange(schedule.day_of_week, 'start_time', e.target.value)}
+                          className="h-8 rounded-lg text-xs w-28"
+                        />
+                        <span className="text-[9px] text-gray-400 mt-0.5 text-center">{formatTime(schedule.start_time)}</span>
+                      </div>
+                      <span className="text-gray-400 text-xs">a</span>
+                      <div className="flex flex-col">
+                        <Input
+                          type="time"
+                          value={schedule.end_time}
+                          onChange={e => handleScheduleChange(schedule.day_of_week, 'end_time', e.target.value)}
+                          className="h-8 rounded-lg text-xs w-28"
+                        />
+                        <span className="text-[9px] text-gray-400 mt-0.5 text-center">{formatTime(schedule.end_time)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!schedule.break_start}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              handleScheduleChange(schedule.day_of_week, 'break_start', '12:00');
+                              handleScheduleChange(schedule.day_of_week, 'break_end', '13:00');
+                            } else {
+                              handleScheduleChange(schedule.day_of_week, 'break_start', null);
+                              handleScheduleChange(schedule.day_of_week, 'break_end', null);
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded accent-primary"
+                        />
+                        <span className="text-[10px] text-gray-500 font-medium">Almuerzo</span>
+                      </label>
+                      {schedule.break_start && (
+                        <div className="flex items-center gap-1">
+                          <div className="flex flex-col">
+                            <Input
+                              type="time"
+                              value={schedule.break_start || ''}
+                              onChange={e => handleScheduleChange(schedule.day_of_week, 'break_start', e.target.value || null)}
+                              className="h-7 rounded-lg text-xs w-24"
+                            />
+                            <span className="text-[9px] text-gray-400 mt-0.5 text-center">{formatTime(schedule.break_start)}</span>
+                          </div>
+                          <span className="text-gray-300 text-xs">-</span>
+                          <div className="flex flex-col">
+                            <Input
+                              type="time"
+                              value={schedule.break_end || ''}
+                              onChange={e => handleScheduleChange(schedule.day_of_week, 'break_end', e.target.value || null)}
+                              className="h-7 rounded-lg text-xs w-24"
+                            />
+                            <span className="text-[9px] text-gray-400 mt-0.5 text-center">{formatTime(schedule.break_end)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <span className="text-xs text-gray-400 flex-1">No laborable</span>

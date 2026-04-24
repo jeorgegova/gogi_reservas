@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatCurrency, cn, detoxTime } from '@/lib/utils';
+import { formatCurrency, cn, detoxTime, formatTime } from '@/lib/utils';
 import {
   Clock,
   AlertCircle,
@@ -79,7 +79,7 @@ export default function NewReservationPage() {
   const createMutation = useCreateReservationMutation();
   const updateMutation = useUpdateReservationMutation();
 
-  const timeSlots = Array.from({ length: 14 }, (_, i) => {
+  const baseTimeSlots = Array.from({ length: 14 }, (_, i) => {
     const hour = 8 + i;
     return `${hour.toString().padStart(2, '0')}:00`;
   });
@@ -88,7 +88,7 @@ export default function NewReservationPage() {
 
     if (!startTime) return null;
 
-    const start = parseISO(`${selectedDate}T${startTime}:00`);
+    const start = parseISO(`${selectedDate} ${startTime}:00`);
     let earliestBlock: Date | null = null;
 
     // Check reservations
@@ -232,17 +232,19 @@ export default function NewReservationPage() {
         return;
       }
 
-
-      setSelectedArea(reservationToEdit.common_areas);
-      const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
-      setSelectedDate(format(startDate, 'yyyy-MM-dd'));
-      setSelectedStartTime(format(startDate, 'HH:mm'));
-
-      const endDate = parseISO(detoxTime(reservationToEdit.end_datetime));
-      const diffMs = endDate.getTime() - startDate.getTime();
-      const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-      setDuration(diffHours);
-      setStep(2);
+      if (reservationToEdit) {
+        setSelectedArea(reservationToEdit.common_areas);
+        const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
+        const startDay = format(startDate, 'yyyy-MM-dd');
+        setSelectedDate(startDay);
+        setSelectedStartTime(format(startDate, 'HH:mm'));
+        
+        const endDate = parseISO(detoxTime(reservationToEdit.end_datetime));
+        const diffMs = endDate.getTime() - startDate.getTime();
+        const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+        setDuration(diffHours);
+        setStep(2);
+      }
     }
   }, [reservationToEdit, isEditing, profile?.id, isAdmin]);
 
@@ -275,24 +277,40 @@ export default function NewReservationPage() {
 
   // Lógica de ajuste automático de duración para no exceder la medianoche o la siguiente reserva
   useEffect(() => {
-    if (selectedStartTime && selectedArea?.pricing_type !== 'jornada') {
+    if (selectedStartTime && selectedArea && selectedArea.pricing_type !== 'jornada') {
       const startHour = parseInt(selectedStartTime.split(':')[0]);
       const maxAllowedByDay = 24 - startHour;
 
-      const nextBlock = getNextBlockStart(selectedStartTime) as Date | null;
-      let maxAllowed = maxAllowedByDay;
+      const nextBlock = getNextBlockStart(selectedStartTime);
+      const start = parseISO(`${selectedDate} ${selectedStartTime}:00`);
+      const addonDuration = getTotalAddonDuration();
+      
+      let maxAllowedHours = maxAllowedByDay;
 
-      if (nextBlock) {
-        const start = parseISO(`${selectedDate}T${selectedStartTime}:00`);
-        const diffHours = (nextBlock.getTime() - start.getTime()) / (1000 * 60 * 60);
-        maxAllowed = Math.min(maxAllowedByDay, diffHours);
-      }
+      if (selectedArea.pricing_type === 'fixed') {
+        const baseDuration = selectedArea.estimated_duration_minutes || 60;
+        if (nextBlock && (baseDuration + addonDuration) > (nextBlock.getTime() - start.getTime()) / (1000 * 60)) {
+           // Si es fijo y no cabe con los adicionales, reseteamos la hora
+           setSelectedStartTime(null);
+           setErrorMessage('La duración total con los servicios adicionales excede el tiempo disponible antes de la próxima reserva.');
+           setIsErrorAlertOpen(true);
+        }
+      } else {
+        // Para cobro por hora, el mínimo es 1 hora + adicionales
+        const minRequiredMinutes = 60 + addonDuration;
+        const availableMinutes = nextBlock ? (nextBlock.getTime() - start.getTime()) / (1000 * 60) : maxAllowedByDay * 60;
 
-      if (duration > maxAllowed) {
-        setDuration(maxAllowed >= 1 ? Math.floor(maxAllowed) : 1);
+        if (minRequiredMinutes > availableMinutes) {
+           // Si ni siquiera con 1 hora cabe, reseteamos la hora
+           setSelectedStartTime(null);
+           setErrorMessage('Los servicios adicionales seleccionados no caben en este horario. Por favor elige otro horario o quita servicios.');
+           setIsErrorAlertOpen(true);
+        } else if (duration > maxAllowedHours) {
+           setDuration(maxAllowedHours >= 1 ? Math.floor(maxAllowedHours) : 1);
+        }
       }
     }
-  }, [selectedStartTime, selectedArea, duration, existingReservations, activeMaintenances]);
+  }, [selectedStartTime, selectedArea, duration, selectedAddons, existingReservations, activeMaintenances]);
 
 
 
@@ -341,10 +359,6 @@ export default function NewReservationPage() {
     fetchBonusInfo(area.id);
     fetchAddons(area.id);
     fetchOperationSchedules();
-
-    if (area.pricing_type === 'fixed') {
-      setSelectedStartTime('09:00');
-    }
 
     if (isGuestUser) {
       setShowPromoModal(true);
@@ -463,6 +477,41 @@ export default function NewReservationPage() {
     return !!getOperationHoursForDate(dateStr);
   };
 
+  const getBreakForDate = (dateStr: string): { start: number; end: number } | null => {
+    const date = parseISO(dateStr);
+    const dow = date.getDay();
+    const schedule = operationSchedules.find(s => s.day_of_week === dow);
+    if (!schedule?.break_start || !schedule?.break_end) return null;
+    const [bsh, bsm] = schedule.break_start.split(':').map(Number);
+    const [beh, bem] = schedule.break_end.split(':').map(Number);
+    return { start: bsh * 60 + bsm, end: beh * 60 + bem };
+  };
+
+  const getFixedTimeSlots = (): string[] => {
+    const hours = getOperationHoursForDate(selectedDate);
+    if (!hours) return [];
+    const startH = parseInt(hours.start.split(':')[0]);
+    const startM = parseInt(hours.start.split(':')[1] || '0');
+    const endH = parseInt(hours.end.split(':')[0]);
+    const endM = parseInt(hours.end.split(':')[1] || '0');
+    const endTotalMin = endH * 60 + endM;
+    const brk = getBreakForDate(selectedDate);
+    const slots: string[] = [];
+    const totalDuration = getTotalServiceDurationMinutes();
+    let current = startH * 60 + startM;
+    while (current + totalDuration <= endTotalMin) {
+      const slotEnd = current + totalDuration;
+      const overlapsBreak = brk && (current < brk.end && slotEnd > brk.start);
+      if (!overlapsBreak) {
+        const h = Math.floor(current / 60);
+        const m = current % 60;
+        slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+      }
+      current += 30;
+    }
+    return slots;
+  };
+
 
 
   // Recalcular el descuento aplicado (ciclo de requeridas + 1)
@@ -495,8 +544,16 @@ export default function NewReservationPage() {
 
 
   const getSlotStatus = (time: string) => {
-    const slotStart = parseISO(`${selectedDate}T${time}:00`);
-    const slotEnd = addHours(slotStart, duration);
+    const slotStart = parseISO(`${selectedDate} ${time}:00`);
+    let slotEnd: Date;
+
+    if (selectedArea?.pricing_type === 'fixed') {
+      const totalMinutes = getTotalServiceDurationMinutes();
+      slotEnd = new Date(slotStart.getTime() + totalMinutes * 60 * 1000);
+    } else {
+      const totalMinutes = duration * 60 + getTotalAddonDuration();
+      slotEnd = new Date(slotStart.getTime() + totalMinutes * 60 * 1000);
+    }
 
     // Check reservations
     const isReserved = existingReservations.some(res => {
@@ -506,6 +563,16 @@ export default function NewReservationPage() {
     });
 
     if (isReserved) return { status: 'reserved' };
+
+    // Check break time
+    const brk = getBreakForDate(selectedDate);
+    if (brk) {
+      const slotStartMin = slotStart.getHours() * 60 + slotStart.getMinutes();
+      const slotEndMin = slotEnd.getHours() * 60 + slotEnd.getMinutes();
+      if (slotStartMin < brk.end && slotEndMin > brk.start) {
+        return { status: 'break' as const };
+      }
+    }
 
     // Check maintenance
     const maintenance = activeMaintenances.find(maint => {
@@ -561,8 +628,8 @@ export default function NewReservationPage() {
 
     if (selectedArea.pricing_type === 'fixed') {
       const totalMinutes = getTotalServiceDurationMinutes();
-      const startDate = parseISO(`${selectedDate}T${selectedStartTime}:00`);
-      return format(addHours(startDate, totalMinutes / 60), "yyyy-MM-dd'T'HH:mm:ss");
+      const startDate = parseISO(`${selectedDate} ${selectedStartTime}:00`);
+      return format(new Date(startDate.getTime() + totalMinutes * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss");
     }
 
     if (selectedArea.pricing_type === 'jornada') {
@@ -575,9 +642,9 @@ export default function NewReservationPage() {
   // Obtener el texto del horario para mostrar
   const getJornadaScheduleText = () => {
     if (!selectedArea) return '';
-    if (selectedJornada === 'diurna') return `Diurna (${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_diurna || '18:00'})`;
-    if (selectedJornada === 'nocturna') return `Nocturna (${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'})`;
-    if (selectedJornada === 'ambos') return `Completo (${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_nocturna || '23:59'})`;
+    if (selectedJornada === 'diurna') return `Diurna (${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_diurna || '18:00')})`;
+    if (selectedJornada === 'nocturna') return `Nocturna (${formatTime(selectedArea.jornada_start_nocturna || '18:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')})`;
+    if (selectedJornada === 'ambos') return `Completo (${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')})`;
     return '';
   };
 
@@ -601,7 +668,7 @@ export default function NewReservationPage() {
     const proposedEnd = parseISO(`${selectedDate}T${jornadaEnd}:00`);
 
     // Verificar si hay conflicto con reservas existentes
-    const conflict = existingReservations.find(res => {
+    const conflict = existingReservations.some(res => {
       const resStart = parseISO(detoxTime(res.start_datetime));
       const resEnd = parseISO(detoxTime(res.end_datetime));
       return (proposedStart < resEnd && proposedEnd > resStart);
@@ -709,6 +776,16 @@ export default function NewReservationPage() {
     // Limpiar errores anteriores
     setErrorMessage('');
 
+    // Verificación final de disponibilidad (doble check local antes de enviar)
+    if (selectedStartTime && selectedArea.pricing_type !== 'jornada') {
+      const info = getSlotStatus(selectedStartTime);
+      if (info.status !== 'available') {
+        setErrorMessage(`El horario seleccionado ya no está disponible${info.reason ? `: ${info.reason}` : ''}. Por favor selecciona otro.`);
+        setIsErrorAlertOpen(true);
+        return;
+      }
+    }
+
     const start = `${selectedDate}T${selectedStartTime}:00`;
     const end = getEndTime();
     const totalCost = calculateTotalCost();
@@ -720,7 +797,7 @@ export default function NewReservationPage() {
     }
 
     const reservationUserId = (isAdmin && selectedUserId && selectedUserId.length > 0) ? selectedUserId : profile.id;
-    const reservationStatus = isEditing ? 'pending_validation' : (isFree ? 'pending_validation' : 'pending_payment');
+    const reservationStatus = 'pending_validation';
 
     const reservationData: Partial<reservationService.Reservation> = {
       user_id: reservationUserId,
@@ -753,10 +830,13 @@ export default function NewReservationPage() {
           }
         }
 
+        // Ya no se requiere redirección a Wompi para reservas
+        /*
         if (!isFree && result?.id) {
           navigate(`/payment/${result.id}`);
           return;
         }
+        */
       }
 
       // Si el área es gratuita o no devolvió ID de pago, ir al inicio
@@ -1032,10 +1112,7 @@ export default function NewReservationPage() {
             <div>
               <CardTitle className="text-xl font-bold">{selectedArea.name}</CardTitle>
               <CardDescription>
-                {selectedArea.pricing_type === 'fixed'
-                  ? `Duración: ${getTotalServiceDurationMinutes()} min`
-                  : 'Configura tu horario'
-                }
+                Configura tu horario
               </CardDescription>
             </div>
           </CardHeader>
@@ -1126,9 +1203,9 @@ export default function NewReservationPage() {
                             </p>
                             {selectedJornada && (
                               <p className="text-lg font-bold text-primary">
-                                {selectedJornada === 'diurna' && `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_diurna || '18:00'}`}
-                                {selectedJornada === 'nocturna' && `${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`}
-                                {selectedJornada === 'ambos' && `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`}
+                                {selectedJornada === 'diurna' && `${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_diurna || '18:00')}`}
+                                {selectedJornada === 'nocturna' && `${formatTime(selectedArea.jornada_start_nocturna || '18:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')}`}
+                                {selectedJornada === 'ambos' && `${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')}`}
                               </p>
                             )}
                           </div>
@@ -1172,7 +1249,6 @@ export default function NewReservationPage() {
                   </div>
                 )}
 
-                {/* Fixed-price info card */}
                 {selectedArea.pricing_type === 'fixed' && (
                   <div className="p-4 bg-primary/5 border border-primary/10 rounded-lg">
                     <div className="flex items-center gap-2 text-primary font-medium text-sm">
@@ -1183,10 +1259,15 @@ export default function NewReservationPage() {
                       const hours = getOperationHoursForDate(selectedDate);
                       return hours ? (
                         <div className="text-xs text-gray-500 mt-1">
-                          Horario de atención: {hours.start} - {hours.end}
+                          Horario de atención: {formatTime(hours.start)} - {formatTime(hours.end)}
                         </div>
                       ) : null;
                     })()}
+                    {selectedStartTime && (
+                      <div className="text-xs text-primary font-medium mt-1">
+                        Hora de entrada: {formatTime(selectedStartTime)} — Hora de salida: {formatTime(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + getTotalServiceDurationMinutes() * 60 * 1000))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1240,11 +1321,17 @@ export default function NewReservationPage() {
                             </p>
                           );
                         })}
-                        {selectedArea.pricing_type !== 'fixed' && selectedArea.pricing_type !== 'jornada' && getTotalAddonDuration() > 0 && selectedDate && selectedStartTime && (
+                        {selectedArea.pricing_type !== 'jornada' && getTotalAddonDuration() > 0 && selectedDate && selectedStartTime && (
                           <div className="mt-1 pt-1 border-t border-gray-100 flex items-center gap-1">
                             <Clock className="w-3 h-3 text-primary" />
                             <span className="text-[10px] font-bold text-primary">
-                              Hora de salida: {format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), duration + getTotalAddonDuration() / 60), 'HH:mm')}
+                              Incluye +{getTotalAddonDuration()} min por servicios adicionales — 
+                              Hora de salida: {(() => {
+                                const totalMinutes = selectedArea.pricing_type === 'fixed'
+                                  ? getTotalServiceDurationMinutes()
+                                  : (duration * 60 + getTotalAddonDuration());
+                                return formatTime(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + totalMinutes * 60 * 1000));
+                              })()}
                             </span>
                           </div>
                         )}
@@ -1272,15 +1359,34 @@ export default function NewReservationPage() {
                     <div className="space-y-2">
                       {availableAddons.map((addon: any) => {
                         const isSelected = selectedAddons.some((a: any) => a.id === addon.id);
+                        
+                        // Check if adding this addon causes overlap with existing reservations
+                        const causesOverlap = !isSelected && selectedStartTime && (() => {
+                          const start = parseISO(`${selectedDate} ${selectedStartTime}:00`);
+                          const totalDuration = selectedArea.pricing_type === 'fixed'
+                            ? (selectedArea.estimated_duration_minutes || 60)
+                            : (duration * 60);
+                          
+                          const currentAddonDuration = getTotalAddonDuration();
+                          const newTotalDuration = totalDuration + currentAddonDuration + (addon.additional_duration_minutes || 0);
+                          const newEnd = new Date(start.getTime() + newTotalDuration * 60 * 1000);
+                          
+                          const nextBlock = getNextBlockStart(selectedStartTime);
+                          return nextBlock && newEnd > nextBlock;
+                        })();
+
                         return (
                           <button
                             key={addon.id}
                             onClick={() => toggleAddon(addon)}
+                            disabled={causesOverlap}
                             className={cn(
                               "w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all",
                               isSelected
                                 ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10"
-                                : "bg-white border-gray-100 hover:border-gray-200"
+                                : causesOverlap
+                                  ? "bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed"
+                                  : "bg-white border-gray-100 hover:border-gray-200"
                             )}
                           >
                             <div className={cn(
@@ -1304,6 +1410,11 @@ export default function NewReservationPage() {
                                   <Clock className="w-3 h-3" />+{addon.additional_duration_minutes} min
                                 </span>
                               )}
+                              {causesOverlap && (
+                                <p className="text-[9px] text-amber-600 font-bold mt-1 bg-amber-50 p-1 rounded border border-amber-100 animate-in fade-in slide-in-from-top-1 duration-300">
+                                  ⚠️ Selecciona otro horario para poder agregar este servicio
+                                </p>
+                              )}
                             </div>
                           </button>
                         );
@@ -1313,31 +1424,19 @@ export default function NewReservationPage() {
                 )}
 
                 <Label className="text-sm font-medium text-gray-700">
-                  {selectedArea.pricing_type === 'fixed'
-                    ? 'Fecha de la cita'
-                    : selectedArea.pricing_type === 'jornada'
-                      ? 'Jornadas disponibles'
-                      : 'Horas disponibles'
+                  {selectedArea.pricing_type === 'jornada'
+                    ? 'Jornadas disponibles'
+                    : 'Horas disponibles'
                   }
                 </Label>
-                {selectedArea.pricing_type === 'fixed' ? (
-                  <div className="p-6 bg-primary/5 rounded-xl border border-primary/10 text-center">
-                    <Calendar className="w-8 h-8 text-primary mx-auto mb-2" />
-                    <p className="text-sm font-bold text-gray-900">
-                      {selectedDate ? format(parseISO(selectedDate), "EEEE d 'de' MMMM", { locale: es }) : 'Selecciona una fecha'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      La hora se asignará automáticamente según disponibilidad
-                    </p>
-                  </div>
-                ) : selectedArea.pricing_type === 'jornada' ? (
+                {selectedArea.pricing_type === 'jornada' ? (
                   <div className="space-y-3">
                     {/* Jornada Diurna */}
                     {(() => {
                       const startTime = selectedArea.jornada_start_diurna || '08:00';
                       const endTime = selectedArea.jornada_end_diurna || '18:00';
-                      const slotStart = parseISO(`${selectedDate}T${startTime}:00`);
-                      const slotEnd = parseISO(`${selectedDate}T${endTime}:00`);
+                      const slotStart = parseISO(`${selectedDate} ${startTime}:00`);
+                      const slotEnd = parseISO(`${selectedDate} ${endTime}:00`);
 
                       const isReserved = existingReservations.some(res => {
                         const resStart = parseISO(detoxTime(res.start_datetime));
@@ -1377,7 +1476,7 @@ export default function NewReservationPage() {
                             </div>
                             <div className="text-left flex-1">
                               <div className="font-bold text-base">Diurna</div>
-                              <div className="text-xs opacity-80 font-medium">{startTime} - {endTime}</div>
+                              <div className="text-xs opacity-80 font-medium">{formatTime(startTime)} - {formatTime(endTime)}</div>
                             </div>
                             <div className="ml-auto font-black text-lg">
                               {isFree ? 'Gratis' : formatCurrency(selectedArea.cost_jornada_diurna || 0)}
@@ -1398,8 +1497,8 @@ export default function NewReservationPage() {
                     {(() => {
                       const startTime = selectedArea.jornada_start_nocturna || '18:00';
                       const endTime = selectedArea.jornada_end_nocturna || '23:59';
-                      const slotStart = parseISO(`${selectedDate}T${startTime}:00`);
-                      const slotEnd = parseISO(`${selectedDate}T${endTime}:00`);
+                      const slotStart = parseISO(`${selectedDate} ${startTime}:00`);
+                      const slotEnd = parseISO(`${selectedDate} ${endTime}:00`);
 
                       const isReserved = existingReservations.some(res => {
                         const resStart = parseISO(detoxTime(res.start_datetime));
@@ -1434,7 +1533,7 @@ export default function NewReservationPage() {
                             <Moon className="w-5 h-5" />
                             <div className="text-left flex-1">
                               <div className="font-medium">Nocturna</div>
-                              <div className="text-xs opacity-80">{startTime} - {endTime}</div>
+                              <div className="text-xs opacity-80">{formatTime(startTime)} - {formatTime(endTime)}</div>
                             </div>
                             <div className="ml-auto font-bold">
                               {isFree ? 'Gratis' : formatCurrency(selectedArea.cost_jornada_nocturna || 0)}
@@ -1455,8 +1554,8 @@ export default function NewReservationPage() {
                     {(() => {
                       const startTime = selectedArea.jornada_start_diurna || '08:00';
                       const endTime = selectedArea.jornada_end_nocturna || '23:59';
-                      const slotStart = parseISO(`${selectedDate}T${startTime}:00`);
-                      const slotEnd = parseISO(`${selectedDate}T${endTime}:00`);
+                      const slotStart = parseISO(`${selectedDate} ${startTime}:00`);
+                      const slotEnd = parseISO(`${selectedDate} ${endTime}:00`);
 
                       const isReserved = existingReservations.some(res => {
                         const resStart = parseISO(detoxTime(res.start_datetime));
@@ -1491,7 +1590,7 @@ export default function NewReservationPage() {
                             <Calendar className="w-5 h-5" />
                             <div className="text-left flex-1">
                               <div className="font-medium">Completo</div>
-                              <div className="text-xs opacity-80">{startTime} - {endTime}</div>
+                              <div className="text-xs opacity-80">{formatTime(startTime)} - {formatTime(endTime)}</div>
                             </div>
                             <div className="ml-auto font-bold">
                               {isFree ? 'Gratis' : formatCurrency(selectedArea.cost_jornada_ambos || 0)}
@@ -1511,20 +1610,23 @@ export default function NewReservationPage() {
                 ) : (
                   <div className="space-y-3">
                     {(() => {
-                      const addonMin = getTotalAddonDuration();
-                      const totalHours = duration + addonMin / 60;
+                      const totalMinutes = selectedArea?.pricing_type === 'fixed'
+                        ? getTotalServiceDurationMinutes()
+                        : (duration * 60 + getTotalAddonDuration());
                       const endTimeStr = selectedStartTime
-                        ? format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalHours), 'HH:mm')
+                        ? format(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + totalMinutes * 60 * 1000), 'HH:mm')
                         : '';
-                      const hoursLabel = Number.isInteger(totalHours)
-                        ? `${totalHours} ${totalHours === 1 ? 'hora' : 'horas'}`
-                        : `${totalHours} horas`;
-                      return selectedStartTime && duration > 0 ? (
+                      const hours = Math.floor(totalMinutes / 60);
+                      const mins = totalMinutes % 60;
+                      const durationLabel = hours > 0
+                        ? `${hours}h${mins > 0 ? ` ${mins}min` : ''}`
+                        : `${mins} min`;
+                      return selectedStartTime ? (
                         <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
                           <div className="flex items-center gap-2 text-sm text-primary font-medium">
                             <Clock className="w-4 h-4" />
                             <span>
-                              {terminology.reservationLabel} de {selectedStartTime} a {endTimeStr} ({hoursLabel})
+                              {terminology.reservationLabel} de {formatTime(selectedStartTime)} a {formatTime(endTimeStr)} ({durationLabel})
                             </span>
                           </div>
                         </div>
@@ -1532,21 +1634,22 @@ export default function NewReservationPage() {
                     })()}
 
                     <div className="grid grid-cols-4 gap-3">
-                      {timeSlots.map((time: string) => {
+                      {(selectedArea?.pricing_type === 'fixed' ? getFixedTimeSlots() : baseTimeSlots).map((time: string) => {
                         const info = getSlotStatus(time);
 
                         const isOccupied = info.status !== 'available';
 
-                        const isInRange = selectedStartTime && duration > 0 && (() => {
-                          const addonMin = getTotalAddonDuration();
-                          const totalHours = duration + addonMin / 60;
+                        const isInRange = selectedStartTime && (() => {
+                          const totalMinutes = selectedArea?.pricing_type === 'fixed'
+                            ? getTotalServiceDurationMinutes()
+                            : (duration * 60 + getTotalAddonDuration());
                           const selectedHour = parseInt(selectedStartTime.split(':')[0]);
                           const selectedMin = parseInt(selectedStartTime.split(':')[1]) || 0;
                           const currentHour = parseInt(time.split(':')[0]);
                           const currentMin = parseInt(time.split(':')[1]) || 0;
                           const selectedTotalMin = selectedHour * 60 + selectedMin;
                           const currentTotalMin = currentHour * 60 + currentMin;
-                          const endTotalMin = selectedTotalMin + Math.round(totalHours * 60);
+                          const endTotalMin = selectedTotalMin + totalMinutes;
                           return currentTotalMin >= selectedTotalMin && currentTotalMin < endTotalMin;
                         })();
 
@@ -1564,18 +1667,22 @@ export default function NewReservationPage() {
                                     ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
                                     : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 apple-shadow-sm",
                                 info.status === 'reserved' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
-                                info.status === 'maintenance' && "bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed"
+                                info.status === 'maintenance' && "bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed",
+                                info.status === 'break' && "bg-amber-50 text-amber-400 border-amber-100 cursor-not-allowed"
                               )}
                             >
-                              {time}
+                              {formatTime(time)}
                               {info.status === 'maintenance' && (
                                 <Hammer className="w-3 h-3 ml-1" />
+                              )}
+                              {info.status === 'break' && (
+                                <span className="text-[8px] ml-0.5">🍽</span>
                               )}
                             </Button>
 
                             {isOccupied && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                                {info.status === 'maintenance' ? `Aviso: ${info.reason}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                                {info.status === 'maintenance' ? `Aviso: ${info.reason}` : info.status === 'break' ? 'Hora de almuerzo' : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                               </div>
                             )}
@@ -1586,7 +1693,7 @@ export default function NewReservationPage() {
                   </div>
                 )}
 
-                <div className="flex gap-4 pt-2 text-xs text-gray-500">
+                <div className="flex gap-4 pt-2 text-xs text-gray-500 flex-wrap">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded bg-white border border-gray-200" />
                     <span>Disponible</span>
@@ -1594,6 +1701,10 @@ export default function NewReservationPage() {
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded bg-gray-50 border border-gray-100" />
                     <span>Ocupado</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" />
+                    <span>Almuerzo</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded bg-red-50 border border-red-200" />
@@ -1616,7 +1727,7 @@ export default function NewReservationPage() {
                 className="w-full h-12 text-base font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-200/50 transition-all border-none"
                 disabled={
                   !selectedDate ||
-                  (selectedArea.pricing_type !== 'fixed' && !selectedStartTime) ||
+                  !selectedStartTime ||
                   (selectedArea.pricing_type === 'jornada' && !selectedJornada)
                 }
                 onClick={() => {
@@ -1627,12 +1738,6 @@ export default function NewReservationPage() {
                       return;
                     }
                     setJornadaError(null);
-                  }
-                  if (selectedArea.pricing_type === 'fixed') {
-                    const opHours = getOperationHoursForDate(selectedDate);
-                    if (opHours) {
-                      setSelectedStartTime(opHours.start);
-                    }
                   }
                   setStep(3);
                 }}
@@ -1664,43 +1769,45 @@ export default function NewReservationPage() {
                 <span className="font-bold text-gray-900">{selectedDate}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
-                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  {selectedArea.pricing_type === 'fixed' ? 'Duración' : 'Horario'}
-                </span>
+                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Horario</span>
                 <span className="font-bold text-gray-900 text-right">
-                  {selectedArea.pricing_type === 'fixed'
-                    ? `${getTotalServiceDurationMinutes()} min`
-                    : selectedArea.pricing_type === 'jornada'
-                      ? getJornadaScheduleText()
-                      : (() => {
-                          const totalHours = duration + getTotalAddonDuration() / 60;
-                          const endTime = selectedStartTime && selectedDate
-                            ? format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalHours), 'HH:mm')
-                            : '--:--';
-                          const extraMin = getTotalAddonDuration();
-                          return (
-                            <span className="flex flex-col items-end">
-                              <span>{selectedStartTime} - {endTime}</span>
-                              {extraMin > 0 && (
-                                <span className="text-[10px] text-primary font-medium">
-                                  Incluye +{extraMin} min por add-ons
-                                </span>
-                              )}
-                            </span>
-                          );
-                        })()
+                  {selectedArea.pricing_type === 'jornada'
+                    ? getJornadaScheduleText()
+                    : (() => {
+                        const totalMinutes = selectedArea.pricing_type === 'fixed'
+                          ? getTotalServiceDurationMinutes()
+                          : (duration * 60 + getTotalAddonDuration());
+                        const endTime = selectedStartTime && selectedDate
+                          ? format(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + totalMinutes * 60 * 1000), 'HH:mm')
+                          : '--:--';
+                        return (
+                          <span className="flex flex-col items-end">
+                            <span>{formatTime(selectedStartTime)} - {formatTime(endTime)}</span>
+                            {selectedArea.pricing_type === 'fixed' && (
+                              <span className="text-[10px] text-primary font-medium">
+                                Duración: {totalMinutes} min
+                              </span>
+                            )}
+                            {selectedArea.pricing_type !== 'fixed' && getTotalAddonDuration() > 0 && (
+                              <span className="text-[10px] text-primary font-medium">
+                                Incluye +{getTotalAddonDuration()} min por add-ons
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()
                   }
                 </span>
               </div>
-              {selectedArea.pricing_type !== 'fixed' && (
+              {selectedArea.pricing_type !== 'jornada' && (
               <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
                 <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Hora de entrada</span>
-                <span className="font-bold text-gray-900">{selectedStartTime}</span>
+                <span className="font-bold text-gray-900">{formatTime(selectedStartTime)}</span>
               </div>
               )}
               {selectedAddons.length > 0 && (
                 <div className="py-2 border-b border-gray-200/50">
-                  <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Add-ons</span>
+                  <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Servicios adicionales</span>
                   <div className="mt-1 space-y-1">
                     {selectedAddons.map((addon: any) => {
                       const dHours = Math.floor(addon.additional_duration_minutes / 60);
@@ -1759,7 +1866,7 @@ export default function NewReservationPage() {
                   ? `Al confirmar edición, la ${terminology.reservationLabel.toLowerCase()} quedará pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos.`
                   : isFree
                     ? `Al confirmar, se generará la ${terminology.reservationLabel.toLowerCase()} pendiente de validación sin costo adicional.`
-                    : "Al confirmar, se generará una solicitud pendiente de validación. Tienes 15 minutos para completar la transacción."
+                    : "Al confirmar, se generará una solicitud pendiente de validación por parte de la administración."
                 }
               </p>
             </div>
@@ -1809,7 +1916,7 @@ export default function NewReservationPage() {
             >
               {createMutation.isPending || updateMutation.isPending
                 ? "Procesando solicitud..."
-                : isFree ? `Confirmar ${terminology.reservationLabel} Gratis` : "Confirmar y proceder al pago"}
+                : isFree ? `Confirmar ${terminology.reservationLabel} Gratis` : `Confirmar ${terminology.reservationLabel}`}
             </Button>
             <Button variant="ghost" className="w-full text-gray-500 font-bold hover:bg-gray-50 h-10 rounded-xl" onClick={() => setStep(2)}>
               <ChevronLeft className="w-4 h-4 mr-2" />

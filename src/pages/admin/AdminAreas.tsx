@@ -204,7 +204,7 @@ export default function AdminAreasPage() {
   const handleAddExistingAddon = (addon: any) => {
     const alreadyLinked = linkedAddons.find(la => la.addon_id === addon.id);
     if (alreadyLinked) {
-      toast.error('Este add-on ya está agregado');
+      toast.error('Este servicio adicional ya está agregado');
       return;
     }
     setLinkedAddons(prev => [...prev, {
@@ -255,7 +255,7 @@ export default function AdminAreasPage() {
         await fetchOrgAddons();
         setNewAddon({ name: '', description: '', base_cost: 0, duration_minutes: 0 });
         setShowNewAddonForm(false);
-        toast.success('Add-on creado y agregado');
+        toast.success('Servicio adicional creado y agregado');
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
@@ -545,12 +545,12 @@ export default function AdminAreasPage() {
                 </div>
               </div>
 
-              {/* INLINE ADD-ONS MANAGER */}
+              {/* INLINE SERVICES MANAGER */}
               <div className="border-t border-gray-100 pt-6 mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Package className="w-4 h-4 text-primary" />
-                    <Label className="text-sm font-bold text-gray-900">Servicios Adicionales (Add-ons)</Label>
+                    <Label className="text-sm font-bold text-gray-900">Servicios adicionales</Label>
                   </div>
                   <Button
                     type="button"
@@ -594,13 +594,13 @@ export default function AdminAreasPage() {
                 )}
 
                 {linkedAddons.length === 0 && !showAddonSelector && (
-                  <p className="text-xs text-gray-400 text-center py-3">Sin add-ons vinculados. Haz clic en "Agregar" para añadir servicios adicionales.</p>
+                  <p className="text-xs text-gray-400 text-center py-3">Sin servicios adicionales vinculados. Haz clic en "Agregar" para añadir servicios adicionales.</p>
                 )}
 
-                {/* Addon selector dropdown */}
+                {/* Services selector dropdown */}
                 {showAddonSelector && (
                   <div className="border border-gray-200 rounded-xl p-4 bg-white space-y-3">
-                    <Label className="text-[10px] uppercase font-bold text-gray-400">Seleccionar add-on existente</Label>
+                    <Label className="text-[10px] uppercase font-bold text-gray-400">Seleccionar servicio adicional existente</Label>
                     {availableToAdd.length > 0 ? (
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {availableToAdd.map((addon: any) => (
@@ -619,7 +619,7 @@ export default function AdminAreasPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-400 text-center py-2">No hay add-ons disponibles en la organización</p>
+                      <p className="text-xs text-gray-400 text-center py-2">No hay servicios adicionales disponibles en la organización</p>
                     )}
 
                     <div className="relative py-2">
@@ -628,7 +628,7 @@ export default function AdminAreasPage() {
                     </div>
 
                     <Button type="button" variant="outline" size="sm" onClick={() => setShowNewAddonForm(!showNewAddonForm)} className="w-full h-8 text-xs">
-                      <Plus className="w-3 h-3 mr-1" /> Crear nuevo add-on
+                      <Plus className="w-3 h-3 mr-1" /> Crear nuevo servicio adicional
                     </Button>
 
                     {showNewAddonForm && (
@@ -636,7 +636,7 @@ export default function AdminAreasPage() {
                         <Input
                           value={newAddon.name}
                           onChange={e => setNewAddon({ ...newAddon, name: e.target.value })}
-                          placeholder="Nombre del add-on (ej: Acondicionador)"
+                          placeholder="Nombre del servicio adicional (ej: Acondicionador)"
                           className="h-9 text-sm"
                         />
                         <Input

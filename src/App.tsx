@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { AuthProvider, useAuth } from './hooks/useAuth';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { useEffect, useRef, useState } from 'react';
 import { Toaster } from 'sonner';
 import LoginPage from './pages/Login';
@@ -25,34 +25,27 @@ import AdminBonificaciones from './pages/admin/Bonificaciones';
 import VerifyEmail from './pages/VerifyEmail';
 import AdminSettingsPage from '@/pages/admin/AdminSettings';
 
+const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reservations', 'login', 'register', 'maintenance', 'payment', 'bonificaciones', 'forgot-password', 'verify-email'];
+
 const OrganizationHome = () => {
   const { profile, loading, fetchOrgSettings, isGuest, setGuestMode, clearGuestMode } = useAuth();
   const { slug } = useParams<{ slug: string }>();
   const [settingsLoading, setSettingsLoading] = useState(true);
-  const initializedSlug = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!slug || loading) return;
+    if (!slug || loading || RESERVED_SLUGS.includes(slug)) return;
 
-    if (initializedSlug.current === slug) {
-      if ((isGuest && profile?.organization_slug === slug) || (!isGuest && profile)) {
-        setSettingsLoading(false);
-        return;
-      }
-    }
-
-    if (initializedSlug.current && initializedSlug.current !== slug && isGuest) {
-      clearGuestMode();
-    }
-
-    initializedSlug.current = slug;
-
-    if (profile && !isGuest) {
+    if (profile?.organization_slug === slug) {
       setSettingsLoading(false);
       return;
     }
 
+    if (isGuest) {
+      clearGuestMode();
+    }
+
     setSettingsLoading(true);
+
     fetchOrgSettings(slug).then(settings => {
       if (settings && !settings.requires_auth && settings.guest_user_id) {
         setGuestMode(settings.guest_user_id).finally(() => {
@@ -64,7 +57,7 @@ const OrganizationHome = () => {
     }).catch(() => {
       setSettingsLoading(false);
     });
-  }, [slug, loading]);
+  }, [slug, loading, profile?.organization_slug, isGuest]);
 
   if (loading || settingsLoading) {
     return (
@@ -77,15 +70,7 @@ const OrganizationHome = () => {
     );
   }
 
-  if (isGuest && profile?.organization_slug === slug) {
-    return (
-      <DashboardLayout>
-        <Calendario />
-      </DashboardLayout>
-    );
-  }
-
-  if (profile && !isGuest) {
+  if (profile?.organization_slug === slug) {
     return (
       <DashboardLayout>
         <Calendario />
@@ -176,18 +161,6 @@ function App() {
         <Routes>
           {/* Root - muestra pantalla de carga o redirige */}
           <Route path="/" element={<RootLoader />} />
-
-          {/* Organization Routes - muestra dashboard si está logueado, sino login */}
-          <Route path="/:slug" element={<OrganizationHome />} />
-          <Route path="/:slug/login" element={<LoginPage />} />
-          <Route path="/:slug/register" element={<RegisterPage />} />
-          <Route path="/:slug/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/:slug/verify-email" element={<VerifyEmail />} />
-
-          {/* Legacy/Global Redirects */}
-          <Route path="/login" element={<Navigate to="/" />} />
-          <Route path="/register" element={<Navigate to="/" />} />
-          <Route path="/forgot-password" element={<Navigate to="/" />} />
 
           {/* Standard Routes (session based) */}
           <Route
@@ -372,6 +345,13 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          {/* Organization Routes - moving these after standard routes to avoid path conflicts */}
+          <Route path="/:slug" element={<OrganizationHome />} />
+          <Route path="/:slug/login" element={<LoginPage />} />
+          <Route path="/:slug/register" element={<RegisterPage />} />
+          <Route path="/:slug/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/:slug/verify-email" element={<VerifyEmail />} />
 
           {/* Catch-all to root */}
           <Route path="*" element={<Navigate to="/" />} />

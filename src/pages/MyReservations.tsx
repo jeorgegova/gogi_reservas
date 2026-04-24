@@ -313,16 +313,8 @@ export default function MyReservationsPage() {
                 </div>
 
                 <div className="flex gap-2.5">
-                  {res.status === 'pending_payment' && (
-                    <Button
-                      size="sm"
-                      className="h-10 px-6 bg-red-600 hover:bg-red-700 text-xs font-black rounded-xl shadow-lg shadow-red-500/30 active:scale-95 transition-all"
-                      onClick={() => window.location.href = `/payment/${res.id}`}
-                    >
-                      Pagar
-                    </Button>
-                  )}
-                  {res.status === 'pending_validation' && (
+
+                  {['pending_validation', 'pending_payment'].includes(res.status) && (
                     <Button
                       size="sm"
                       variant="outline"
