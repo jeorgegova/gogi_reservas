@@ -26,31 +26,47 @@ import VerifyEmail from './pages/VerifyEmail';
 import AdminSettingsPage from '@/pages/admin/AdminSettings';
 
 const OrganizationHome = () => {
-  const { profile, loading, fetchOrgSettings, isGuest, setGuestMode } = useAuth();
+  const { profile, loading, fetchOrgSettings, isGuest, setGuestMode, clearGuestMode } = useAuth();
   const { slug } = useParams<{ slug: string }>();
   const [settingsLoading, setSettingsLoading] = useState(true);
-  const hasProcessed = useRef(false);
+  const initializedSlug = useRef<string | null>(null);
 
   useEffect(() => {
-    if (slug && !hasProcessed.current && !profile && !loading) {
-      hasProcessed.current = true;
-      fetchOrgSettings(slug).then(settings => {
-        if (settings && !settings.requires_auth && settings.guest_user_id) {
-          setGuestMode(settings.guest_user_id).finally(() => {
-            setSettingsLoading(false);
-          });
-        } else {
-          setSettingsLoading(false);
-        }
-      }).catch(() => {
+    if (!slug || loading) return;
+
+    if (initializedSlug.current === slug) {
+      if ((isGuest && profile?.organization_slug === slug) || (!isGuest && profile)) {
         setSettingsLoading(false);
-      });
-    } else if (profile || loading) {
-      setSettingsLoading(false);
+        return;
+      }
     }
-  }, [slug, profile, loading, fetchOrgSettings, setGuestMode]);
-  
-  if (loading || (settingsLoading && !profile && !isGuest)) {
+
+    if (initializedSlug.current && initializedSlug.current !== slug && isGuest) {
+      clearGuestMode();
+    }
+
+    initializedSlug.current = slug;
+
+    if (profile && !isGuest) {
+      setSettingsLoading(false);
+      return;
+    }
+
+    setSettingsLoading(true);
+    fetchOrgSettings(slug).then(settings => {
+      if (settings && !settings.requires_auth && settings.guest_user_id) {
+        setGuestMode(settings.guest_user_id).finally(() => {
+          setSettingsLoading(false);
+        });
+      } else {
+        setSettingsLoading(false);
+      }
+    }).catch(() => {
+      setSettingsLoading(false);
+    });
+  }, [slug, loading]);
+
+  if (loading || settingsLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -60,15 +76,23 @@ const OrganizationHome = () => {
       </div>
     );
   }
-  
-  if (profile || isGuest) {
+
+  if (isGuest && profile?.organization_slug === slug) {
     return (
       <DashboardLayout>
         <Calendario />
       </DashboardLayout>
     );
   }
-  
+
+  if (profile && !isGuest) {
+    return (
+      <DashboardLayout>
+        <Calendario />
+      </DashboardLayout>
+    );
+  }
+
   return <LoginPage />;
 };
 

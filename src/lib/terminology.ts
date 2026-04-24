@@ -23,6 +23,10 @@ export interface BusinessTerminology {
   icon: string;
   /** Color de acento para el badge (clase Tailwind) */
   badgeColor: string;
+  /** Nombre para la sección de avisos/mantenimientos */
+  noticesLabel: string;
+  /** Placeholder para búsqueda o creación de avisos */
+  noticesPlaceholder: string;
 }
 
 export const BUSINESS_TYPES: Record<BusinessType, BusinessTerminology> = {
@@ -35,6 +39,8 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTerminology> = {
     reservationLabel: 'Reserva',
     icon: 'building2',
     badgeColor: 'bg-blue-50 text-blue-700 border-blue-100',
+    noticesLabel: 'Avisos',
+    noticesPlaceholder: 'Ej: Mantenimiento de ascensores',
   },
   barbershop: {
     businessLabel: 'Barbería',
@@ -45,6 +51,8 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTerminology> = {
     reservationLabel: 'Cita',
     icon: 'scissors',
     badgeColor: 'bg-amber-50 text-amber-700 border-amber-100',
+    noticesLabel: 'Avisos',
+    noticesPlaceholder: 'Ej: Cierre por festivo',
   },
   beauty_salon: {
     businessLabel: 'Salón de Belleza / Estética',
@@ -55,6 +63,8 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTerminology> = {
     reservationLabel: 'Cita',
     icon: 'sparkles',
     badgeColor: 'bg-pink-50 text-pink-700 border-pink-100',
+    noticesLabel: 'Avisos',
+    noticesPlaceholder: 'Ej: Nuevos servicios disponibles',
   },
   workshop: {
     businessLabel: 'Taller / Automotriz',
@@ -65,6 +75,8 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTerminology> = {
     reservationLabel: 'Turno',
     icon: 'wrench',
     badgeColor: 'bg-orange-50 text-orange-700 border-orange-100',
+    noticesLabel: 'Avisos',
+    noticesPlaceholder: 'Ej: Mantenimiento de herramientas',
   },
   office: {
     businessLabel: 'Oficina / Coworking',
@@ -75,6 +87,8 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTerminology> = {
     reservationLabel: 'Reserva',
     icon: 'laptop',
     badgeColor: 'bg-violet-50 text-violet-700 border-violet-100',
+    noticesLabel: 'Avisos',
+    noticesPlaceholder: 'Ej: Mantenimiento de red WiFi',
   },
   other: {
     businessLabel: 'Organización',
@@ -85,6 +99,8 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTerminology> = {
     reservationLabel: 'Reserva',
     icon: 'building',
     badgeColor: 'bg-gray-50 text-gray-700 border-gray-100',
+    noticesLabel: 'Avisos',
+    noticesPlaceholder: 'Ej: Comunicado importante',
   },
 };
 

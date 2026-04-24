@@ -37,6 +37,7 @@ interface AuthContextType {
   orgSettings: OrganizationSettings | null;
   fetchOrgSettings: (slug: string) => Promise<OrganizationSettings | null>;
   setGuestMode: (guestUserId: string) => Promise<void>;
+  clearGuestMode: () => void;
   authModal: { isOpen: boolean; view: 'login' | 'register' };
   openAuthModal: (view: 'login' | 'register') => void;
   closeAuthModal: () => void;
@@ -61,10 +62,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return saved || null;
   });
 
+  const isGuestRef = useRef(false);
+
   const profileRef = useRef<Profile | null>(null);
-  useEffect(() => {
-    profileRef.current = profile;
-  }, [profile]);
 
   const openAuthModal = (view: 'login' | 'register' = 'login') => {
     setAuthModal({ isOpen: true, view });
@@ -84,8 +84,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const fetchProfile = async (userId: string, isInitialLoad = false) => {
-    if (profileRef.current && profileRef.current.id === userId && !isInitialLoad) return;
-    if (!profileRef.current || isInitialLoad) setLoading(true);
+    const currentProfile = profileRef.current;
+    if (currentProfile && currentProfile.id === userId && !isInitialLoad) return;
+    if (!currentProfile || isInitialLoad) setLoading(true);
 
     try {
       const { data: globalProfile, error: globalError } = await supabase
@@ -190,6 +191,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const orgBusinessType = (activeOrgBusinessType as BusinessType) || 'residential';
       setBusinessType(orgBusinessType);
       setProfile(profileData);
+      profileRef.current = profileData;
+      isGuestRef.current = false;
     } catch (error) {
       console.error('useAuth: Error fetching profile:', error);
     } finally {
@@ -219,6 +222,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const clearGuestMode = () => {
+    setProfile(null);
+    setIsGuest(false);
+    setOrgSettings(null);
+    isGuestRef.current = false;
+    profileRef.current = null;
+  };
+
   const fetchGuestProfile = async (guestUserId: string) => {
     setLoading(true);
     try {
@@ -230,11 +241,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
       if (data) {
-        setProfile({
+        const guestProfile = {
           ...data,
           organization_slug: data.organizations?.slug,
           is_guest: true
-        });
+        };
+        profileRef.current = guestProfile;
+        isGuestRef.current = true;
+        setProfile(guestProfile);
         setIsGuest(true);
       }
     } catch (error) {
@@ -259,9 +273,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (currentUser) {
         setIsGuest(false);
+        isGuestRef.current = false;
         if (event === 'SIGNED_IN') fetchProfile(currentUser.id, false);
-      } else {
+      } else if (!isGuestRef.current) {
         setProfile(null);
+        profileRef.current = null;
         setIsGuest(false);
         setLoading(false);
       }
@@ -297,7 +313,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isGuest,
       orgSettings,
       fetchOrgSettings,
-      setGuestMode: fetchGuestProfile,
+      clearGuestMode,
+  setGuestMode: fetchGuestProfile,
       authModal,
       openAuthModal,
       closeAuthModal,

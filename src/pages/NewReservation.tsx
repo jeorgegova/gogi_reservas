@@ -619,7 +619,7 @@ export default function NewReservationPage() {
     });
 
     if (maintenanceConflict) {
-      return { available: false, message: `El área está en mantenimiento: ${maintenanceConflict.title}` };
+      return { available: false, message: `El área tiene un aviso: ${maintenanceConflict.title}` };
     }
 
     return { available: true };
@@ -1386,7 +1386,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Mantenimiento: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                              {maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1443,7 +1443,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Mantenimiento: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                              {maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1500,7 +1500,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Mantenimiento: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                              {maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1575,7 +1575,7 @@ export default function NewReservationPage() {
 
                             {isOccupied && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                                {info.status === 'maintenance' ? `Mantenimiento: ${info.reason}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                                {info.status === 'maintenance' ? `Aviso: ${info.reason}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                               </div>
                             )}
@@ -1597,7 +1597,7 @@ export default function NewReservationPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded bg-red-50 border border-red-200" />
-                    <span>Mantenimiento</span>
+                    <span>Aviso</span>
                   </div>
                 </div>
               </div>

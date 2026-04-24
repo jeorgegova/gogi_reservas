@@ -414,10 +414,9 @@ export default function AdminAreasPage() {
                       onChange={e => setCurrentArea({ ...currentArea, pricing_type: e.target.value })}
                       className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3"
                     >
-                      {isResidential && <option value="hourly">Por Hora</option>}
-                      {isResidential && <option value="jornada">Por Jornada (Día/Noche)</option>}
-                      {!isResidential && <option value="fixed">Costo Fijo por Servicio</option>}
-                      {!isResidential && <option value="hourly">Por Hora</option>}
+                      <option value="fixed">Costo Fijo por Servicio</option>
+                      <option value="hourly">Costo por Hora</option>
+                      <option value="jornada">Por Jornada (Día/Noche)</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-3">

@@ -356,7 +356,7 @@ export default function Calendario() {
         .filter(notice => selectedAreaId === 'all' || notice.common_area_id === selectedAreaId || notice.common_area_id === null)
         .map(notice => ({
             id: notice.id,
-            title: `[MANTENIMIENTO] ${notice.common_areas?.name || 'General'}: ${notice.title}`,
+            title: `[AVISO] ${notice.common_areas?.name || 'General'}: ${notice.title}`,
             start: detoxTime(notice.starts_at),
             end: detoxTime(notice.ends_at),
             backgroundColor: '#dbeafe', // light blue
@@ -961,7 +961,7 @@ export default function Calendario() {
                                                 <div style="padding: 12px; min-width: 220px;">
                                                     <div style="font-weight: 700; font-size: 14px; color: #111827; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                                                         <span style="background: ${getBrightSeverityColor(props.severity)}; width: 8px; height: 8px; border-radius: 50%;"></span>
-                                                        Mantenimiento
+                                                        Aviso
                                                     </div>
                                                     <div style="font-size: 12px; color: #374151; margin-bottom: 4px;">
                                                          <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Área</strong><br/> ${props.area}
@@ -1092,7 +1092,7 @@ export default function Calendario() {
                             ) : (
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                                     <p className="text-[11px] leading-relaxed text-gray-500">
-                                        No hay avisos de mantenimiento actualmente.
+                                        No hay avisos actualmente.
                                     </p>
                                 </div>
                             )}

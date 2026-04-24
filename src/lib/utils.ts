@@ -5,13 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number) {
+export function formatCurrency(amount: number | null | undefined) {
+  const numericAmount = (typeof amount === 'number' && !isNaN(amount)) ? amount : 
+                       (typeof amount === 'string' ? parseFloat(amount) : 0);
+  const finalAmount = isNaN(numericAmount) ? 0 : numericAmount;
+  
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(finalAmount);
 }
 
 export function detoxTime(date: string) {

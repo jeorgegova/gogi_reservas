@@ -337,12 +337,12 @@ export default function MaintenancePage() {
             <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
               <Wrench className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Mantenimiento y Avisos</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{terminology.noticesLabel}</h1>
           </div>
           <p className="text-gray-500 text-sm ml-1">
             {isAdmin
               ? `Informa a los ${terminology.userLabel.toLowerCase()}s sobre cierres o novedades.`
-              : `Mantente informado sobre las novedades y mantenimientos de los ${terminology.areaLabel.toLowerCase()}s.`}
+              : `Mantente informado sobre las novedades de los ${terminology.areaLabel.toLowerCase()}s.`}
           </p>
         </div>
         {isAdmin && (
@@ -390,7 +390,7 @@ export default function MaintenancePage() {
                     value={newNotice.title}
                     onChange={e => setNewNotice({ ...newNotice, title: e.target.value })}
                     required
-                    placeholder={`Ej: Mantenimiento ${terminology.areaLabel}`}
+                    placeholder={terminology.noticesPlaceholder}
                     className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                   />
                 </div>
@@ -538,7 +538,7 @@ export default function MaintenancePage() {
           <div className="flex justify-center py-16">
             <div className="flex flex-col items-center gap-3">
               <div className="h-10 w-10 animate-spin rounded-full border-3 border-blue-200 border-t-blue-600" />
-              <p className="text-sm text-gray-500">Cargando avisos...</p>
+              <p className="text-sm text-gray-500">Cargando datos...</p>
             </div>
           </div>
         ) : notices.length === 0 ? (
@@ -549,8 +549,8 @@ export default function MaintenancePage() {
             <h3 className="text-lg font-semibold text-gray-700 mb-1">No hay avisos publicados</h3>
             <p className="text-sm text-gray-500 text-center max-w-sm">
               {isAdmin
-                ? `Crea el primer aviso para informar a los ${terminology.userLabel.toLowerCase()}s sobre mantenimientos o cierres.`
-                : `No hay avisos de mantenimiento activos en este momento.`}
+                ? `Crea el primer aviso para informar a los ${terminology.userLabel.toLowerCase()}s sobre novedades o cierres.`
+                : `No hay avisos activos en este momento.`}
             </p>
             {isAdmin && (
               <Button

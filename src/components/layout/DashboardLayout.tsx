@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Calendario', path: '/dashboard', icon: LayoutDashboard },
     { name: terminology.reservationLabel, path: '/reservations/new', icon: Calendar },
     { name: `Mis ${terminology.reservationLabel}s`, path: '/reservations/my', icon: History },
-    { name: 'Mantenimientos', path: '/maintenance', icon: Bell },
+    { name: terminology.noticesLabel, path: '/maintenance', icon: Bell },
     { name: 'Mi Perfil', path: '/profile', icon: User },
   ];
 
@@ -135,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       adminItems.unshift({ name: 'Gestión Organizaciones', path: '/super-admin/organizations', icon: Building2 });
     }
 
-    navItems = [...adminItems, { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar }, { name: 'Mantenimientos', path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
+    navItems = [...adminItems, { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar }, { name: terminology.noticesLabel, path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
   }
 
   // Función para salir del modo soporte
