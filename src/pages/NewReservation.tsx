@@ -291,7 +291,7 @@ export default function NewReservationPage() {
         const baseDuration = selectedArea.estimated_duration_minutes || 60;
         if (nextBlock && (baseDuration + addonDuration) > (nextBlock.getTime() - start.getTime()) / (1000 * 60)) {
            // Si es fijo y no cabe con los adicionales, reseteamos la hora
-           setSelectedStartTime(null);
+           setSelectedStartTime('');
            setErrorMessage('La duración total con los servicios adicionales excede el tiempo disponible antes de la próxima reserva.');
            setIsErrorAlertOpen(true);
         }
@@ -302,7 +302,7 @@ export default function NewReservationPage() {
 
         if (minRequiredMinutes > availableMinutes) {
            // Si ni siquiera con 1 hora cabe, reseteamos la hora
-           setSelectedStartTime(null);
+           setSelectedStartTime('');
            setErrorMessage('Los servicios adicionales seleccionados no caben en este horario. Por favor elige otro horario o quita servicios.');
            setIsErrorAlertOpen(true);
         } else if (duration > maxAllowedHours) {
@@ -1361,7 +1361,7 @@ export default function NewReservationPage() {
                         const isSelected = selectedAddons.some((a: any) => a.id === addon.id);
                         
                         // Check if adding this addon causes overlap with existing reservations
-                        const causesOverlap = !isSelected && selectedStartTime && (() => {
+                        const causesOverlap = !isSelected && !!selectedStartTime && (() => {
                           const start = parseISO(`${selectedDate} ${selectedStartTime}:00`);
                           const totalDuration = selectedArea.pricing_type === 'fixed'
                             ? (selectedArea.estimated_duration_minutes || 60)
@@ -1372,7 +1372,7 @@ export default function NewReservationPage() {
                           const newEnd = new Date(start.getTime() + newTotalDuration * 60 * 1000);
                           
                           const nextBlock = getNextBlockStart(selectedStartTime);
-                          return nextBlock && newEnd > nextBlock;
+                          return Boolean(nextBlock && newEnd > nextBlock);
                         })();
 
                         return (
