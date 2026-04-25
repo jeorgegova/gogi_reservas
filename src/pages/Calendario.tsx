@@ -293,21 +293,11 @@ export default function Calendario() {
 
     // Helper functions for calendar events
     const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'approved': return '#dcfce7'; // light green
-            case 'pending_validation': return '#fef3c7'; // light yellow
-            case 'pending_payment': return '#fecaca'; // light red
-            default: return '#f3f4f6';
-        }
+        return '#e0e7ff'; // indigo-100 (color unificado)
     };
 
     const getStatusTextColor = (status: string) => {
-        switch (status) {
-            case 'approved': return '#166534'; // dark green
-            case 'pending_validation': return '#92400e'; // dark amber
-            case 'pending_payment': return '#991b1b'; // dark red
-            default: return '#374151';
-        }
+        return '#3730a3'; // indigo-800 (color unificado)
     };
 
     const getSeverityColor = (severity: string) => {
@@ -319,12 +309,7 @@ export default function Calendario() {
     };
 
     const getBrightStatusColor = (status: string) => {
-        switch (status) {
-            case 'approved': return '#10b981'; // bright green
-            case 'pending_validation': return '#f59e0b'; // bright yellow
-            case 'pending_payment': return '#ef4444'; // bright red
-            default: return '#6b7280';
-        }
+        return '#6366f1'; // indigo-500 (color unificado)
     };
 
     const getBrightSeverityColor = (severity: string) => {
@@ -946,9 +931,6 @@ export default function Calendario() {
                                                     </div>
                                                     <div style="font-size: 13px; color: #374151; margin-bottom: 6px;">
                                                         <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Área</strong><br/> ${eventTitle}
-                                                    </div>
-                                                    <div style="font-size: 12px; color: #4b5563; margin-bottom: 4px;">
-                                                        <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Estado</strong><br/> ${getStatusLabel(props.status)}
                                                     </div>
                                                     <div style="font-size: 12px; color: #4b5563;">
                                                         <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Horario</strong><br/> ${start ? formatTime(start) : ''} - ${end ? formatTime(end) : ''}

@@ -544,7 +544,12 @@ export default function NewReservationPage() {
 
 
   const getSlotStatus = (time: string) => {
-    const slotStart = parseISO(`${selectedDate} ${time}:00`);
+    const slotStart = parseISO(`${selectedDate}T${time}:00`);
+
+    if (slotStart < new Date()) {
+      return { status: 'past' as const };
+    }
+
     let slotEnd: Date;
 
     if (selectedArea?.pricing_type === 'fixed') {
@@ -1450,7 +1455,8 @@ export default function NewReservationPage() {
                         return (slotStart < maintEnd && slotEnd > maintStart);
                       });
 
-                      const isDisabled = isReserved || !!maintenance;
+                      const isPast = slotStart < new Date();
+                      const isDisabled = isReserved || !!maintenance || isPast;
 
                       return (
                         <div className="relative group">
@@ -1485,7 +1491,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                              {isPast ? 'Horario pasado' : maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1512,7 +1518,8 @@ export default function NewReservationPage() {
                         return (slotStart < maintEnd && slotEnd > maintStart);
                       });
 
-                      const isDisabled = isReserved || !!maintenance;
+                      const isPast = slotStart < new Date();
+                      const isDisabled = isReserved || !!maintenance || isPast;
 
                       return (
                         <div className="relative group">
@@ -1542,7 +1549,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                              {isPast ? 'Horario pasado' : maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1569,7 +1576,8 @@ export default function NewReservationPage() {
                         return (slotStart < maintEnd && slotEnd > maintStart);
                       });
 
-                      const isDisabled = isReserved || !!maintenance;
+                      const isPast = slotStart < new Date();
+                      const isDisabled = isReserved || !!maintenance || isPast;
 
                       return (
                         <div className="relative group">
@@ -1599,7 +1607,7 @@ export default function NewReservationPage() {
 
                           {isDisabled && (
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                              {isPast ? 'Horario pasado' : maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1667,6 +1675,7 @@ export default function NewReservationPage() {
                                     ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
                                     : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 apple-shadow-sm",
                                 info.status === 'reserved' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
+                                info.status === 'past' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
                                 info.status === 'maintenance' && "bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed",
                                 info.status === 'break' && "bg-amber-50 text-amber-400 border-amber-100 cursor-not-allowed"
                               )}
@@ -1682,7 +1691,7 @@ export default function NewReservationPage() {
 
                             {isOccupied && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                                {info.status === 'maintenance' ? `Aviso: ${info.reason}` : info.status === 'break' ? 'Hora de almuerzo' : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
+                                {info.status === 'maintenance' ? `Aviso: ${info.reason}` : info.status === 'break' ? 'Hora de almuerzo' : info.status === 'past' ? 'Horario pasado' : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                               </div>
                             )}

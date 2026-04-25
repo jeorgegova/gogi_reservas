@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     navItems = [
       { name: 'Calendario', path: `/${organization?.slug || ''}`, icon: LayoutDashboard },
       { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar },
-      { name: 'Mantenimientos', path: '/maintenance', icon: Bell },
+      { name: terminology.noticesLabel, path: '/maintenance', icon: Bell },
     ];
   }
 
