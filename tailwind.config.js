@@ -46,6 +46,13 @@ export default {
         md: `calc(var(--radius) - 2px)`,
         sm: "calc(var(--radius) - 4px)",
       },
+      transitionTimingFunction: {
+        'apple': 'cubic-bezier(0.32, 0.72, 0, 1)',
+      },
+      boxShadow: {
+        'apple': '0 4px 24px -6px rgba(0, 0, 0, 0.04), 0 8px 16px -4px rgba(0, 0, 0, 0.02)',
+        'apple-hover': '0 12px 32px -8px rgba(0, 0, 0, 0.08), 0 16px 24px -6px rgba(0, 0, 0, 0.04)',
+      },
       keyframes: {
         "fade-in": {
           "from": { opacity: "0" },
@@ -55,10 +62,16 @@ export default {
           "from": { transform: "scale(0.95)", opacity: "0" },
           "to": { transform: "scale(1)", opacity: "1" },
         },
+        blob: {
+          "0%": { transform: "translate(0px, 0px) scale(0.8)", opacity: "0" },
+          "50%": { transform: "translate(20px, -20px) scale(1)", opacity: "0.03" },
+          "100%": { transform: "translate(0px, 0px) scale(0.8)", opacity: "0" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.3s ease-in-out",
         "zoom-in": "zoom-in 0.2s ease-out",
+        blob: "blob 7s infinite",
       },
     },
   },

@@ -293,11 +293,21 @@ export default function Calendario() {
 
     // Helper functions for calendar events
     const getStatusColor = (status: string) => {
-        return '#e0e7ff'; // indigo-100 (color unificado)
+        switch (status) {
+            case 'approved': return '#dcfce7'; // light green
+            case 'pending_validation': return '#fef3c7'; // light amber
+            case 'pending_payment': return '#fee2e2'; // light red
+            default: return '#f3f4f6'; // light gray
+        }
     };
 
     const getStatusTextColor = (status: string) => {
-        return '#3730a3'; // indigo-800 (color unificado)
+        switch (status) {
+            case 'approved': return '#166534'; // dark green
+            case 'pending_validation': return '#92400e'; // dark amber
+            case 'pending_payment': return '#991b1b'; // dark red
+            default: return '#374151'; // dark gray
+        }
     };
 
     const getSeverityColor = (severity: string) => {
@@ -309,7 +319,12 @@ export default function Calendario() {
     };
 
     const getBrightStatusColor = (status: string) => {
-        return '#6366f1'; // indigo-500 (color unificado)
+        switch (status) {
+            case 'approved': return '#22c55e'; // bright green
+            case 'pending_validation': return '#f59e0b'; // bright amber
+            case 'pending_payment': return '#ef4444'; // bright red
+            default: return '#38bdf8'; // sky blue
+        }
     };
 
     const getBrightSeverityColor = (severity: string) => {
@@ -697,7 +712,7 @@ export default function Calendario() {
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button asChild className="h-12 rounded-xl apple-shadow hover:apple-shadow-hover bg-primary hover:bg-primary/90 text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
+                    <Button asChild className="h-12 rounded-xl apple-shadow hover:apple-shadow-hover bg-primary hover:bg-primary/90 text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] animate-neon">
                         <Link to="/admin/reservations">
                             <Calendar className="w-4 h-4 mr-2" />
                             Gestionar {terminology.reservationLabel}s
@@ -860,25 +875,27 @@ export default function Calendario() {
                                                     <span className={cn(
                                                         "text-[10px] sm:text-xs font-semibold text-gray-900 px-1 transition-colors",
                                                         arg.isToday 
-                                                            ? "bg-primary text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm" 
-                                                            : "hover:text-primary"
+                                                            ? "bg-[#FF3B30] text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm" 
+                                                            : "hover:text-[#FF3B30]"
                                                     )}>
                                                         {arg.dayNumberText}
                                                     </span>
                                                 </div>
 
                                                 <div className="absolute bottom-1 right-1 p-0.5 z-10 w-full flex justify-end">
+                                                    {isBookable && (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             const dateStr = format(arg.date, 'yyyy-MM-dd');
                                                             navigate(`/reservations/new?date=${dateStr}`);
                                                         }}
-                                                        className="w-5 h-5 sm:w-6 sm:h-6 text-primary transition-all hover:bg-primary/10 rounded-full flex items-center justify-center bg-white/50 backdrop-blur-sm sm:bg-transparent"
+                                                        className="w-5 h-5 sm:w-6 sm:h-6 text-[#FF3B30] transition-all hover:bg-[#FF3B30]/10 rounded-full flex items-center justify-center bg-white/50 backdrop-blur-sm sm:bg-transparent"
                                                         title={`Agregar ${terminology.reservationLabel.toLowerCase()}`}
                                                     >
                                                         <span className="text-lg sm:text-sm font-semibold leading-none">+</span>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
@@ -1085,7 +1102,7 @@ export default function Calendario() {
                         </CardContent>
                     </Card>
 
-                    <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white font-semibold h-12 rounded-xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] border-none">
+                    <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white font-semibold h-12 rounded-xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] border-none animate-neon">
                         <Link to="/reservations/new">Nueva {terminology.reservationLabel}</Link>
                     </Button>
                 </div>

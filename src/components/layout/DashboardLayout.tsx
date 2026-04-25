@@ -147,11 +147,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex relative overflow-hidden">
+      {/* Global Animated Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[10%] left-[15%] w-[300px] h-[300px] bg-[#FF3B30] rounded-full blur-[80px] animate-blob opacity-0" style={{ animationDuration: '8s', animationDelay: '0s' }}></div>
+        <div className="absolute top-[40%] right-[10%] w-[250px] h-[250px] bg-[#FF3B30] rounded-full blur-[80px] animate-blob opacity-0" style={{ animationDuration: '10s', animationDelay: '2s' }}></div>
+        <div className="absolute bottom-[20%] left-[25%] w-[350px] h-[350px] bg-[#FF3B30] rounded-full blur-[100px] animate-blob opacity-0" style={{ animationDuration: '12s', animationDelay: '4s' }}></div>
+        <div className="absolute bottom-[5%] right-[25%] w-[200px] h-[200px] bg-[#FF3B30] rounded-full blur-[60px] animate-blob opacity-0" style={{ animationDuration: '9s', animationDelay: '1s' }}></div>
+        <div className="absolute top-[5%] right-[40%] w-[280px] h-[280px] bg-[#FF3B30] rounded-full blur-[80px] animate-blob opacity-0" style={{ animationDuration: '11s', animationDelay: '5s' }}></div>
+      </div>
+
       {/* Sidebar / Bottom Sheet */}
       <aside
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl transition-transform duration-300 ease-in-out lg:static lg:inset-y-0 lg:w-64 lg:rounded-none lg:shadow-none lg:border-r lg:border-gray-200 flex flex-col h-[85vh] lg:h-full lg:translate-y-0 overflow-hidden",
+          "fixed inset-x-0 bottom-0 z-30 bg-white/80 backdrop-blur-2xl rounded-t-[2rem] shadow-apple transition-transform duration-500 ease-apple lg:static lg:inset-y-0 lg:w-64 lg:rounded-none lg:shadow-none lg:border-r lg:border-gray-100 flex flex-col h-[85vh] lg:h-full lg:translate-y-0 overflow-hidden lg:bg-white lg:backdrop-blur-none",
           isSidebarOpen ? "translate-y-0" : "translate-y-full"
         )}
       >
@@ -204,15 +213,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 onClick={() => setIsSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                    "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group",
                     isActive
-                      ? "bg-primary/5 text-primary"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-gray-100 text-[#FF3B30]"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                   )
                 }
               >
-                <item.icon className="w-4 h-4" />
-                {item.name}
+                {({ isActive }) => (
+                  <>
+                    {/* Indicador Izquierdo */}
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#FF3B30] rounded-r-full shadow-[2px_0_10px_rgba(255,59,48,0.3)]" />
+                    )}
+                    <item.icon className={cn("w-5 h-5 ml-1 transition-transform duration-200 group-hover:scale-110", isActive ? "text-[#FF3B30]" : "text-gray-400 group-hover:text-gray-600")} />
+                    <span className="truncate">{item.name}</span>
+                  </>
+                )}
               </NavLink>
             ))}
 
@@ -254,8 +271,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0 relative">
-        <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between p-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0 relative z-10">
+        <header className="lg:hidden sticky top-0 z-40 bg-white/70 backdrop-blur-2xl border-b border-black/5 flex items-center justify-between p-4 transition-all duration-500" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="flex items-center gap-2 overflow-hidden">
             {organization?.logo_url ? (
               <img src={organization.logo_url} alt="Logo" className="w-6 h-6 object-contain" />
@@ -352,14 +369,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className={({ isActive }) =>
               cn(
                 "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
-                isActive ? "text-primary" : "text-gray-500 hover:text-gray-900"
+                isActive ? "text-[#FF3B30]" : "text-gray-500 hover:text-gray-900"
               )
             }
           >
-            <item.icon className="w-6 h-6" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] text-center">
-              {item.name.split(' ')[0]}
-            </span>
+            {({ isActive }) => (
+              <>
+                <item.icon className={cn("w-6 h-6", isActive ? "text-[#FF3B30]" : "text-gray-500")} strokeWidth={1.5} />
+                <span className="text-[10px] font-medium leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] text-center">
+                  {item.name.split(' ')[0]}
+                </span>
+              </>
+            )}
           </NavLink>
         ))}
         {navItems.length > 4 && (

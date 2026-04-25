@@ -27,7 +27,8 @@ import {
   Search,
   HelpCircle,
   Gift,
-  Package
+  Package,
+  X
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
@@ -708,6 +709,16 @@ export default function NewReservationPage() {
     }
   }, [selectedArea, currentMonth]);
 
+  // Close promo modal on Escape
+  useEffect(() => {
+    if (!showPromoModal) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowPromoModal(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showPromoModal]);
+
   const fetchMonthReservations = async () => {
     if (!selectedArea) return;
 
@@ -878,7 +889,7 @@ export default function NewReservationPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
@@ -957,7 +968,7 @@ export default function NewReservationPage() {
                 <p className="text-sm font-medium text-gray-500">Cargando {terminology.userLabel.toLowerCase()}s...</p>
               </div>
             ) : users.length > 0 ? (
-              <Card className="mb-6 border-primary/20 bg-primary/5">
+              <Card className="mb-4 border-primary/20 bg-primary/5">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-primary" />
@@ -1078,7 +1089,7 @@ export default function NewReservationPage() {
                   <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
                     {area.pricing_type === 'fixed' ? (
                       <>
-                        <Clock className="w-3 h-3" />
+                        <Clock className="w-3 h-3 text-[#FF3B30]" />
                         <span>{area.estimated_duration_minutes || 60} min</span>
                       </>
                     ) : area.pricing_type === 'jornada' ? (
@@ -1088,7 +1099,7 @@ export default function NewReservationPage() {
                       </>
                     ) : (
                       <>
-                        <Clock className="w-3 h-3" />
+                        <Clock className="w-3 h-3 text-[#FF3B30]" />
                         <span>Máx. {area.max_hours_per_reservation}h por {terminology.reservationLabel.toLowerCase()}</span>
                       </>
                     )}
@@ -1096,7 +1107,8 @@ export default function NewReservationPage() {
                 </CardContent>
                 <CardFooter className="p-4 pt-2">
                   <Button
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 rounded-xl shadow-lg shadow-primary/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
+                    className="w-full !bg-[#1e293b] !hover:bg-[#0f172a] text-white font-bold h-11 rounded-xl shadow-lg shadow-slate-800/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
+                    style={{ backgroundColor: '#1e293b' }}
                     disabled={isAdmin && users.length === 0}
                   >
                     Seleccionar
@@ -1122,9 +1134,115 @@ export default function NewReservationPage() {
             </div>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
+            {/* Action Block Component to avoid duplication of logic */}
+            {(() => {
+              const actionBlock = (
+                <div className="space-y-4">
+                  {!isFree && (
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 relative overflow-hidden">
+                      {appliedDiscount > 0 && (
+                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg animate-pulse z-10">
+                          {appliedDiscount}% BONIF.
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          {selectedArea.pricing_type === 'fixed' || selectedArea.pricing_type === 'jornada' ? (
+                            <Calendar className="w-4 h-4 text-primary" />
+                          ) : (
+                            <Clock className="w-4 h-4 text-[#FF3B30]" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">Inversión total</p>
+                          <div className="flex items-baseline gap-2">
+                            {appliedDiscount > 0 && (
+                              <span className="text-xs text-gray-400 line-through">
+                                {formatCurrency(calculateTotalCost() / (1 - appliedDiscount / 100))}
+                              </span>
+                            )}
+                            <p className="text-2xl font-black text-gray-900 tracking-tight">
+                              {formatCurrency(calculateTotalCost())}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {selectedAddons.length > 0 && (
+                        <div className="mb-3 pt-2 border-t border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Desglose:</p>
+                          <p className="text-[10px] text-gray-600">
+                            {selectedArea.pricing_type === 'fixed'
+                              ? `${terminology.areaLabel}: ${formatCurrency(selectedArea.fixed_cost || 0)}`
+                              : selectedArea.pricing_type === 'jornada'
+                                ? `${terminology.areaLabel}: ${formatCurrency(selectedJornada === 'diurna' ? selectedArea.cost_jornada_diurna : selectedJornada === 'nocturna' ? selectedArea.cost_jornada_nocturna : selectedArea.cost_jornada_ambos)}`
+                                : `${duration}h × ${formatCurrency(selectedArea.cost_per_hour)} = ${formatCurrency(selectedArea.cost_per_hour * duration)}`
+                          }
+                          </p>
+                          {selectedAddons.map((addon: any) => {
+                            const aHours = Math.floor(addon.additional_duration_minutes / 60);
+                            const aMins = addon.additional_duration_minutes % 60;
+                            const aDurLabel = aHours > 0 ? (aMins > 0 ? `${aHours}h ${aMins}min` : `${aHours}h`) : `${aMins} min`;
+                            return (
+                              <p key={addon.id} className="text-[10px] text-gray-500">
+                                + {addon.name}: {formatCurrency(addon.additional_cost)} ({aDurLabel})
+                              </p>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {bonusConfig && appliedDiscount === 0 && (
+                        <div className="mb-3 text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-1.5">
+                          <Gift className="w-3 h-3" />
+                          {userReservationCount % (bonusConfig.reservations_required + 1)}/{bonusConfig.reservations_required} reservas para bonif.
+                        </div>
+                      )}
+                      <Button
+                        size="lg"
+                        className="w-full !bg-[#1e293b] text-white rounded-xl apple-shadow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none h-12 text-sm font-bold"
+                        style={{ backgroundColor: '#1e293b' }}
+                        disabled={
+                          !selectedDate ||
+                          !selectedStartTime ||
+                          (selectedArea.pricing_type === 'jornada' && !selectedJornada)
+                        }
+                        onClick={() => {
+                          if (selectedArea.pricing_type === 'jornada') {
+                            const availability = checkJornadaAvailability();
+                            if (!availability.available) {
+                              setJornadaError(availability.message || 'Horario no disponible');
+                              return;
+                            }
+                            setJornadaError(null);
+                          }
+                          setStep(3);
+                        }}
+                      >
+                        Continuar {terminology.reservationLabel.toLowerCase()} <ArrowRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {isFree && (
+                    <Button
+                      size="lg"
+                      className="w-full !bg-[#1e293b] text-white rounded-xl apple-shadow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none h-12 text-sm font-bold"
+                      style={{ backgroundColor: '#1e293b' }}
+                      disabled={!selectedDate || !selectedStartTime}
+                      onClick={() => {
+                        setStep(3);
+                      }}
+                    >
+                      Continuar {terminology.reservationLabel.toLowerCase()} <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  )}
+                </div>
+              );
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Columna Izquierda: Calendario, Duración e Inversión (Desktop) */}
+                  <div className="flex flex-col space-y-4">
+                    <div className="space-y-2">
                   {/* Mini Calendar */}
                   <div className="mt-4 p-3 bg-white border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
@@ -1167,11 +1285,11 @@ export default function NewReservationPage() {
                             onClick={() => handleDateChange(dateStr)}
                             className={cn(
                               "w-7 h-7 text-xs rounded-full flex items-center justify-center transition-colors",
-                              isSelected && "bg-primary text-white",
+                              isSelected && "bg-primary text-white shadow-md shadow-primary/20",
                               !isSelected && !isPast && !notInSchedule && "hover:bg-gray-100",
                               (isPast || notInSchedule) && "text-gray-300 cursor-not-allowed",
                               hasReservation && !isSelected && !isPast && "bg-amber-100 text-amber-700",
-                              isToday(day) && !isSelected && "ring-1 ring-primary ring-inset"
+                              isToday(day) && !isSelected && "ring-1 ring-primary ring-inset text-primary"
                             )}
                           >
                             {format(day, 'd')}
@@ -1257,7 +1375,7 @@ export default function NewReservationPage() {
                 {selectedArea.pricing_type === 'fixed' && (
                   <div className="p-4 bg-primary/5 border border-primary/10 rounded-lg">
                     <div className="flex items-center gap-2 text-primary font-medium text-sm">
-                      <Clock className="w-4 h-4" />
+                      <Clock className="w-4 h-4 text-[#FF3B30]" />
                       <span>Duración del servicio: {getTotalServiceDurationMinutes()} minutos</span>
                     </div>
                     {(() => {
@@ -1276,84 +1394,14 @@ export default function NewReservationPage() {
                   </div>
                 )}
 
-                {!isFree && (
-                  <div className="bg-gray-50 p-4 rounded-lg relative overflow-hidden">
-                    {appliedDiscount > 0 && (
-                      <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg animate-pulse z-10">
-                        {appliedDiscount}% BONIFICACIÓN
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-primary/10 rounded-lg">
-                        {selectedArea.pricing_type === 'fixed' || selectedArea.pricing_type === 'jornada' ? (
-                          <Calendar className="w-5 h-5 text-primary" />
-                        ) : (
-                          <Clock className="w-5 h-5 text-primary" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Inversión total</p>
-                        <div className="flex flex-col">
-                          {appliedDiscount > 0 && (
-                            <span className="text-xs text-gray-400 line-through">
-                              {formatCurrency(calculateTotalCost() / (1 - appliedDiscount / 100))}
-                            </span>
-                          )}
-                          <p className="text-xl font-bold">
-                            {formatCurrency(calculateTotalCost())}
-                          </p>
-                        </div>
-                      </div>
+                    {/* Desktop Action Block */}
+                    <div className="hidden md:block md:mt-6">
+                      {actionBlock}
                     </div>
-                    {selectedAddons.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Desglose:</p>
-                        <p className="text-[10px] text-gray-500">
-                          {selectedArea.pricing_type === 'fixed'
-                            ? `${terminology.areaLabel}: ${formatCurrency(selectedArea.fixed_cost || 0)}`
-                            : selectedArea.pricing_type === 'jornada'
-                              ? `${terminology.areaLabel}: ${formatCurrency(selectedJornada === 'diurna' ? selectedArea.cost_jornada_diurna : selectedJornada === 'nocturna' ? selectedArea.cost_jornada_nocturna : selectedArea.cost_jornada_ambos)}`
-                              : `${duration}h × ${formatCurrency(selectedArea.cost_per_hour)} = ${formatCurrency(selectedArea.cost_per_hour * duration)}`
-                          }
-                        </p>
-                        {selectedAddons.map((addon: any) => {
-                          const dHours = Math.floor(addon.additional_duration_minutes / 60);
-                          const dMins = addon.additional_duration_minutes % 60;
-                          const durLabel = dHours > 0 ? `${dHours}h${dMins > 0 ? ` ${dMins}min` : ''}` : `${dMins} min`;
-                          return (
-                            <p key={addon.id} className="text-[10px] text-gray-500">
-                              + {addon.name}: {formatCurrency(addon.additional_cost)} ({durLabel})
-                            </p>
-                          );
-                        })}
-                        {selectedArea.pricing_type !== 'jornada' && getTotalAddonDuration() > 0 && selectedDate && selectedStartTime && (
-                          <div className="mt-1 pt-1 border-t border-gray-100 flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-primary" />
-                            <span className="text-[10px] font-bold text-primary">
-                              Incluye +{getTotalAddonDuration()} min por servicios adicionales — 
-                              Hora de salida: {(() => {
-                                const totalMinutes = selectedArea.pricing_type === 'fixed'
-                                  ? getTotalServiceDurationMinutes()
-                                  : (duration * 60 + getTotalAddonDuration());
-                                return formatTime(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + totalMinutes * 60 * 1000));
-                              })()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {bonusConfig && appliedDiscount === 0 && (
-                      <div className="mt-3 text-[10px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 flex items-center gap-1.5">
-                        <Gift className="w-3 h-3" />
-                        Progreso de bonificación: {userReservationCount % (bonusConfig.reservations_required + 1)}/{bonusConfig.reservations_required} reservas pagadas.
-                      </div>
-                    )}
-
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
+                  {/* Columna Derecha: Add-ons y Horas */}
+                  <div className="flex flex-col space-y-4">
+                    <div className="space-y-4">
                 {/* Add-ons Selection */}
                 {availableAddons.length > 0 && (
                   <div className="space-y-3">
@@ -1412,7 +1460,7 @@ export default function NewReservationPage() {
                               )}
                               {addon.additional_duration_minutes > 0 && (
                                 <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                                  <Clock className="w-3 h-3" />+{addon.additional_duration_minutes} min
+                                  <Clock className="w-3 h-3 text-[#FF3B30]" />+{addon.additional_duration_minutes} min
                                 </span>
                               )}
                               {causesOverlap && (
@@ -1427,8 +1475,10 @@ export default function NewReservationPage() {
                     </div>
                   </div>
                 )}
+                </div>
 
-                <Label className="text-sm font-medium text-gray-700">
+                <div className="space-y-4 order-4">
+                  <Label className="text-sm font-medium text-gray-700">
                   {selectedArea.pricing_type === 'jornada'
                     ? 'Jornadas disponibles'
                     : 'Horas disponibles'
@@ -1470,7 +1520,7 @@ export default function NewReservationPage() {
                             }}
                             className={cn(
                               "w-full h-16 justify-start gap-4 transition-all duration-300 rounded-2xl",
-                              selectedJornada === 'diurna' ? "bg-primary text-white apple-shadow hover:scale-[1.01] border-none" : "border-gray-200 apple-shadow bg-white hover:bg-gray-50",
+                              selectedJornada === 'diurna' ? "bg-primary text-white apple-shadow hover:scale-[1.01] border-none hover:bg-primary/90" : "border-gray-200 apple-shadow bg-white hover:bg-gray-50",
                               isDisabled && "opacity-50 cursor-not-allowed grayscale"
                             )}
                           >
@@ -1533,7 +1583,7 @@ export default function NewReservationPage() {
                             }}
                             className={cn(
                               "w-full h-14 justify-start gap-3",
-                              selectedJornada === 'nocturna' ? "bg-primary border-primary" : "border-gray-200",
+                              selectedJornada === 'nocturna' ? "bg-primary border-primary text-white hover:bg-primary/90" : "border-gray-200",
                               isDisabled && "opacity-50 cursor-not-allowed"
                             )}
                           >
@@ -1591,7 +1641,7 @@ export default function NewReservationPage() {
                             }}
                             className={cn(
                               "w-full h-14 justify-start gap-3",
-                              selectedJornada === 'ambos' ? "bg-primary border-primary" : "border-gray-200",
+                              selectedJornada === 'ambos' ? "bg-primary border-primary text-white hover:bg-primary/90" : "border-gray-200",
                               isDisabled && "opacity-50 cursor-not-allowed"
                             )}
                           >
@@ -1632,7 +1682,7 @@ export default function NewReservationPage() {
                       return selectedStartTime ? (
                         <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
                           <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                            <Clock className="w-4 h-4" />
+                            <Clock className="w-4 h-4 text-[#FF3B30]" />
                             <span>
                               {terminology.reservationLabel} de {formatTime(selectedStartTime)} a {formatTime(endTimeStr)} ({durationLabel})
                             </span>
@@ -1670,7 +1720,7 @@ export default function NewReservationPage() {
                               className={cn(
                                 "w-full h-14 text-sm font-bold rounded-xl transition-all duration-300",
                                 selectedStartTime === time
-                                  ? "bg-primary text-white border-none scale-105 apple-shadow z-10"
+                                  ? "bg-primary text-white border-none scale-105 apple-shadow z-10 hover:bg-primary/90"
                                   : isInRange && !isOccupied
                                     ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
                                     : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 apple-shadow-sm",
@@ -1719,9 +1769,17 @@ export default function NewReservationPage() {
                     <div className="w-3 h-3 rounded bg-red-50 border border-red-200" />
                     <span>Aviso</span>
                   </div>
+                  </div>
+                </div>
+
+                {/* Mobile Action Block */}
+                <div className="md:hidden mt-4">
+                  {actionBlock}
                 </div>
               </div>
             </div>
+          );
+        })()}
 
             {jornadaError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
@@ -1729,31 +1787,6 @@ export default function NewReservationPage() {
                 {jornadaError}
               </div>
             )}
-
-            <div className="pt-6 border-t border-gray-100">
-              <Button
-                size="lg"
-                className="w-full h-12 text-base font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-200/50 transition-all border-none"
-                disabled={
-                  !selectedDate ||
-                  !selectedStartTime ||
-                  (selectedArea.pricing_type === 'jornada' && !selectedJornada)
-                }
-                onClick={() => {
-                  if (selectedArea.pricing_type === 'jornada') {
-                    const availability = checkJornadaAvailability();
-                    if (!availability.available) {
-                      setJornadaError(availability.message || 'Horario no disponible');
-                      return;
-                    }
-                    setJornadaError(null);
-                  }
-                  setStep(3);
-                }}
-              >
-                Continuar {terminology.reservationLabel.toLowerCase()} <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -1882,7 +1915,7 @@ export default function NewReservationPage() {
 
             {/* Datos de contacto para invitados */}
             {isGuestUser && (
-              <div className="space-y-4 p-6 bg-primary/5 rounded-2xl border border-primary/10 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-4 p-5 bg-primary/5 rounded-2xl border border-primary/10 animate-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center gap-2 text-primary font-black text-base mb-2">
                   <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                     <Users className="w-4 h-4" />
@@ -1919,7 +1952,7 @@ export default function NewReservationPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4 p-8 pt-2">
             <Button
-              className="w-full bg-primary hover:bg-primary/95 text-white font-black text-lg h-14 rounded-2xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
+              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-black text-lg h-14 rounded-2xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
               onClick={handleReserve}
               disabled={createMutation.isPending || updateMutation.isPending || (hasPendingReservation && !isGuestUser)}
             >
@@ -1946,8 +1979,19 @@ export default function NewReservationPage() {
       />
       {/* Modal Promocional para Invitados - Aparece al SELECCIONAR área */}
       {showPromoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <Card className="max-w-md w-full border-none shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPromoModal(false); }}
+        >
+          <Card className="max-w-md w-full border-none shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 relative">
+            {/* Close button */}
+            <button
+              onClick={() => setShowPromoModal(false)}
+              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
             <div className="h-3 bg-primary" />
             <CardHeader className="text-center pt-8 pb-4">
               <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
