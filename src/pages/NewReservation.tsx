@@ -1239,6 +1239,7 @@ export default function NewReservationPage() {
               );
 
               return (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Columna Izquierda: Calendario, Duración e Inversión (Desktop) */}
                   <div className="flex flex-col space-y-4">
@@ -1393,13 +1394,8 @@ export default function NewReservationPage() {
                     )}
                   </div>
                 )}
-
-                    {/* Desktop Action Block */}
-                    <div className="hidden md:block md:mt-6">
-                      {actionBlock}
-                    </div>
-                  </div>
-                  {/* Columna Derecha: Add-ons y Horas */}
+                   </div>
+                   {/* Columna Derecha: Add-ons y Horas */}
                   <div className="flex flex-col space-y-4">
                     <div className="space-y-4">
                 {/* Add-ons Selection */}
@@ -1691,7 +1687,7 @@ export default function NewReservationPage() {
                       ) : null;
                     })()}
 
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-5 sm:grid-cols-4 gap-2.5">
                       {(selectedArea?.pricing_type === 'fixed' ? getFixedTimeSlots() : baseTimeSlots).map((time: string) => {
                         const info = getSlotStatus(time);
 
@@ -1718,12 +1714,12 @@ export default function NewReservationPage() {
                               disabled={isOccupied}
                               onClick={() => setSelectedStartTime(time)}
                               className={cn(
-                                "w-full h-14 text-sm font-bold rounded-xl transition-all duration-300",
+                                "w-full h-10 sm:h-14 font-semibold rounded-lg sm:rounded-xl transition-all duration-300 text-[11px] leading-tight sm:text-sm sm:leading-normal whitespace-nowrap px-1.5 sm:px-3",
                                 selectedStartTime === time
                                   ? "bg-primary text-white border-none scale-105 apple-shadow z-10 hover:bg-primary/90"
                                   : isInRange && !isOccupied
                                     ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-                                    : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 apple-shadow-sm",
+                                    : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300",
                                 info.status === 'reserved' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
                                 info.status === 'past' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
                                 info.status === 'maintenance' && "bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed",
@@ -1770,23 +1766,23 @@ export default function NewReservationPage() {
                     <span>Aviso</span>
                   </div>
                   </div>
+                   </div>
                 </div>
+                 </div>
 
-                {/* Mobile Action Block */}
-                <div className="md:hidden mt-4">
+                <div className="mt-6">
                   {actionBlock}
                 </div>
-              </div>
-            </div>
-          );
-        })()}
+              </>
+              );
+            })()}
 
-            {jornadaError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                {jornadaError}
-              </div>
-            )}
+             {jornadaError && (
+               <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
+                 <AlertCircle className="w-4 h-4" />
+                 {jornadaError}
+               </div>
+             )}
           </CardContent>
         </Card>
       )}

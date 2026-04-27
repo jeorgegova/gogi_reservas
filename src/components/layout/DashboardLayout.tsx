@@ -1,4 +1,4 @@
-import { useNavigate, NavLink } from 'react-router-dom';
+import { useNavigate, NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +18,7 @@ import {
   Receipt,
   Gift,
   Settings,
+  Plus,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -31,12 +32,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [organization, setOrganization] = useState<any>(null);
   const [orgLoading, setOrgLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const orgId = (profile?.organization_id || impersonatedOrgId) as string | undefined;
 
   // Determinar roles (considerando estado de carga)
   const isAdmin = !loading && (profile?.role === 'admin' || profile?.role === 'super_admin');
   const isSuperAdmin = !loading && profile?.role === 'super_admin';
+  const isCalendarPage = location.pathname === '/dashboard' || (!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/super-admin') && !location.pathname.startsWith('/reservations') && !location.pathname.startsWith('/profile') && !location.pathname.startsWith('/maintenance') && !location.pathname.startsWith('/bonificaciones') && !location.pathname.startsWith('/login') && !location.pathname.startsWith('/register') && !location.pathname.startsWith('/forgot') && !location.pathname.startsWith('/verify') && location.pathname !== '/');
+  const showFab = isCalendarPage;
   const { status: subscriptionStatus, latestEndDate } = useSubscriptionStatus(orgId);
 
   // Modo soporte: super_admin con organization impersonada - debe definirse ANTES del useEffect
@@ -160,7 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar / Bottom Sheet */}
       <aside
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 bg-white/80 backdrop-blur-2xl rounded-t-[2rem] shadow-apple transition-transform duration-500 ease-apple lg:static lg:inset-y-0 lg:w-64 lg:rounded-none lg:shadow-none lg:border-r lg:border-gray-100 flex flex-col h-[85vh] lg:h-full lg:translate-y-0 overflow-hidden lg:bg-white lg:backdrop-blur-none",
+          "fixed inset-x-0 bottom-0 z-50 bg-white/80 backdrop-blur-2xl rounded-t-[2rem] shadow-apple transition-transform duration-500 ease-apple lg:static lg:inset-y-0 lg:w-64 lg:rounded-none lg:shadow-none lg:border-r lg:border-gray-100 flex flex-col h-[85vh] lg:h-full lg:translate-y-0 overflow-hidden lg:bg-white lg:backdrop-blur-none lg:z-auto",
           isSidebarOpen ? "translate-y-0" : "translate-y-full"
         )}
       >
@@ -281,8 +285,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
             <span className="font-bold text-gray-900 truncate">{organization?.name || 'GoGi Reservas'}</span>
           </div>
-          <button onClick={() => isGuest ? navigate(`/${organization?.slug || ''}/login`) : navigate('/profile')} className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-             <span className="text-xs font-semibold text-primary">{profile?.full_name?.charAt(0) || (isGuest ? <User className="w-4 h-4 text-primary" /> : 'U')}</span>
+          <button onClick={() => isGuest ? openAuthModal('login') : navigate('/profile')} className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+             {isGuest ? (
+               <User className="w-4 h-4 text-primary" />
+             ) : (
+               <span className="text-xs font-semibold text-primary">{profile?.full_name?.charAt(0) || 'U'}</span>
+             )}
           </button>
         </header>
 
@@ -362,28 +370,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center h-[72px] px-2"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {navItems.slice(0, 4).map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
-                isActive ? "text-[#FF3B30]" : "text-gray-500 hover:text-gray-900"
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <item.icon className={cn("w-6 h-6", isActive ? "text-[#FF3B30]" : "text-gray-500")} strokeWidth={1.5} />
-                <span className="text-[10px] font-medium leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] text-center">
-                  {item.name.split(' ')[0]}
-                </span>
-              </>
-            )}
-          </NavLink>
-        ))}
-        {navItems.length > 4 && (
+        {navItems
+          .filter(item => !item.path.includes('/reservations/new'))
+          .slice(0, isGuest ? 2 : 3)
+          .map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                cn(
+                  "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+                  isActive ? "text-[#FF3B30]" : "text-gray-500 hover:text-gray-900"
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <item.icon className={cn("w-6 h-6", isActive ? "text-[#FF3B30]" : "text-gray-500")} strokeWidth={1.5} />
+                  <span className="text-[10px] font-medium leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] text-center">
+                    {item.name.split(' ')[0]}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        {navItems.length > 4 && !isGuest && (
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-gray-900 transition-colors"
@@ -392,12 +403,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-[10px] font-medium leading-none">Más</span>
           </button>
         )}
+        {isGuest && (
+          <button
+            onClick={() => openAuthModal('login')}
+            className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-[#FF3B30] transition-colors"
+          >
+            <User className="w-6 h-6" strokeWidth={1.5} />
+            <span className="text-[10px] font-medium leading-none">Login</span>
+          </button>
+        )}
       </nav>
+
+      {/* Floating Action Button for New Reservation on Mobile - Only on Calendar view */}
+      {showFab && (
+        <button
+          onClick={() => navigate('/reservations/new')}
+          className="md:hidden fixed !z-[9999] w-14 h-14 bg-gray-900 text-white rounded-full shadow-lg shadow-gray-900/30 flex items-center justify-center active:scale-95 transition-transform duration-200"
+          style={{ bottom: 'calc(80px + env(safe-area-inset-bottom))', right: '16px' }}
+        >
+          <Plus className="w-7 h-7" strokeWidth={2.5} />
+        </button>
+      )}
 
       {/* Overlay for mobile Bottom Sheet */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-black/10 z-40 lg:hidden transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

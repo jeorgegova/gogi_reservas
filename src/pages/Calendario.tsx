@@ -792,7 +792,7 @@ export default function Calendario() {
                                         day: 'Día'
                                     }}
                                     height="auto"
-                                    aspectRatio={isMobile ? 1.0 : 3}
+                                    aspectRatio={isMobile ? 1.4 : 3}
                                     fixedWeekCount={false}
                                     dayMaxEvents={isMobile ? 2 : 2}
                                     moreLinkText={(n) => `+${n} más`}
@@ -867,7 +867,7 @@ export default function Calendario() {
                                                     }
                                                 }}
                                                 className={cn(
-                                                    "relative w-full h-full min-h-[45px] sm:min-h-[50px] p-0.5 flex flex-col justify-between group",
+                                                    "relative w-full h-full min-h-[28px] sm:min-h-[44px] p-0.5 flex flex-col justify-between group",
                                                     "cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
                                                 )}
                                             >
@@ -882,7 +882,7 @@ export default function Calendario() {
                                                     </span>
                                                 </div>
 
-                                                <div className="absolute bottom-1 right-1 p-0.5 z-10 w-full flex justify-end">
+                                                <div className="hidden sm:block absolute bottom-1 right-1 p-0.5 z-10 w-full justify-end">
                                                     {isBookable && (
                                                     <button
                                                         onClick={(e) => {
@@ -890,10 +890,10 @@ export default function Calendario() {
                                                             const dateStr = format(arg.date, 'yyyy-MM-dd');
                                                             navigate(`/reservations/new?date=${dateStr}`);
                                                         }}
-                                                        className="w-5 h-5 sm:w-6 sm:h-6 text-[#FF3B30] transition-all hover:bg-[#FF3B30]/10 rounded-full flex items-center justify-center bg-white/50 backdrop-blur-sm sm:bg-transparent"
+                                                        className="w-5 h-5 text-[#FF3B30] transition-all hover:bg-[#FF3B30]/10 rounded-full flex items-center justify-center"
                                                         title={`Agregar ${terminology.reservationLabel.toLowerCase()}`}
                                                     >
-                                                        <span className="text-lg sm:text-sm font-semibold leading-none">+</span>
+                                                        <span className="text-sm font-semibold leading-none">+</span>
                                                     </button>
                                                     )}
                                                 </div>
@@ -1102,7 +1102,7 @@ export default function Calendario() {
                         </CardContent>
                     </Card>
 
-                    <Button asChild className="w-full bg-primary hover:bg-primary/90 text-white font-semibold h-12 rounded-xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] border-none animate-neon">
+                    <Button asChild className="hidden sm:flex w-full bg-primary hover:bg-primary/90 text-white font-semibold h-12 rounded-xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] border-none animate-neon">
                         <Link to="/reservations/new">Nueva {terminology.reservationLabel}</Link>
                     </Button>
                 </div>
