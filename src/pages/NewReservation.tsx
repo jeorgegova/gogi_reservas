@@ -28,7 +28,9 @@ import {
   HelpCircle,
   Gift,
   Package,
-  X
+  X,
+  MapPin,
+  Phone
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
@@ -187,6 +189,21 @@ export default function NewReservationPage() {
       return data;
     },
     enabled: isEditing && !!id,
+  });
+  
+  // Fetch organization details for address and phone
+  const { data: organization } = useQuery({
+    queryKey: ['organization', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('name, address, phone')
+        .eq('id', profile?.organization_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.organization_id,
   });
 
   useEffect(() => {
@@ -897,6 +914,37 @@ export default function NewReservationPage() {
           </h1>
 
           <p className="text-gray-500 text-sm">Sigue los pasos para asegurar tu espacio.</p>
+          
+          {organization && (organization.address || organization.phone) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 animate-in fade-in slide-in-from-left-4 duration-700 delay-200">
+              {organization.address && (
+                <a 
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(organization.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-primary transition-all duration-300 group"
+                  title="Ver en Google Maps"
+                >
+                  <div className="p-1 bg-gray-100 rounded-md group-hover:bg-primary/10 transition-colors">
+                    <MapPin className="w-3 h-3 text-gray-400 group-hover:text-primary" />
+                  </div>
+                  <span className="truncate max-w-[200px] sm:max-w-none">{organization.address}</span>
+                </a>
+              )}
+              {organization.phone && (
+                <a 
+                  href={`tel:${organization.phone.replace(/[^0-9+]/g, '')}`}
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-primary transition-all duration-300 group"
+                  title="Llamar ahora"
+                >
+                  <div className="p-1 bg-gray-100 rounded-md group-hover:bg-primary/10 transition-colors">
+                    <Phone className="w-3 h-3 text-gray-400 group-hover:text-primary" />
+                  </div>
+                  <span>{organization.phone}</span>
+                </a>
+              )}
+            </div>
+          )}
         </div>
         <div className="w-full">
           {/* Barra de progreso */}

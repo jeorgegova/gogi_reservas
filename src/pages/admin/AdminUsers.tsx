@@ -266,10 +266,13 @@ export default function AdminUsersPage() {
                           <span>{user.email}</span>
                         </div>
                         {user.phone && (
-                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">
+                          <a 
+                            href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
+                            className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                          >
                             <Smartphone className="w-3.5 h-3.5 text-gray-300" />
                             <span>{user.phone}</span>
-                          </div>
+                          </a>
                         )}
                       </td>
                       {businessType === 'residential' && (
@@ -413,10 +416,13 @@ export default function AdminUsersPage() {
                       {user.role}
                     </div>
                     {user.phone && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 truncate">
+                      <a 
+                        href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
+                        className="flex items-center gap-1 text-xs text-gray-500 truncate hover:text-primary transition-colors cursor-pointer"
+                      >
                         <Smartphone className="w-3 h-3 text-gray-400 shrink-0" />
                         <span className="truncate">{user.phone}</span>
-                      </div>
+                      </a>
                     )}
                     {businessType === 'residential' && (
                       <div className="flex items-center gap-1 text-xs text-gray-700 font-bold ml-auto shrink-0">

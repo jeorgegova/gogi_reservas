@@ -345,12 +345,12 @@ export default function SuperAdminOrganizations() {
   };
 
   const handleOpenLogin = (org: any) => {
-    window.open(`/${org.slug}/login`, '_blank');
+    window.open(`/${org.slug}`, '_blank');
     setOpenDropdownId(null);
   };
 
   const handleCopyLink = async (org: any) => {
-    const url = `${window.location.origin}/${org.slug}/login`;
+    const url = `${window.location.origin}/${org.slug}`;
     await navigator.clipboard.writeText(url);
     setOpenDropdownId(null);
   };
@@ -661,14 +661,14 @@ export default function SuperAdminOrganizations() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-500/20">
             <ShieldPlus className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Panel de Control Global</h1>
-            <p className="text-gray-500 text-sm">Visión general y gestión de toda la plataforma.</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Panel de Control Global</h1>
+            <p className="text-gray-500 text-xs sm:text-sm">Visión general y gestión de toda la plataforma.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -680,7 +680,7 @@ export default function SuperAdminOrganizations() {
               className={cn("rounded-lg h-8 text-xs font-bold", view === 'list' && "bg-white shadow-sm")}
             >
               <Building2 className="w-3.5 h-3.5 mr-1.5" />
-              Organizaciones
+              Orgs
             </Button>
             <Button
               variant={view === 'reports' ? 'secondary' : 'ghost'}
@@ -697,43 +697,43 @@ export default function SuperAdminOrganizations() {
             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 h-9 rounded-xl text-xs font-bold"
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Nueva Org
+            Nueva
           </Button>
         </div>
       </div>
 
-      {/* Stats Grid - Solo lo esencial */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-none shadow-sm bg-white p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <Building2 className="w-4 h-4 text-blue-600" />
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+        <Card className="border-none shadow-sm bg-white p-3 md:p-4">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-blue-50 rounded-lg">
+              <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-600" />
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Orgs</p>
-              <p className="text-xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="border-none shadow-sm bg-white p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Activas</p>
-              <p className="text-xl font-bold text-green-600">{stats.active}</p>
+            <div className="min-w-0">
+              <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Orgs</p>
+              <p className="text-lg md:text-xl font-bold text-gray-900">{stats.total}</p>
             </div>
           </div>
         </Card>
-        <Card className="border-none shadow-sm bg-white p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 rounded-lg">
-              <TrendingUp className="w-4 h-4 text-indigo-600" />
+        <Card className="border-none shadow-sm bg-white p-3 md:p-4">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-green-50 rounded-lg">
+              <CheckCircle2 className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-600" />
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Ingresos</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalRevenue)}</p>
+            <div className="min-w-0">
+              <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Activas</p>
+              <p className="text-lg md:text-xl font-bold text-green-600">{stats.active}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="border-none shadow-sm bg-white p-3 md:p-4 col-span-2 md:col-span-1">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-indigo-50 rounded-lg">
+              <TrendingUp className="w-3.5 h-3.5 md:w-4 md:h-4 text-indigo-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Ingresos</p>
+              <p className="text-lg md:text-xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalRevenue)}</p>
             </div>
           </div>
         </Card>
@@ -770,28 +770,28 @@ export default function SuperAdminOrganizations() {
           </CardHeader>
           <CardContent className="p-0">
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-visible">
-              <table className="w-full text-left text-sm">
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm table-fixed min-w-[500px]">
                 <thead>
                   <tr className="bg-gray-50/30 border-b border-gray-100">
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Organización</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ubicación / Contacto</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Suscripción</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>
+                    <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[30%]">Organización</th>
+                    <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[28%]">Ubicación / Contacto</th>
+                    <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[22%]">Suscripción</th>
+                    <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[20%] text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                       <tr key={i} className="animate-pulse">
-                        <td colSpan={4} className="px-6 py-6">
+                        <td colSpan={4} className="px-3 md:px-6 py-6">
                           <div className="h-4 bg-gray-100 rounded-full w-full" />
                         </td>
                       </tr>
                     ))
                   ) : filteredOrgs.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                      <td colSpan={4} className="px-3 md:px-6 py-12 text-center text-gray-400">
                         No se encontraron organizaciones con los filtros aplicados.
                       </td>
                     </tr>
@@ -808,25 +808,24 @@ export default function SuperAdminOrganizations() {
 
                       return (
                         <tr key={org.id} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
+                            <div className="flex items-center gap-2 md:gap-3">
                               {org.logo_url ? (
-                                <img src={org.logo_url} className="w-10 h-10 rounded-xl object-contain bg-white border border-gray-100 p-1.5 shadow-sm" />
+                                <img src={org.logo_url} className="w-8 h-8 md:w-10 md:h-10 rounded-xl object-contain bg-white border border-gray-100 p-1 shadow-sm shrink-0" />
                               ) : (
-                                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center border border-gray-50">
-                                  <Building2 className="w-5 h-5 text-gray-400" />
+                                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gray-100 flex items-center justify-center border border-gray-50 shrink-0">
+                                  <Building2 className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
                                 </div>
                               )}
-                              <div>
-                                <div className="font-bold text-gray-900">{org.name}</div>
+                              <div className="min-w-0">
+                                <div className="font-bold text-gray-900 truncate text-sm md:text-base">{org.name}</div>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                  <div className="text-[10px] text-indigo-600 font-mono tracking-tighter">/{org.slug}</div>
+                                  <div className="text-[10px] text-indigo-600 font-mono tracking-tighter truncate">{org.slug}</div>
                                   {org.business_type && (
                                     <div className={cn(
-                                      "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold border uppercase",
+                                      "inline-flex items-center rounded-full px-1 py-0.5 text-[8px] md:text-[9px] font-bold border uppercase shrink-0",
                                       getTerminology(org.business_type).badgeColor
                                     )}>
-                                      <Tag className="w-2 h-2 mr-1" />
                                       {BUSINESS_TYPE_OPTIONS.find(o => o.value === org.business_type)?.label.replace(/^[^\s]+\s/, '') || org.business_type}
                                     </div>
                                   )}
@@ -834,27 +833,26 @@ export default function SuperAdminOrganizations() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
                             <div className="space-y-1">
-                              <div className="flex items-center text-gray-700 font-medium">
-                                <MapPin className="w-3 h-3 mr-1.5 text-gray-400" />
-                                {org.address || 'Sin dirección'}
+                              <div className="flex items-center text-gray-700 font-medium text-xs md:text-sm truncate">
+                                <MapPin className="w-3 h-3 mr-1 text-gray-400 shrink-0" />
+                                <span className="truncate">{org.address || 'Sin dirección'}</span>
                               </div>
-                              <div className="text-[10px] text-gray-400 flex items-center">
-                                <span className="font-bold text-gray-500 mr-2">{org.contact_email}</span>
-                                {org.phone && <span>• {org.phone}</span>}
+                              <div className="text-[10px] text-gray-400 truncate">
+                                {org.contact_email}{org.phone && ` • ${org.phone}`}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1.5">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
+                            <div className="flex flex-col gap-1">
                               {subscription ? (
                                 <>
-                                  <div className="text-sm font-medium text-gray-900">
+                                  <div className="text-xs md:text-sm font-medium text-gray-900 truncate">
                                     {subscription.subscription_plans?.name || 'Plan desconocido'}
                                   </div>
                                   <div className={cn(
-                                    "inline-flex items-center w-fit rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
+                                    "inline-flex items-center w-fit rounded-full px-1.5 md:px-2 py-0.5 text-[9px] md:text-[10px] font-bold border uppercase",
                                     subscription.status === 'active' && !isExpired
                                       ? "bg-green-50 text-green-700 border-green-100"
                                       : subscription.status === 'active' && isExpired
@@ -863,8 +861,8 @@ export default function SuperAdminOrganizations() {
                                           ? "bg-yellow-50 text-yellow-700 border-yellow-100"
                                           : "bg-gray-50 text-gray-500 border-gray-100"
                                   )}>
-                                    {subscription.status === 'active' && !isExpired && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                                    {(subscription.status === 'active' && isExpired) && <AlertCircle className="w-3 h-3 mr-1" />}
+                                    {subscription.status === 'active' && !isExpired && <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" />}
+                                    {(subscription.status === 'active' && isExpired) && <AlertCircle className="w-2.5 h-2.5 mr-0.5" />}
                                     {subscription.status}
                                   </div>
                                   <div className={cn(
@@ -872,14 +870,14 @@ export default function SuperAdminOrganizations() {
                                     isExpired ? "text-red-600" : isWarning ? "text-amber-600" : "text-gray-500"
                                   )}>
                                     {isExpired ? (
-                                      <AlertCircle className="w-3 h-3 mr-1" />
+                                      <AlertCircle className="w-2.5 h-2.5 mr-1" />
                                     ) : isWarning ? (
-                                      <Clock className="w-3 h-3 mr-1" />
+                                      <Clock className="w-2.5 h-2.5 mr-1" />
                                     ) : (
-                                      <Calendar className="w-3 h-3 mr-1" />
+                                      <Calendar className="w-2.5 h-2.5 mr-1" />
                                     )}
                                     {formatDate(subscription.end_date)}
-                                    {isWarning && !isExpired && ` (En ${daysUntilRenewal}d)`}
+                                    {isWarning && !isExpired && ` (${daysUntilRenewal}d)`}
                                     {isExpired && " (Vencido)"}
                                   </div>
                                 </>
@@ -888,26 +886,26 @@ export default function SuperAdminOrganizations() {
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-1.5 overflow-visible">
+                          <td className="px-3 md:px-6 py-3 md:py-4 text-right">
+                            <div className="flex justify-end gap-1 overflow-visible">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                className="h-7 w-7 md:h-8 md:w-8 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
                                 onClick={() => handleSupport(org.id)}
                                 title="Entrar en modo soporte"
                               >
-                                <ShieldPlus className="w-4 h-4" />
+                                <ShieldPlus className="w-3.5 h-3.5" />
                               </Button>
 
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded-lg"
+                                className="h-7 w-7 md:h-8 md:w-8 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded-lg"
                                 onClick={() => handleOpenSubscriptionModal(org)}
                                 title="Gestionar Suscripción"
                               >
-                                <Calendar className="w-4 h-4" />
+                                <Calendar className="w-3.5 h-3.5" />
                               </Button>
 
                               <div className="relative">
@@ -915,7 +913,7 @@ export default function SuperAdminOrganizations() {
                                   variant="ghost"
                                   size="icon"
                                   className={cn(
-                                    "h-8 w-8 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 relative dropdown-trigger rounded-lg",
+                                    "h-7 w-7 md:h-8 md:w-8 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 relative dropdown-trigger rounded-lg",
                                     openDropdownId === org.id && "bg-gray-100 text-indigo-600"
                                   )}
                                   onClick={(e) => {
@@ -923,7 +921,7 @@ export default function SuperAdminOrganizations() {
                                     setOpenDropdownId(openDropdownId === org.id ? null : org.id);
                                   }}
                                 >
-                                  <ExternalLink className="w-4 h-4" />
+                                  <ExternalLink className="w-3.5 h-3.5" />
                                 </Button>
                                 {openDropdownId === org.id && (
                                   <div
@@ -954,21 +952,21 @@ export default function SuperAdminOrganizations() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg"
+                                className="h-7 w-7 md:h-8 md:w-8 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg"
                                 onClick={() => handleOpenModal(org)}
                                 title="Editar"
                               >
-                                <Edit2 className="w-4 h-4" />
+                                <Edit2 className="w-3.5 h-3.5" />
                               </Button>
 
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                className="h-7 w-7 md:h-8 md:w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
                                 onClick={() => deleteOrg(org.id)}
                                 title="Eliminar"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
                           </td>
@@ -1151,23 +1149,23 @@ export default function SuperAdminOrganizations() {
         </Card>
       ) : (
         /* Reports View */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-500">
-          <Card className="border-none shadow-sm bg-white p-6">
-            <CardHeader className="p-0 pb-6">
-              <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-indigo-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 animate-in slide-in-from-bottom-4 duration-500">
+          <Card className="border-none shadow-sm bg-white p-4 md:p-6">
+            <CardHeader className="p-0 pb-4 md:pb-6">
+              <CardTitle className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-2">
+                <PieChart className="w-4 h-4 md:w-5 md:h-5 text-indigo-500" />
                 Distribución de Suscripciones
               </CardTitle>
             </CardHeader>
-            <div className="h-[300px] w-full">
+            <div className="h-[250px] md:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie
                     data={subscriptionData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
+                    innerRadius={40}
+                    outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
                   >
@@ -1182,30 +1180,30 @@ export default function SuperAdminOrganizations() {
             </div>
           </Card>
 
-          <Card className="border-none shadow-sm bg-white p-6">
-            <CardHeader className="p-0 pb-6">
-              <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <MapIcon className="w-5 h-5 text-indigo-500" />
+          <Card className="border-none shadow-sm bg-white p-4 md:p-6">
+            <CardHeader className="p-0 pb-4 md:pb-6">
+              <CardTitle className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-2">
+                <MapIcon className="w-4 h-4 md:w-5 md:h-5 text-indigo-500" />
                 Ubicaciones por Organización
               </CardTitle>
             </CardHeader>
-            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-3 md:space-y-4 max-h-[250px] md:max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               {organizations.filter(o => o.address).map((org, i) => (
-                <div key={org.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-indigo-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm border border-gray-100">
+                <div key={org.id} className="flex items-center justify-between p-2.5 md:p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-indigo-100 transition-colors">
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm border border-gray-100 shrink-0">
                       {i + 1}
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">{org.name}</div>
-                      <div className="text-[10px] text-gray-500 flex items-center">
-                        <MapPin className="w-2.5 h-2.5 mr-1" />
-                        {org.address}
+                    <div className="min-w-0">
+                      <div className="text-xs md:text-sm font-bold text-gray-900 truncate">{org.name}</div>
+                      <div className="text-[10px] text-gray-500 flex items-center truncate">
+                        <MapPin className="w-2.5 h-2.5 mr-1 shrink-0" />
+                        <span className="truncate">{org.address}</span>
                       </div>
                     </div>
                   </div>
                   <div className={cn(
-                    "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border",
+                    "px-1.5 md:px-2 py-0.5 rounded-full text-[8px] md:text-[9px] font-bold uppercase border shrink-0",
                     org.subscription_status === 'active' ? "bg-green-50 text-green-700 border-green-100" :
                       org.subscription_status === 'pending_validation' ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
                         org.subscription_status === 'past_due' || org.subscription_status === 'expired' ? "bg-red-50 text-red-700 border-red-100" :
@@ -1223,17 +1221,17 @@ export default function SuperAdminOrganizations() {
             </div>
           </Card>
 
-          <Card className="border-none shadow-sm bg-white p-6 md:col-span-2">
-            <CardHeader className="p-0 pb-6 flex flex-row items-center justify-between">
-              <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-indigo-500" />
+          <Card className="border-none shadow-sm bg-white p-4 md:p-6 md:col-span-2">
+            <CardHeader className="p-0 pb-4 md:pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <CardTitle className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-indigo-500" />
                 Crecimiento de Plataforma (Mes Actual)
               </CardTitle>
-              <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+              <div className="text-[10px] md:text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 md:px-3 py-1 rounded-lg whitespace-nowrap self-start">
                 Proyección: +15% vs Mes Anterior
               </div>
             </CardHeader>
-            <div className="h-[300px] w-full">
+            <div className="h-[250px] md:h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={[
                   { name: 'Total Orgs', value: stats.total },
@@ -1244,8 +1242,8 @@ export default function SuperAdminOrganizations() {
                   { name: 'Sin subscripción', value: stats.inactive }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }} />
                   <Tooltip
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
@@ -1264,19 +1262,19 @@ export default function SuperAdminOrganizations() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="px-4 md:px-8 pt-4 md:pt-8 pb-4 flex items-center justify-between border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">{editingOrg ? 'Editar Organización' : 'Nueva Organización'}</h2>
-                <p className="text-gray-500 text-xs">Selecciona el tipo de negocio y completa los datos de configuración.</p>
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">{editingOrg ? 'Editar Organización' : 'Nueva Organización'}</h2>
+                <p className="text-gray-500 text-xs">Tipo de negocio y datos de configuración.</p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}>
                 <XCircle className="w-5 h-5 text-gray-400" />
               </Button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
+            <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-5 md:space-y-6 overflow-y-auto flex-1">
               {/* Tipo de Negocio - campo principal al inicio */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Tipo de Negocio</Label>
@@ -1404,11 +1402,11 @@ export default function SuperAdminOrganizations() {
 
       {/* Subscription Management Modal */}
       {subscriptionModalOpen && selectedOrgForSubscription && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="px-4 md:px-8 pt-4 md:pt-8 pb-4 flex items-center justify-between border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Gestión de Suscripción</h2>
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">Gestión de Suscripción</h2>
                 <p className="text-gray-500 text-xs">{selectedOrgForSubscription.name}</p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setSubscriptionModalOpen(false)}>
@@ -1416,7 +1414,7 @@ export default function SuperAdminOrganizations() {
               </Button>
             </div>
 
-            <form onSubmit={handleSubscriptionSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubscriptionSubmit} className="p-4 md:p-8 space-y-5 md:space-y-6">
               {/* Current Subscription - Only show if not cancelled */}
               {selectedOrgForSubscription.subscription_status !== 'cancelled' && (
                 <div className="p-4 bg-gray-50 rounded-xl">

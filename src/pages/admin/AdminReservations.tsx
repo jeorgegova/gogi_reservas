@@ -19,7 +19,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  ClipboardList
+  ClipboardList,
+  Smartphone
 } from 'lucide-react';
 
 export default function AdminReservationsPage() {
@@ -149,7 +150,7 @@ export default function AdminReservationsPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
             <ClipboardList className="h-5 w-5 text-primary-foreground" />
@@ -166,7 +167,7 @@ export default function AdminReservationsPage() {
         </div>
       </div>
 
-      <Card className="border-none shadow-sm bg-white overflow-hidden">
+      <Card className="border-none shadow-sm bg-white overflow-visible">
         <CardHeader className="p-4 bg-gray-50/50 border-b border-gray-100">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-80">
@@ -197,74 +198,69 @@ export default function AdminReservationsPage() {
         </CardHeader>
         <CardContent className="p-0">
           {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-visible">
-            <table className="w-full text-left text-sm">
+          <div className="hidden md:block">
+            <table className="w-full text-left text-sm table-fixed">
               <thead>
                 <tr className="bg-gray-50/30 border-b border-gray-100">
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.userLabel} {businessType === 'residential' ? `/ ${terminology.unitLabel}` : ''}</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.areaLabel}</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha / Hora</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Costo</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>
+                  <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[20%]">{terminology.userLabel} {businessType === 'residential' ? `/ ${terminology.unitLabel}` : ''}</th>
+                  <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[18%]">{terminology.areaLabel}</th>
+                  <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[20%]">Fecha / Hora</th>
+                  <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[12%] text-right">Costo</th>
+                  <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[14%] text-center">Estado</th>
+                  <th className="px-3 md:px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-[16%] text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={6} className="px-6 py-4">
+                      <td colSpan={6} className="px-3 md:px-6 py-4">
                         <div className="h-4 bg-gray-100 rounded-full w-full" />
                       </td>
                     </tr>
                   ))
                 ) : filteredReservations.length === 0 ? (
                   <tr>
-<td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan={6} className="px-3 md:px-6 py-12 text-center text-gray-400">
                        No se encontraron {terminology.reservationLabel.toLowerCase()}s.
-                     </td>
+                    </td>
                   </tr>
                 ) : (
                   filteredReservations.map((res) => (
                     <tr key={res.id} className="hover:bg-gray-50/50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="font-bold text-gray-900">
-                            {res.guest_name || res.profiles?.full_name}
-                          </div>
+                      <td className="px-3 md:px-6 py-3 md:py-4">
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <div className="font-bold text-gray-900 truncate">{res.guest_name || res.profiles?.full_name}</div>
                           {res.profiles?.role === 'guest' && (
-                            <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-1.5 py-0.5 rounded border border-blue-100 uppercase tracking-tighter">
-                              Invitado
+                            <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-1 py-0.5 rounded border border-blue-100 uppercase tracking-tighter shrink-0">
+                              Inv
                             </span>
                           )}
                         </div>
-                        {res.guest_phone && (
-                          <div className="text-[10px] text-primary font-medium mt-0.5">
-                            Tel: {res.guest_phone}
-                          </div>
-                        )}
                         {businessType === 'residential' && res.profiles?.apartment && (
-                          <div className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-3 h-3 text-gray-300" />
+                          <div className="text-[10px] text-gray-500 truncate mt-0.5">
                             {terminology.unitLabel} {res.profiles?.apartment}
                           </div>
                         )}
+                        {res.guest_phone && (
+                          <a 
+                            href={`tel:${res.guest_phone.replace(/[^0-9+]/g, '')}`}
+                            className="flex items-center gap-1 text-[10px] text-primary font-medium truncate mt-0.5 hover:text-primary/80 transition-colors cursor-pointer"
+                          >
+                            <Smartphone className="w-2.5 h-2.5" />
+                            {res.guest_phone}
+                          </a>
+                        )}
                       </td>
-                      <td className="px-6 py-4 text-gray-600 font-medium">{res.common_areas?.name}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-gray-700">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                          <span>{formatDate(res.start_datetime)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 font-medium">
-                          <Clock className="w-3.5 h-3.5 text-gray-300" />
-                          <span>{formatTime(res.start_datetime)} - {formatTime(res.end_datetime)}</span>
-                        </div>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-gray-600 font-medium truncate">{res.common_areas?.name}</td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                        <div className="text-gray-700 text-xs md:text-sm">{formatDate(res.start_datetime)}</div>
+                        <div className="text-[10px] text-gray-400 font-medium">{formatTime(res.start_datetime)} - {formatTime(res.end_datetime)}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="font-bold text-gray-900">{formatCurrency(res.total_cost)}</span>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">
+                        <span className="font-bold text-gray-900 text-xs md:text-sm">{formatCurrency(res.total_cost)}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-center">
                          {(() => {
                            const statusStyles: Record<string, string> = {
                               'approved': 'bg-green-50 text-green-700 border-green-100',
@@ -277,57 +273,55 @@ export default function AdminReservationsPage() {
                             const statusLabels: Record<string, string> = {
                               'approved': 'Aprobada',
                               'paid': 'Pagado',
-                              'pending_validation': 'Pend. Validación',
+                              'pending_validation': 'Pend. Val.',
                               'pending_payment': 'Pend. Pago',
                               'rejected': 'Rechazada',
                               'cancelled': 'Cancelada',
                             };
                            const style = statusStyles[res.status] || 'bg-gray-50 text-gray-600 border-gray-100';
-                              return (
-                              <div className={cn(
-                                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
-                                style
-                              )}>
-                                {statusLabels[res.status] || res.status.replace('_', ' ')}
-                              </div>
-                            )
-                          })()}
+                             return (
+                             <div className={cn(
+                               "inline-flex items-center rounded-full px-1.5 md:px-2 py-0.5 text-[9px] md:text-[10px] font-bold border uppercase",
+                               style
+                             )}>
+                               {statusLabels[res.status] || res.status.replace('_', ' ')}
+                             </div>
+                           )
+                         })()}
                        </td>
-                       <td className="px-6 py-4 text-right">
-                         <div className="flex justify-end gap-2">
-                           {(res.status === 'pending_validation' || res.status === 'pending_payment' || res.status === 'paid') && (
-                            <>
-                              <Button
+                       <td className="px-2 md:px-6 py-3 md:py-4">
+                         {(res.status === 'pending_validation' || res.status === 'pending_payment' || res.status === 'paid') && (
+                           <div className="flex flex-wrap justify-center gap-1">
+                             <Button
                                 size="sm"
                                 disabled={!!blockingError}
-                                className="h-10 px-4 bg-green-600 hover:bg-green-700 text-xs font-bold text-white shadow-md shadow-green-600/20 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                className="h-7 md:h-10 px-3 md:px-4 bg-green-600 hover:bg-green-700 text-[9px] md:text-xs font-bold text-white shadow-md shadow-green-600/20 rounded-lg md:rounded-xl transition-all duration-300 flex items-center justify-center gap-1"
                                 onClick={() => handleUpdateStatus(res.id, 'approved')}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1.5" />
-                                Aprobar
-                              </Button>
-                              <Button
+                             >
+                               <CheckCircle className="w-3 md:w-4 h-3 md:h-4" />
+                               Aprobar
+                             </Button>
+                             <Button
                                 size="sm"
                                 variant="destructive"
                                 disabled={!!blockingError}
-                                className="h-10 px-4 text-xs font-bold shadow-md shadow-red-500/20 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                className="h-7 md:h-10 px-3 md:px-4 text-[9px] md:text-xs font-bold shadow-md shadow-red-500/20 rounded-lg md:rounded-xl transition-all duration-300 flex items-center justify-center gap-1"
                                 onClick={() => handleUpdateStatus(res.id, 'rejected')}
-                              >
-                                <XCircle className="w-4 h-4 mr-1.5" />
-                                Cancelar Reserva
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                             >
+                               <XCircle className="w-3 md:w-4 h-3 md:h-4" />
+                               Rechazar
+                             </Button>
+                           </div>
+                         )}
+                       </td>
+                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
 
-          {/* Mobile Cards View */}
+          {/* Mobile/Tablet Cards View */}
           <div className="md:hidden flex flex-col divide-y divide-gray-100">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
@@ -336,7 +330,7 @@ export default function AdminReservationsPage() {
                 </div>
               ))
             ) : filteredReservations.length === 0 ? (
-<div className="px-6 py-12 text-center text-gray-400 text-sm">
+              <div className="px-6 py-12 text-center text-gray-400 text-sm">
                   No se encontraron {terminology.reservationLabel.toLowerCase()}s.
                </div>
             ) : (
@@ -350,12 +344,18 @@ export default function AdminReservationsPage() {
                           </h3>
                           {res.profiles?.role === 'guest' && (
                             <span className="bg-blue-50 text-blue-600 text-[8px] font-black px-1 py-0.5 rounded border border-blue-100 uppercase tracking-tighter">
-                              Inv
+                              Invitado
                             </span>
                           )}
                         </div>
                         {res.guest_phone && (
-                          <span className="text-[10px] text-primary font-bold">Tel: {res.guest_phone}</span>
+                          <a 
+                            href={`tel:${res.guest_phone.replace(/[^0-9+]/g, '')}`}
+                            className="text-[10px] text-primary font-bold flex items-center gap-1 hover:text-primary/80 transition-colors cursor-pointer"
+                          >
+                            <Smartphone className="w-2.5 h-2.5" />
+                            Tel: {res.guest_phone}
+                          </a>
                         )}
                         {businessType === 'residential' && res.profiles?.apartment && (
                           <span className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
@@ -410,7 +410,7 @@ export default function AdminReservationsPage() {
                         </div>
                       </div>
                       
-                      <div className="font-bold text-gray-900 text-sm bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                      <div className="font-bold text-gray-900 text-sm bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 text-center">
                         {formatCurrency(res.total_cost)}
                       </div>
                     </div>

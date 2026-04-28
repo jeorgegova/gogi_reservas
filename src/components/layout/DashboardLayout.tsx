@@ -19,7 +19,12 @@ import {
   Gift,
   Settings,
   Plus,
+  Share2,
+  Copy,
+  Check,
+  MessageCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [organization, setOrganization] = useState<any>(null);
   const [orgLoading, setOrgLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -148,7 +154,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     navigate('/super-admin/organizations');
   };
 
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/${organization?.slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success('Enlace copiado al portapapeles');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
+  const handleShareWhatsApp = () => {
+    const url = `${window.location.origin}/${organization?.slug}`;
+    const text = `¡Hola! Puedes realizar tus reservas en ${organization?.name} aquí: ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+
+
+  const bottomNavItems = navItems
+    .filter(item => !item.path.includes('/reservations/new'))
+    .slice(0, isGuest ? 2 : 3);
+
+  const isMoreActive = !isGuest && bottomNavItems.length > 0 && !bottomNavItems.some(item => location.pathname === item.path);
 
   return (
     <div className="min-h-screen bg-gray-50 flex relative overflow-hidden">
@@ -236,6 +262,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
               </NavLink>
             ))}
+
+            {/* Compartir enlace - Solo para Administradores */}
+            {isAdmin && organization?.slug && (
+              <div className="mx-0 mt-6 mb-2 p-4 bg-primary/5 rounded-2xl border border-primary/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <p className="text-xs font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <div className="p-1 bg-primary/10 rounded-lg text-primary">
+                    <Share2 className="w-3.5 h-3.5" />
+                  </div>
+                  Compartir negocio
+                </p>
+                <p className="text-[10px] text-gray-500 mb-3 leading-relaxed">
+                  Comparte este enlace con tus clientes para que puedan reservar.
+                </p>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleCopyLink}
+                    className="flex-1 h-9 text-[10px] bg-white border-gray-200 hover:bg-gray-50 hover:text-primary transition-all duration-200 shadow-sm"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3 mr-1.5 text-green-500" />
+                        ¡Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3 mr-1.5" />
+                        Copiar
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleShareWhatsApp}
+                    className="flex-1 h-9 text-[10px] bg-white border-gray-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-all duration-200 shadow-sm"
+                  >
+                    <MessageCircle className="w-3 h-3 mr-1.5 text-green-500" />
+                    WhatsApp
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Usuario y Cerrar Sesión - visible para todos los usuarios */}
             {(profile || isGuest) && !loading && (
@@ -370,13 +440,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center h-[72px] px-2"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {navItems
-          .filter(item => !item.path.includes('/reservations/new'))
-          .slice(0, isGuest ? 2 : 3)
-          .map((item) => (
+        {bottomNavItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
+              end
               className={({ isActive }) =>
                 cn(
                   "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
@@ -394,12 +462,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </NavLink>
           ))}
-        {navItems.length > 4 && !isGuest && (
+        {!isGuest && navItems.length > 4 && (
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-gray-900 transition-colors"
+            className={cn(
+              "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+              isMoreActive ? "text-[#FF3B30]" : "text-gray-500 hover:text-gray-900"
+            )}
           >
-            <Menu className="w-6 h-6" strokeWidth={1.5} />
+            <Menu className={cn("w-6 h-6", isMoreActive ? "text-[#FF3B30]" : "text-gray-500")} strokeWidth={1.5} />
             <span className="text-[10px] font-medium leading-none">Más</span>
           </button>
         )}
