@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Building2, Plus, Search, Edit2, Trash2, ExternalLink, Loader2, XCircle, ShieldPlus, Calendar, AlertCircle, CheckCircle2, Clock, MapPin, TrendingUp, PieChart, BarChart3, Map as MapIcon, Download, Tag } from 'lucide-react';
+import { Building2, Plus, Search, Edit2, Trash2, ExternalLink, Loader2, XCircle, ShieldPlus, Calendar, AlertCircle, CheckCircle2, Clock, MapPin, TrendingUp, PieChart, BarChart3, Map as MapIcon, Download } from 'lucide-react';
 import { cn, formatDate, formatCurrency } from '@/lib/utils';
 import { differenceInDays, parseISO, isPast } from 'date-fns';
 import { AlertDialog } from '@/components/ui/alert-dialog';
