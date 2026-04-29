@@ -1,4 +1,4 @@
-import { useNavigate, NavLink, Link, useLocation } from 'react-router-dom';
+import { useNavigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
