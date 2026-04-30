@@ -58,7 +58,9 @@ export default function MaintenancePage() {
     severity: 'info',
     starts_at: '',
     ends_at: '',
-    common_area_id: ''
+    common_area_id: '',
+    mode: 'range' as 'range' | 'day',
+    single_date: '',
   });
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [noticeToDelete, setNoticeToDelete] = useState<string | null>(null);
@@ -147,16 +149,66 @@ export default function MaintenancePage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    let startsAt = newNotice.starts_at;
+    let endsAt = newNotice.ends_at;
+
+    if (newNotice.mode === 'day' && newNotice.single_date) {
+      startsAt = `${newNotice.single_date}T00:00`;
+      endsAt = `${newNotice.single_date}T23:59`;
+    }
+
+    if (startsAt) {
+      const startDate = new Date(startsAt);
+      const now = new Date();
+      if (startDate < now && !editingNotice) {
+        alert('No se puede seleccionar una fecha y hora anterior a ahora.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    if (startsAt && endsAt) {
+      const startDate = new Date(startsAt);
+      const endDate = new Date(endsAt);
+      if (endDate <= startDate) {
+        alert('La fecha de fin debe ser posterior a la fecha de inicio.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    if (startsAt && endsAt && profile?.organization_id) {
+      const { data: conflicts } = await supabase
+        .from('reservations')
+        .select('id, start_datetime, end_datetime, profiles:user_id(full_name), common_areas(name)')
+        .eq('organization_id', profile.organization_id)
+        .in('status', ['approved', 'pending_validation', 'pending_payment'])
+        .lt('start_datetime', endsAt.includes('T') ? endsAt : endsAt + 'T23:59:59')
+        .gt('end_datetime', startsAt.includes('T') ? startsAt : startsAt + 'T00:00:00');
+
+      if (conflicts && conflicts.length > 0) {
+        const conflictList = conflicts.map((c: any) =>
+          `- ${c.profiles?.full_name || 'Usuario'} en ${c.common_areas?.name || 'Área'} (${new Date(c.start_datetime).toLocaleString('es')} → ${new Date(c.end_datetime).toLocaleString('es')})`
+        ).join('\n');
+        const proceed = confirm(
+          `⚠️ Se encontraron ${conflicts.length} ${conflicts.length === 1 ? 'reserva' : 'reservas'} en el rango del aviso:\n\n${conflictList}\n\n¿Deseas continuar publicando el aviso de todas formas?`
+        );
+        if (!proceed) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
+
     if (editingNotice) {
-      // Actualizar mantenimiento existente
       const { error } = await supabase
         .from('maintenance_notices')
         .update({
           title: newNotice.title,
           content: newNotice.content,
           severity: newNotice.severity,
-          starts_at: newNotice.starts_at,
-          ends_at: newNotice.ends_at,
+          starts_at: startsAt,
+          ends_at: endsAt,
           common_area_id: newNotice.common_area_id || null
         })
         .eq('id', editingNotice.id);
@@ -172,15 +224,20 @@ export default function MaintenancePage() {
           severity: 'info',
           starts_at: '',
           ends_at: '',
-          common_area_id: ''
+          common_area_id: '',
+          mode: 'range',
+          single_date: '',
         });
       } else {
         console.error('Error updating notice:', error);
       }
     } else {
-      // Crear nuevo mantenimiento
       const { error } = await supabase.from('maintenance_notices').insert({
-        ...newNotice,
+        title: newNotice.title,
+        content: newNotice.content,
+        severity: newNotice.severity,
+        starts_at: startsAt,
+        ends_at: endsAt,
         common_area_id: newNotice.common_area_id || null,
         organization_id: profile?.organization_id
       });
@@ -193,7 +250,9 @@ export default function MaintenancePage() {
           severity: 'info',
           starts_at: '',
           ends_at: '',
-          common_area_id: ''
+          common_area_id: '',
+          mode: 'range',
+          single_date: '',
         });
       } else {
         console.error('Error creating notice:', error);
@@ -211,7 +270,9 @@ export default function MaintenancePage() {
         severity: editingNotice.severity || 'info',
         starts_at: editingNotice.starts_at ? editingNotice.starts_at.slice(0, 16) : '',
         ends_at: editingNotice.ends_at ? editingNotice.ends_at.slice(0, 16) : '',
-        common_area_id: editingNotice.common_area_id || ''
+        common_area_id: editingNotice.common_area_id || '',
+        mode: 'range',
+        single_date: '',
       });
     }
   }, [editingNotice]);
@@ -226,7 +287,9 @@ export default function MaintenancePage() {
       severity: 'info',
       starts_at: '',
       ends_at: '',
-      common_area_id: ''
+      common_area_id: '',
+      mode: 'range',
+      single_date: '',
     });
   };
 
@@ -455,17 +518,67 @@ export default function MaintenancePage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Tipo de selección</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewNotice({ ...newNotice, mode: 'range' })}
+                    className={`h-10 px-4 rounded-lg border-2 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                      newNotice.mode === 'range'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4" />
+                    Rango (Desde - Hasta)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewNotice({ ...newNotice, mode: 'day' })}
+                    className={`h-10 px-4 rounded-lg border-2 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                      newNotice.mode === 'day'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Día completo
+                  </button>
+                </div>
+              </div>
+
+              {newNotice.mode === 'day' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="singleDate" className="text-sm font-medium text-gray-700">
+                    <Calendar className="h-4 w-4 inline mr-1" />
+                    Fecha del aviso
+                  </Label>
+                  <Input
+                    id="singleDate"
+                    type="date"
+                    value={newNotice.single_date}
+                    onChange={e => setNewNotice({ ...newNotice, single_date: e.target.value })}
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                  />
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="startsAt" className="text-sm font-medium text-gray-700">
                     <Clock className="h-4 w-4 inline mr-1" />
-                    Fecha de inicio
+                    Fecha y hora de inicio
                   </Label>
                   <Input
                     id="startsAt"
                     type="datetime-local"
                     value={newNotice.starts_at}
-                    onChange={e => setNewNotice({ ...newNotice, starts_at: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setNewNotice({ ...newNotice, starts_at: val });
+                    }}
                     required
                     className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                   />
@@ -474,18 +587,20 @@ export default function MaintenancePage() {
                 <div className="space-y-2">
                   <Label htmlFor="endsAt" className="text-sm font-medium text-gray-700">
                     <Clock className="h-4 w-4 inline mr-1" />
-                    Fecha de fin
+                    Fecha y hora de fin
                   </Label>
                   <Input
                     id="endsAt"
                     type="datetime-local"
                     value={newNotice.ends_at}
+                    min={newNotice.starts_at || undefined}
                     onChange={e => setNewNotice({ ...newNotice, ends_at: e.target.value })}
                     required
                     className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                   />
                 </div>
               </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button

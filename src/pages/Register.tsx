@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { HabeasData } from '@/components/ui/habeas-data';
 import { AlertDialog } from '@/components/ui/alert-dialog';
-import { UserPlus, Building2 } from 'lucide-react';
+import { UserPlus, Building2, Eye, EyeOff } from 'lucide-react';
 import { getTerminology } from '@/lib/terminology';
 
 export default function RegisterPage() {
@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [isSuccessAlertOpen, setIsSuccessAlertOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const { slug } = useParams();
@@ -95,6 +96,47 @@ export default function RegisterPage() {
 
       console.log("Data del registrer", data);
       if (error) throw error;
+
+      if (data.user && selectedOrgId) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            email: data.user.email || email,
+            full_name: fullName,
+            phone: phone,
+            apartment: apartment,
+            role: 'user',
+            organization_id: selectedOrgId,
+          }, { onConflict: 'id' });
+
+        if (profileError) {
+          console.error('Error al crear perfil (upsert):', profileError);
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              email: data.user.email || email,
+              full_name: fullName,
+              phone: phone,
+              apartment: apartment,
+              organization_id: selectedOrgId,
+            })
+            .eq('id', data.user.id);
+          if (updateError) console.error('Error al actualizar perfil:', updateError);
+        }
+
+        const { error: membershipError } = await supabase
+          .from('memberships')
+          .insert({
+            user_id: data.user.id,
+            organization_id: selectedOrgId,
+            phone: phone,
+            apartment: apartment,
+            role: 'user',
+          });
+
+        if (membershipError) console.error('Error al crear membresía:', membershipError);
+      }
 
       setIsSuccessAlertOpen(true);
     } catch (error: any) {
@@ -234,15 +276,24 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" title="Mínimo 6 caracteres" className="text-white font-medium ml-1">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50 focus:border-primary/50 transition-all duration-300"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50 focus:border-primary/50 transition-all duration-300 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {/* Habeas Data - Tratamiento de Datos Personales */}

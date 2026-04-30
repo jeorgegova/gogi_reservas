@@ -36,6 +36,7 @@ export default function AdminSettingsPage() {
   const [orgAddress, setOrgAddress] = useState('');
   const [autoApprovePayments, setAutoApprovePayments] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
+  const [maxReservationDays, setMaxReservationDays] = useState<number | null>(null);
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -96,7 +97,7 @@ export default function AdminSettingsPage() {
     try {
       const { data, error } = await supabase
         .from('organizations')
-        .select('requires_auth, guest_user_id, logo_url, login_photo_url, name, phone, address, auto_approve_payments')
+        .select('requires_auth, guest_user_id, logo_url, login_photo_url, name, phone, address, auto_approve_payments, max_reservation_days_ahead')
         .eq('id', profile?.organization_id)
         .single();
 
@@ -110,6 +111,7 @@ export default function AdminSettingsPage() {
         setOrgPhone(data.phone || '');
         setOrgAddress(data.address || '');
         setAutoApprovePayments(data.auto_approve_payments ?? false);
+        setMaxReservationDays(data.max_reservation_days_ahead ?? null);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -151,6 +153,7 @@ export default function AdminSettingsPage() {
           phone: orgPhone,
           address: orgAddress,
           auto_approve_payments: autoApprovePayments,
+          max_reservation_days_ahead: maxReservationDays,
         })
         .eq('id', profile.organization_id);
 
@@ -307,6 +310,39 @@ export default function AdminSettingsPage() {
                   Los pagos se procesan a través de Wompi. Los fondos se reciben directamente en tu cuenta bancaria registrada en Wompi.
                 </p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Limite de Días para Reservas */}
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-gray-400" />
+              <CardTitle className="text-lg">Límite de Días para {terminology.reservationLabel}s</CardTitle>
+            </div>
+            <CardDescription>
+              Define cuántos días hacia adelante puede un {terminology.userLabel.toLowerCase()} crear {terminology.reservationLabel.toLowerCase()}s.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="maxDays" className="text-sm font-bold text-gray-700">Días máximos hacia adelante</Label>
+              <Input
+                id="maxDays"
+                type="number"
+                min={1}
+                value={maxReservationDays ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setMaxReservationDays(val ? parseInt(val) : null);
+                }}
+                placeholder="Sin límite (dejar vacío)"
+                className="h-10 rounded-xl"
+              />
+              <p className="text-xs text-gray-500">
+                Si configuras 30 días, los {terminology.userLabel.toLowerCase()}s solo verán disponibles fechas hasta 30 días desde hoy. Dejar vacío para sin límite.
+              </p>
             </div>
           </CardContent>
         </Card>

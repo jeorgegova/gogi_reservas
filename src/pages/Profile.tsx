@@ -10,7 +10,9 @@ import {
   Loader2,
   Lock,
   ChevronDown,
-  LogOut
+  LogOut,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,8 @@ export default function ProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [isPasswordSectionOpen, setIsPasswordSectionOpen] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [organizationName, setOrganizationName] = useState<string>('');
 
   useEffect(() => {
@@ -242,26 +246,44 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-[10px] uppercase font-bold text-gray-400">Nueva Contraseña</Label>
-                        <Input
-                          type="password"
-                          className="h-10 rounded-lg text-sm"
-                          value={passwordFormData.newPassword}
-                          onChange={e => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
-                          required
-                          placeholder="••••••••"
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showNewPassword ? "text" : "password"}
+                            className="h-10 rounded-lg text-sm pr-10"
+                            value={passwordFormData.newPassword}
+                            onChange={e => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
+                            required
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="space-y-1.5">
                         <Label className="text-[10px] uppercase font-bold text-gray-400">Confirmar Contraseña</Label>
-                        <Input
-                          type="password"
-                          className="h-10 rounded-lg text-sm"
-                          value={passwordFormData.confirmPassword}
-                          onChange={e => setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })}
-                          required
-                          placeholder="••••••••"
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showConfirmPassword ? "text" : "password"}
+                            className="h-10 rounded-lg text-sm pr-10"
+                            value={passwordFormData.confirmPassword}
+                            onChange={e => setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })}
+                            required
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 

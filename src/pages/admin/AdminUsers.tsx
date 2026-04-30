@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, Modal, DropdownMenu, DropdownMenuItem } from '@/components/ui/alert-dialog';
-import { 
-  User, 
+import {
+  User,
   Search,
   Mail,
   Smartphone,
@@ -38,7 +38,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Modal states
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -46,7 +46,7 @@ export default function AdminUsersPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [roleChangeUser, setRoleChangeUser] = useState<UserProfile | null>(null);
   const [isRoleAlertOpen, setIsRoleAlertOpen] = useState(false);
-  
+
   // Form state
   const [editForm, setEditForm] = useState({
     full_name: '',
@@ -87,6 +87,7 @@ export default function AdminUsersPage() {
     if (error) {
       console.error('Error fetching memberships:', error);
     } else {
+      console.log('data users....', data);
       const transformedUsers: UserProfile[] = (data || []).map((m: any) => ({
         id: m.profiles.id,
         email: m.profiles.email,
@@ -104,12 +105,18 @@ export default function AdminUsersPage() {
   const handleToggleRole = async () => {
     if (!roleChangeUser || !profile?.organization_id) return;
     const newRole = roleChangeUser.role === 'admin' ? 'user' : 'admin';
-    
+
     await supabase
       .from('memberships')
       .update({ role: newRole })
       .eq('user_id', roleChangeUser.id)
       .eq('organization_id', profile.organization_id);
+
+    await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', roleChangeUser.id);
+
     fetchUsers();
     setIsRoleAlertOpen(false);
     setRoleChangeUser(null);
@@ -117,13 +124,13 @@ export default function AdminUsersPage() {
 
   const handleDeleteUser = async () => {
     if (!deletingUser || !profile?.organization_id) return;
-    
+
     await supabase
       .from('memberships')
       .delete()
       .eq('user_id', deletingUser.id)
       .eq('organization_id', profile.organization_id);
-      
+
     fetchUsers();
     setIsDeleteAlertOpen(false);
     setDeletingUser(null);
@@ -144,7 +151,7 @@ export default function AdminUsersPage() {
   const handleSaveEdit = async () => {
     if (!editingUser || !profile?.organization_id) return;
     setIsSubmitting(true);
-    
+
     const { error } = await supabase
       .from('memberships')
       .update({
@@ -154,15 +161,23 @@ export default function AdminUsersPage() {
       })
       .eq('user_id', editingUser.id)
       .eq('organization_id', profile.organization_id);
-    
-    // También actualizamos el nombre global en profiles si cambió
-    if (editForm.full_name !== editingUser.full_name) {
-      await supabase
-        .from('profiles')
-        .update({ full_name: editForm.full_name })
-        .eq('id', editingUser.id);
+
+    if (!error) {
+      const profileUpdates: Record<string, string> = {};
+      if (editForm.full_name !== editingUser.full_name) {
+        profileUpdates.full_name = editForm.full_name;
+      }
+      if (editForm.role !== editingUser.role) {
+        profileUpdates.role = editForm.role;
+      }
+      if (Object.keys(profileUpdates).length > 0) {
+        await supabase
+          .from('profiles')
+          .update(profileUpdates)
+          .eq('id', editingUser.id);
+      }
     }
-    
+
     if (!error) {
       fetchUsers();
       setIsEditModalOpen(false);
@@ -185,7 +200,7 @@ export default function AdminUsersPage() {
     setOpenDropdownId(null);
   };
 
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = users.filter(user =>
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (businessType === 'residential' && user.apartment?.toLowerCase().includes(searchTerm.toLowerCase())) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -210,8 +225,8 @@ export default function AdminUsersPage() {
         <CardHeader className="p-4 bg-gray-50/50 border-b border-gray-100">
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input 
-              placeholder={`Buscar por nombre, ${businessType === 'residential' ? terminology.unitLabel.toLowerCase() + ', ' : ''}email...`} 
+            <Input
+              placeholder={`Buscar por nombre, ${businessType === 'residential' ? terminology.unitLabel.toLowerCase() + ', ' : ''}email...`}
               className="pl-10 h-9 rounded-lg text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -243,7 +258,7 @@ export default function AdminUsersPage() {
                 ) : filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                       No se encontraron {terminology.userLabel.toLowerCase()}s.
+                      No se encontraron {terminology.userLabel.toLowerCase()}s.
                     </td>
                   </tr>
                 ) : (
@@ -266,7 +281,7 @@ export default function AdminUsersPage() {
                           <span>{user.email}</span>
                         </div>
                         {user.phone && (
-                          <a 
+                          <a
                             href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
                             className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400 hover:text-primary transition-colors cursor-pointer"
                           >
@@ -278,8 +293,8 @@ export default function AdminUsersPage() {
                       {businessType === 'residential' && (
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-gray-700 font-bold">
-                             <MapPin className="w-3.5 h-3.5 text-gray-300" />
-                             <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
+                            <MapPin className="w-3.5 h-3.5 text-gray-300" />
+                            <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
                           </div>
                         </td>
                       )}
@@ -296,9 +311,9 @@ export default function AdminUsersPage() {
                           {user.id !== orgSettings?.guest_user_id ? (
                             <DropdownMenu
                               trigger={
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
                                   className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
                                   onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
                                 >
@@ -352,7 +367,7 @@ export default function AdminUsersPage() {
               ))
             ) : filteredUsers.length === 0 ? (
               <div className="px-6 py-12 text-center text-gray-400 text-sm">
-                 No se encontraron {terminology.userLabel.toLowerCase()}s.
+                No se encontraron {terminology.userLabel.toLowerCase()}s.
               </div>
             ) : (
               filteredUsers.map((user) => (
@@ -367,13 +382,13 @@ export default function AdminUsersPage() {
                         <span className="text-xs text-gray-500 truncate">{user.email}</span>
                       </div>
                     </div>
-                    
+
                     {user.id !== orgSettings?.guest_user_id ? (
                       <DropdownMenu
                         trigger={
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full shrink-0"
                             onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
                           >
@@ -407,7 +422,7 @@ export default function AdminUsersPage() {
                       <span className="text-[10px] font-bold text-gray-400 uppercase">Sin Acciones</span>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-3 mt-1">
                     <div className={cn(
                       "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase shrink-0",
@@ -416,7 +431,7 @@ export default function AdminUsersPage() {
                       {user.role}
                     </div>
                     {user.phone && (
-                      <a 
+                      <a
                         href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
                         className="flex items-center gap-1 text-xs text-gray-500 truncate hover:text-primary transition-colors cursor-pointer"
                       >
@@ -426,8 +441,8 @@ export default function AdminUsersPage() {
                     )}
                     {businessType === 'residential' && (
                       <div className="flex items-center gap-1 text-xs text-gray-700 font-bold ml-auto shrink-0">
-                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                         <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
+                        <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                        <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
                       </div>
                     )}
                   </div>
@@ -499,8 +514,8 @@ export default function AdminUsersPage() {
                 onClick={() => setEditForm({ ...editForm, role: 'user' })}
                 className={`
                   h-11 px-4 rounded-xl border-2 font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2
-                  ${editForm.role === 'user' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                  ${editForm.role === 'user'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'
                   }
                 `}
@@ -513,8 +528,8 @@ export default function AdminUsersPage() {
                 onClick={() => setEditForm({ ...editForm, role: 'admin' })}
                 className={`
                   h-11 px-4 rounded-xl border-2 font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2
-                  ${editForm.role === 'admin' 
-                    ? 'border-purple-500 bg-purple-50 text-purple-700' 
+                  ${editForm.role === 'admin'
+                    ? 'border-purple-500 bg-purple-50 text-purple-700'
                     : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'
                   }
                 `}

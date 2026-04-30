@@ -37,7 +37,7 @@ import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval
 import { es } from 'date-fns/locale';
 
 export default function NewReservationPage() {
-  const { profile, terminology, openAuthModal } = useAuth();
+  const { profile, terminology, openAuthModal, businessType } = useAuth();
   const queryClient = useQueryClient();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
   const navigate = useNavigate();
@@ -76,13 +76,14 @@ export default function NewReservationPage() {
   const [availableAddons, setAvailableAddons] = useState<any[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
   const [operationSchedules, setOperationSchedules] = useState<any[]>([]);
+  const [maxReservationDays, setMaxReservationDays] = useState<number | null>(null);
 
   // React Query Hooks
   const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
   const createMutation = useCreateReservationMutation();
   const updateMutation = useUpdateReservationMutation();
 
-  const baseTimeSlots = Array.from({ length: 14 }, (_, i) => {
+  const fallbackSlots = Array.from({ length: 14 }, (_, i) => {
     const hour = 8 + i;
     return `${hour.toString().padStart(2, '0')}:00`;
   });
@@ -140,6 +141,8 @@ export default function NewReservationPage() {
       return data || [];
     },
     enabled: !!profile?.organization_id && !!targetUserIdForPendingCheck,
+    refetchOnMount: 'always',
+    staleTime: 0,
   });
 
   const hasPendingReservation = pendingReservations.length > 0;
@@ -197,7 +200,7 @@ export default function NewReservationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('organizations')
-        .select('name, address, phone')
+        .select('name, address, phone, max_reservation_days_ahead')
         .eq('id', profile?.organization_id)
         .single();
       if (error) throw error;
@@ -205,6 +208,12 @@ export default function NewReservationPage() {
     },
     enabled: !!profile?.organization_id,
   });
+
+  useEffect(() => {
+    if (organization?.max_reservation_days_ahead) {
+      setMaxReservationDays(organization.max_reservation_days_ahead);
+    }
+  }, [organization]);
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -261,6 +270,7 @@ export default function NewReservationPage() {
         const diffMs = endDate.getTime() - startDate.getTime();
         const diffHours = Math.round(diffMs / (1000 * 60 * 60));
         setDuration(diffHours);
+        
         setStep(2);
       }
     }
@@ -281,7 +291,6 @@ export default function NewReservationPage() {
       if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return `La ${terminology.reservationLabel.toLowerCase()} ya se validó y no se puede editar.`;
     }
 
-    // Pendings block users for NEW reservations, but only warn admins
     if (!isAdmin && !isEditing && hasPendingReservation && !isGuestUser) {
       return `Tiene una ${terminology.reservationLabel.toLowerCase()} pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva ${terminology.reservationLabel.toLowerCase()}.`;
     }
@@ -308,23 +317,21 @@ export default function NewReservationPage() {
       if (selectedArea.pricing_type === 'fixed') {
         const baseDuration = selectedArea.estimated_duration_minutes || 60;
         if (nextBlock && (baseDuration + addonDuration) > (nextBlock.getTime() - start.getTime()) / (1000 * 60)) {
-           // Si es fijo y no cabe con los adicionales, reseteamos la hora
-           setSelectedStartTime('');
-           setErrorMessage('La duración total con los servicios adicionales excede el tiempo disponible antes de la próxima reserva.');
-           setIsErrorAlertOpen(true);
+            setSelectedStartTime('');
+            setErrorMessage('La duración total con los servicios adicionales excede el tiempo disponible antes de la próxima reserva.');
+            setIsErrorAlertOpen(true);
         }
       } else {
-        // Para cobro por hora, el mínimo es 1 hora + adicionales
         const minRequiredMinutes = 60 + addonDuration;
         const availableMinutes = nextBlock ? (nextBlock.getTime() - start.getTime()) / (1000 * 60) : maxAllowedByDay * 60;
 
         if (minRequiredMinutes > availableMinutes) {
-           // Si ni siquiera con 1 hora cabe, reseteamos la hora
-           setSelectedStartTime('');
-           setErrorMessage('Los servicios adicionales seleccionados no caben en este horario. Por favor elige otro horario o quita servicios.');
-           setIsErrorAlertOpen(true);
+            setSelectedStartTime('');
+            setErrorMessage('Los servicios adicionales seleccionados no caben en este horario. Por favor elige otro horario o quita servicios.');
+            setIsErrorAlertOpen(true);
         } else if (duration > maxAllowedHours) {
-           setDuration(maxAllowedHours >= 1 ? Math.floor(maxAllowedHours) : 1);
+            maxAllowedHours = maxAllowedHours >= 1 ? Math.floor(maxAllowedHours) : 1;
+            setDuration(maxAllowedHours);
         }
       }
     }
@@ -339,10 +346,24 @@ export default function NewReservationPage() {
   );
 
   const fetchBusySlots = async (areaId: string) => {
+    const isSharedCalendar = businessType !== 'residential';
+    let areaIds: string[] = [areaId];
+
+    if (isSharedCalendar) {
+      const { data: allAreas } = await supabase
+        .from('common_areas')
+        .select('id')
+        .eq('organization_id', profile?.organization_id)
+        .eq('is_active', true);
+      if (allAreas && allAreas.length > 0) {
+        areaIds = allAreas.map((a: any) => a.id);
+      }
+    }
+
     let query = supabase
       .from('reservations')
-      .select('start_datetime, end_datetime')
-      .eq('common_area_id', areaId)
+      .select('start_datetime, end_datetime, common_area_id, profiles:user_id(full_name, phone), common_areas(name)')
+      .in('common_area_id', areaIds)
       .eq('organization_id', profile?.organization_id)
       .in('status', ['approved', 'pending_validation', 'pending_payment']);
 
@@ -465,6 +486,15 @@ export default function NewReservationPage() {
     setOperationSchedules(data || []);
   };
 
+  useEffect(() => {
+    if (isEditing && reservationToEdit?.common_areas?.id && selectedArea?.id === reservationToEdit.common_areas.id) {
+      fetchBusySlots(reservationToEdit.common_areas.id);
+      fetchOperationSchedules();
+      fetchBonusInfo(reservationToEdit.common_areas.id);
+      fetchAddons(reservationToEdit.common_areas.id);
+    }
+  }, [isEditing, selectedArea?.id]);
+
   const toggleAddon = (addon: any) => {
     setSelectedAddons(prev => {
       const exists = prev.find((a: any) => a.id === addon.id);
@@ -489,6 +519,28 @@ export default function NewReservationPage() {
     if (!schedule) return null;
     return { start: schedule.start_time, end: schedule.end_time };
   };
+
+  const baseTimeSlots = (() => {
+    const hours = getOperationHoursForDate(selectedDate);
+    if (hours) {
+      const startH = parseInt(hours.start.split(':')[0]);
+      const startM = parseInt(hours.start.split(':')[1] || '0');
+      const endH = parseInt(hours.end.split(':')[0]);
+      const endM = parseInt(hours.end.split(':')[1] || '0');
+      const endTotalMin = endH * 60 + endM;
+      const slots: string[] = [];
+      let current = startH * 60 + startM;
+      while (current < endTotalMin) {
+        const h = Math.floor(current / 60);
+        const m = current % 60;
+        slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        current += 30;
+      }
+      if (slots.length === 0) return fallbackSlots;
+      return slots;
+    }
+    return fallbackSlots;
+  })();
 
   const isDateWithinOperationSchedule = (dateStr: string) => {
     if (operationSchedules.length === 0) return true;
@@ -578,16 +630,33 @@ export default function NewReservationPage() {
       slotEnd = new Date(slotStart.getTime() + totalMinutes * 60 * 1000);
     }
 
-    // Check reservations
+    const isSharedCalendar = businessType !== 'residential';
     const isReserved = existingReservations.some(res => {
+      if (!isSharedCalendar && res.common_area_id !== selectedArea?.id) return false;
       const resStart = parseISO(detoxTime(res.start_datetime));
       const resEnd = parseISO(detoxTime(res.end_datetime));
       return (slotStart < resEnd && slotEnd > resStart);
     });
 
-    if (isReserved) return { status: 'reserved' };
+    if (isReserved) {
+      const conflicts = existingReservations.filter(res => {
+        if (!isSharedCalendar && res.common_area_id !== selectedArea?.id) return false;
+        const resStart = parseISO(detoxTime(res.start_datetime));
+        const resEnd = parseISO(detoxTime(res.end_datetime));
+        return (slotStart < resEnd && slotEnd > resStart);
+      });
+      return {
+        status: 'reserved' as const,
+        conflicts: conflicts.map((c: any) => ({
+          userName: c.profiles?.full_name || 'Usuario',
+          userPhone: c.profiles?.phone || '',
+          areaName: c.common_areas?.name || '',
+          start: c.start_datetime,
+          end: c.end_datetime,
+        }))
+      };
+    }
 
-    // Check break time
     const brk = getBreakForDate(selectedDate);
     if (brk) {
       const slotStartMin = slotStart.getHours() * 60 + slotStart.getMinutes();
@@ -597,7 +666,6 @@ export default function NewReservationPage() {
       }
     }
 
-    // Check maintenance
     const maintenance = activeMaintenances.find(maint => {
       const maintStart = parseISO(detoxTime(maint.starts_at));
       const maintEnd = parseISO(detoxTime(maint.ends_at));
@@ -1111,7 +1179,7 @@ export default function NewReservationPage() {
               >
                 <div className="relative h-48 overflow-hidden">
                   {area.image_url ? (
-                    <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
+                    <img src={area.image_url} alt={area.name} className="w-full h-full object-contain bg-white" />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                       <Building2 className="w-12 h-12 text-gray-300" />
@@ -1326,17 +1394,20 @@ export default function NewReservationPage() {
                         const isSelected = dateStr === selectedDate;
                         const isPast = day < new Date() && !isToday(day);
                         const notInSchedule = !isDateWithinOperationSchedule(dateStr);
+                        const isBeyondLimit = maxReservationDays
+                          ? day > new Date(new Date().getTime() + maxReservationDays * 24 * 60 * 60 * 1000)
+                          : false;
 
                         return (
                           <button
                             key={dateStr}
-                            disabled={isPast || notInSchedule}
+                            disabled={isPast || notInSchedule || isBeyondLimit}
                             onClick={() => handleDateChange(dateStr)}
                             className={cn(
                               "w-7 h-7 text-xs rounded-full flex items-center justify-center transition-colors",
                               isSelected && "bg-primary text-white shadow-md shadow-primary/20",
-                              !isSelected && !isPast && !notInSchedule && "hover:bg-gray-100",
-                              (isPast || notInSchedule) && "text-gray-300 cursor-not-allowed",
+                              !isSelected && !isPast && !notInSchedule && !isBeyondLimit && "hover:bg-gray-100",
+                              (isPast || notInSchedule || isBeyondLimit) && "text-gray-300 cursor-not-allowed",
                               hasReservation && !isSelected && !isPast && "bg-amber-100 text-amber-700",
                               isToday(day) && !isSelected && "ring-1 ring-primary ring-inset text-primary"
                             )}
@@ -1739,7 +1810,7 @@ export default function NewReservationPage() {
                       {(selectedArea?.pricing_type === 'fixed' ? getFixedTimeSlots() : baseTimeSlots).map((time: string) => {
                         const info = getSlotStatus(time);
 
-                        const isOccupied = info.status !== 'available';
+                        const isOccupied = info.status !== 'available' && !(isAdmin && info.status === 'reserved');
 
                         const isInRange = selectedStartTime && (() => {
                           const totalMinutes = selectedArea?.pricing_type === 'fixed'
@@ -1768,7 +1839,8 @@ export default function NewReservationPage() {
                                   : isInRange && !isOccupied
                                     ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
                                     : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300",
-                                info.status === 'reserved' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
+                                info.status === 'reserved' && !isAdmin && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
+                                info.status === 'reserved' && isAdmin && "bg-amber-50 text-amber-600 border-amber-200 cursor-pointer hover:bg-amber-100",
                                 info.status === 'past' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
                                 info.status === 'maintenance' && "bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed",
                                 info.status === 'break' && "bg-amber-50 text-amber-400 border-amber-100 cursor-not-allowed"
@@ -1783,10 +1855,27 @@ export default function NewReservationPage() {
                               )}
                             </Button>
 
-                            {isOccupied && (
+                            {isOccupied && !(isAdmin && info.status === 'reserved') && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
                                 {info.status === 'maintenance' ? `Aviso: ${info.reason}` : info.status === 'break' ? 'Hora de almuerzo' : info.status === 'past' ? 'Horario pasado' : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                              </div>
+                            )}
+                            {isAdmin && info.status === 'reserved' && info.conflicts && info.conflicts.length > 0 && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-amber-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 min-w-[200px]">
+                                <div className="font-bold mb-1">⚠️ Ocupado por:</div>
+                                {info.conflicts.map((c: any, ci: number) => (
+                                  <div key={ci} className="border-t border-amber-700/50 pt-1 mt-1">
+                                    <div className="font-medium">{c.userName}</div>
+                                    <div className="text-[10px] text-amber-200">{c.areaName} · {formatTime(detoxTime(c.start))} - {formatTime(detoxTime(c.end))}</div>
+                                    {c.userPhone && (
+                                      <a href={`tel:${c.userPhone.replace(/[^0-9+]/g, '')}`} className="text-[10px] text-blue-300 hover:text-blue-200 underline" onClick={e => e.stopPropagation()}>
+                                        📞 {c.userPhone}
+                                      </a>
+                                    )}
+                                  </div>
+                                ))}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-900" />
                               </div>
                             )}
                           </div>

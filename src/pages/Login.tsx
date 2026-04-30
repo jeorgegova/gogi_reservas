@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, Building2 } from 'lucide-react';
+import { LogIn, Building2, Eye, EyeOff } from 'lucide-react';
 import { cn, translateAuthError } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { profile, loading: authLoading, isGuest, setGuestMode } = useAuth();
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -185,20 +186,32 @@ export default function LoginPage() {
                   </Link>
                 )}
               </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={cn(
-                  "h-12 rounded-2xl transition-all duration-300",
-                  !slug
-                    ? "bg-gray-50 border-gray-200 text-gray-900 focus:ring-indigo-500/20"
-                    : "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:ring-primary/50"
-                )}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className={cn(
+                    "h-12 rounded-2xl transition-all duration-300 pr-10",
+                    !slug
+                      ? "bg-gray-50 border-gray-200 text-gray-900 focus:ring-indigo-500/20"
+                      : "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:ring-primary/50"
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className={cn(
+                    "absolute right-3 top-1/2 -translate-y-1/2 transition-colors",
+                    !slug ? "text-gray-400 hover:text-gray-600" : "text-white/50 hover:text-white/80"
+                  )}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <Button

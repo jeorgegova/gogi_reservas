@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -65,6 +66,7 @@ export default function Calendario() {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const queryClient = useQueryClient();
     const calendarRef = useRef<FullCalendar>(null);
+    const [moreLinkModal, setMoreLinkModal] = useState<{ date: Date; events: any[] } | null>(null);
 
     // Queries
     const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
@@ -372,6 +374,38 @@ export default function Calendario() {
         }));
 
     const allEvents = [...reservationEvents, ...maintenanceEvents];
+
+    const handleMoreLinkClick = useCallback((e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const link = target.closest('.fc-more-link') || (target.classList.contains('fc-more-link') ? target : null);
+        if (!link) return;
+
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        e.stopPropagation();
+
+        const dayCell = link.closest('.fc-daygrid-day');
+        if (!dayCell) return;
+
+        const dateStr = dayCell.getAttribute('data-date') || '';
+        if (!dateStr) return;
+
+        const dayEvents = allEvents.filter((ev: any) => {
+            const evStart = ev.start || '';
+            const evDate = evStart.length >= 10 ? evStart.substring(0, 10) : '';
+            return evDate === dateStr;
+        });
+
+        const dateObj = new Date(dateStr + 'T12:00:00');
+        setMoreLinkModal({ date: dateObj, events: dayEvents });
+    }, [allEvents]);
+
+    useEffect(() => {
+        const container = document.querySelector('.calendar-container');
+        if (!container) return;
+        container.addEventListener('click', handleMoreLinkClick, true);
+        return () => container.removeEventListener('click', handleMoreLinkClick, true);
+    }, [handleMoreLinkClick]);
 
     // Renderizar vista de Admin
     if (showAnalytics) {
@@ -794,7 +828,7 @@ export default function Calendario() {
                                     height="auto"
                                     aspectRatio={isMobile ? 1.4 : 3}
                                     fixedWeekCount={false}
-                                    dayMaxEvents={isMobile ? 2 : 2}
+                                    dayMaxEvents={isMobile ? 2 : 3}
                                     moreLinkText={(n) => `+${n} más`}
                                     eventContent={(eventInfo) => {
                                         const isReservation = eventInfo.event.extendedProps.type === 'reservation';
@@ -1107,6 +1141,115 @@ export default function Calendario() {
                     </Button>
                 </div>
             </div>
+
+            {moreLinkModal && (
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setMoreLinkModal(null)}
+                >
+                    <div
+                        className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    {format(moreLinkModal.date, "EEEE d 'de' MMMM, yyyy", { locale: es })}
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    {moreLinkModal.events.length} {moreLinkModal.events.length === 1 ? 'evento' : 'eventos'} programados
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setMoreLinkModal(null)}
+                                className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {moreLinkModal.events.map((ev: any, idx: number) => {
+                                const isReservation = ev.extendedProps?.type === 'reservation';
+                                const statusColor = isReservation
+                                    ? getBrightStatusColor(ev.extendedProps?.status)
+                                    : getBrightSeverityColor(ev.extendedProps?.severity);
+                                const statusLabel = isReservation
+                                    ? ev.extendedProps?.status === 'approved' ? 'Aprobada'
+                                        : ev.extendedProps?.status === 'pending_validation' ? 'Pendiente'
+                                            : ev.extendedProps?.status === 'pending_payment' ? 'Pend. Pago' : ev.extendedProps?.status
+                                    : ev.extendedProps?.severity === 'critical' ? 'Crítico'
+                                        : ev.extendedProps?.severity === 'warning' ? 'Advertencia' : 'Info';
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <div
+                                            className="w-3 h-3 rounded-full mt-1.5 shrink-0"
+                                            style={{ backgroundColor: statusColor }}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-sm font-bold text-gray-900 truncate">{ev.title}</span>
+                                                <span
+                                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase"
+                                                    style={{
+                                                        backgroundColor: statusColor + '20',
+                                                        color: statusColor,
+                                                    }}
+                                                >
+                                                    {statusLabel}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                                {ev.start && format(ev.start instanceof Date ? ev.start : new Date(ev.start), 'HH:mm a', { locale: es })}
+                                                {' – '}
+                                                {ev.end && format(ev.end instanceof Date ? ev.end : new Date(ev.end), 'HH:mm a', { locale: es })}
+                                            </div>
+                                            {ev.extendedProps?.area && (
+                                                <div className="text-[10px] text-gray-400 mt-0.5">
+                                                    {ev.extendedProps.area}
+                                                </div>
+                                            )}
+                                            {ev.extendedProps?.content && (
+                                                <div className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                                                    {ev.extendedProps.content}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setMoreLinkModal(null)}
+                                className="rounded-xl"
+                            >
+                                Cerrar
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    if (calendarRef.current) {
+                                        const api = calendarRef.current.getApi();
+                                        api.changeView('timeGridDay', moreLinkModal.date);
+                                    }
+                                    setMoreLinkModal(null);
+                                }}
+                                className="rounded-xl bg-primary text-white"
+                            >
+                                Ver en vista diaria
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

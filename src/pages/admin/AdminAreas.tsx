@@ -53,27 +53,47 @@ function CurrencyInput({ value, onChange, className, placeholder }: { value: num
   );
 }
 
-function DurationSelector({ value, onChange }: { value: number; onChange: (min: number) => void }) {
+function DurationSelector({ value, onChange, minimumMinutes = 0 }: { value: number; onChange: (min: number) => void; minimumMinutes?: number }) {
   const hours = Math.floor(value / 60);
   const minutes = value % 60;
+  const minHours = Math.floor(minimumMinutes / 60);
+  const minMinutes = minimumMinutes % 60;
 
   return (
     <div className="flex items-center gap-2">
       <select
         value={hours}
-        onChange={e => onChange(parseInt(e.target.value) * 60 + minutes)}
+        onChange={e => {
+          const newHours = parseInt(e.target.value);
+          const total = newHours * 60 + minutes;
+          if (total >= minimumMinutes || total === 0) {
+            onChange(total);
+          }
+        }}
         className="h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 flex-1"
       >
-        {Array.from({ length: 13 }, (_, i) => (
+        {Array.from({ length: 13 }, (_, i) => i).filter(h => {
+          const total = h * 60 + minutes;
+          return total === 0 || total >= minimumMinutes;
+        }).map(i => (
           <option key={i} value={i}>{i}h</option>
         ))}
       </select>
       <select
         value={minutes}
-        onChange={e => onChange(hours * 60 + parseInt(e.target.value))}
+        onChange={e => {
+          const newMinutes = parseInt(e.target.value);
+          const total = hours * 60 + newMinutes;
+          if (total === 0 || total >= minimumMinutes) {
+            onChange(total);
+          }
+        }}
         className="h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 flex-1"
       >
-        {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(m => (
+        {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].filter(m => {
+          const total = hours * 60 + m;
+          return total === 0 || total >= minimumMinutes;
+        }).map(m => (
           <option key={m} value={m}>{m.toString().padStart(2, '0')} min</option>
         ))}
       </select>
@@ -268,6 +288,14 @@ export default function AdminAreasPage() {
     e.preventDefault();
     const orgId = profile?.organization_id;
     const isFree = currentArea.is_free || false;
+
+    if (currentArea.pricing_type === 'fixed') {
+      const dur = currentArea.estimated_duration_minutes || 0;
+      if (dur === 0) {
+        toast.error('La duración del servicio no puede ser 0 horas y 0 minutos');
+        return;
+      }
+    }
 
     const areaData = {
       name: currentArea.name,
@@ -652,7 +680,7 @@ export default function AdminAreasPage() {
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[9px] uppercase font-bold text-gray-400">Duración Extra</Label>
-                            <DurationSelector value={newAddon.duration_minutes} onChange={(val) => setNewAddon({ ...newAddon, duration_minutes: val })} />
+                            <DurationSelector value={newAddon.duration_minutes} onChange={(val) => setNewAddon({ ...newAddon, duration_minutes: val })} minimumMinutes={30} />
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -693,7 +721,7 @@ export default function AdminAreasPage() {
             >
               <div className="h-40 relative overflow-hidden group">
                 {area.image_url ? (
-                  <img src={area.image_url} alt={area.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  <img src={area.image_url} alt={area.name} className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-110" />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
                     <Building2 className="w-12 h-12" />

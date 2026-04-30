@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { HabeasData } from '@/components/ui/habeas-data';
 import { AlertDialog } from '@/components/ui/alert-dialog';
-import { LogIn, UserPlus, X, Building2 } from 'lucide-react';
+import { LogIn, UserPlus, X, Building2, Eye, EyeOff } from 'lucide-react';
 import { translateAuthError } from '@/lib/utils';
 import { useOrganizationImages } from '@/hooks/useOrganizationImages';
 import { useParams } from 'react-router-dom';
@@ -26,6 +26,7 @@ export function AuthModal() {
   const [habeasDataAccepted, setHabeasDataAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [isSuccessAlertOpen, setIsSuccessAlertOpen] = useState(false);
   const [organization, setOrganization] = useState<any>(null);
   const { cachedImages } = useOrganizationImages(slug);
@@ -113,8 +114,22 @@ export function AuthModal() {
         throw signUpError;
       }
 
-      // 3. Crear la membresía inicial si el registro fue exitoso
+      // 3. Crear el perfil y la membresía inicial si el registro fue exitoso
       if (authData.user && organization?.id) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authData.user.id,
+            email: authData.user.email || email,
+            full_name: fullName,
+            phone: phone,
+            apartment: apartment,
+            role: 'user',
+            organization_id: organization.id,
+          });
+        
+        if (profileError) console.error('Error al crear perfil:', profileError);
+
         const { error: membershipError } = await supabase
           .from('memberships')
           .insert({
@@ -254,16 +269,25 @@ export function AuthModal() {
 
             <div className="space-y-2 animate-in fade-in duration-300">
               <Label htmlFor="modal-pass" className="text-white font-medium ml-1">Contraseña</Label>
-              <Input 
-                id="modal-pass" 
-                type="password" 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                placeholder="••••••••" 
-                required 
-                autoComplete={view === 'login' ? 'current-password' : 'new-password'}
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50"
-              />
+              <div className="relative">
+                <Input 
+                  id="modal-pass" 
+                  type={showPassword ? "text" : "password"} 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  placeholder="••••••••" 
+                  required 
+                  autoComplete={view === 'login' ? 'current-password' : 'new-password'}
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 rounded-xl focus:ring-primary/50 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {view === 'register' && (
