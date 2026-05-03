@@ -56,8 +56,6 @@ function CurrencyInput({ value, onChange, className, placeholder }: { value: num
 function DurationSelector({ value, onChange, minimumMinutes = 0 }: { value: number; onChange: (min: number) => void; minimumMinutes?: number }) {
   const hours = Math.floor(value / 60);
   const minutes = value % 60;
-  const minHours = Math.floor(minimumMinutes / 60);
-  const minMinutes = minimumMinutes % 60;
 
   return (
     <div className="flex items-center gap-2">
