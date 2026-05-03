@@ -39,7 +39,7 @@ Sistema de gestión de reservas para áreas comunes de edificios residenciales o
 1. **Clonar el repositorio**
    ```bash
    git clone <url-del-repositorio>
-   cd reservas-areas-comunes
+   cd GoGi_Reservas
    ```
 
 2. **Instalar dependencias**
