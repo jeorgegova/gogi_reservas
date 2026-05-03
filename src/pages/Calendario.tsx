@@ -375,7 +375,7 @@ export default function Calendario() {
 
     const allEvents = [...reservationEvents, ...maintenanceEvents];
 
-    const handleMoreLinkClick = useCallback((e: MouseEvent) => {
+    const handleMoreLinkClick = useCallback((e: Event) => {
         const target = e.target as HTMLElement;
         const link = target.closest('.fc-more-link') || (target.classList.contains('fc-more-link') ? target : null);
         if (!link) return;
