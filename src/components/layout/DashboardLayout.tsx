@@ -436,7 +436,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
       {/* Bottom Navigation for Mobile */}
-      <nav 
+      <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center h-[72px] px-2"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
@@ -462,6 +462,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </NavLink>
           ))}
+        {!isAdmin && !isSuperAdmin && (
+          <NavLink
+            to="/reservations/new"
+            end
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+                isActive ? "text-[#FF3B30]" : "text-gray-500 hover:text-gray-900"
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Plus className={cn("w-6 h-6", isActive ? "text-[#FF3B30]" : "text-gray-500")} strokeWidth={1.5} />
+                <span className="text-[10px] font-medium leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] text-center">Nueva</span>
+              </>
+            )}
+          </NavLink>
+        )}
         {!isGuest && navItems.length > 4 && (
           <button
             onClick={() => setIsSidebarOpen(true)}
@@ -480,7 +499,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-[#FF3B30] transition-colors"
           >
             <User className="w-6 h-6" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium leading-none">Login</span>
+            <span className="text-[10px] font-medium leading-none">Iniciar sesión</span>
           </button>
         )}
       </nav>
