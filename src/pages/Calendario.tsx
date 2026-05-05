@@ -771,38 +771,36 @@ export default function Calendario() {
 
     // Renderizar vista de residente (sin cambios)
     return (
-        <div className="space-y-6 animate-fade-in duration-500">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                    {isAdmin ? `Dashboard ${terminology.businessLabel}` : 'Calendario'}
-                </h1>
-                <p className="text-gray-500 text-sm">
-                    Resumen general y estado de sus {terminology.areaLabel.toLowerCase()}s.
-                </p>
+        <div className="space-y-3 md:space-y-6 animate-fade-in duration-500">
+            {/* Header compacto mobile */}
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <h1 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight truncate">
+                        {isAdmin ? `Dashboard ${terminology.businessLabel}` : 'Calendario'}
+                    </h1>
+                </div>
+                <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 shrink-0">
+                    <Filter className="w-3 h-3 text-gray-400" />
+                    <select
+                        value={selectedAreaId}
+                        onChange={(e) => setSelectedAreaId(e.target.value)}
+                        className="text-[10px] md:text-xs font-bold bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer"
+                    >
+                        <option value="all">Todas</option>
+                        {areasData.map((area: any) => (
+                            <option key={area.id} value={area.id}>{area.name}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
-
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-3 space-y-6">
-                    <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden mb-6">
-                        <CardHeader className="border-b border-gray-50 p-4 flex flex-row items-center justify-between">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-6">
+                <div className="lg:col-span-3">
+                    <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
+                        <CardHeader className="border-b border-gray-50 p-3 md:p-4 hidden md:flex md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h3 className="text-lg font-bold text-gray-900">Calendario de Actividades</h3>
                                 <p className="text-xs text-gray-500">Visualización de disponibilidad por {terminology.areaLabel.toLowerCase()}</p>
-                            </div>
-                            <div className="flex items-center gap-2 bg-gray-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-100">
-                                <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400" />
-                                <select
-                                    value={selectedAreaId}
-                                    onChange={(e) => setSelectedAreaId(e.target.value)}
-                                    className="text-[10px] sm:text-xs font-bold bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer"
-                                >
-                                    <option value="all">Todas</option>
-                                    {areasData.map((area: any) => (
-                                        <option key={area.id} value={area.id}>{area.name}</option>
-                                    ))}
-                                </select>
                             </div>
                         </CardHeader>
                         <CardContent className="p-1 sm:p-2">
@@ -1095,49 +1093,53 @@ export default function Calendario() {
                     </Card>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-3 md:space-y-6">
                     <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
-                        <CardHeader className="border-b border-gray-50 p-4">
-                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                <Bell className="w-4 h-4 text-primary" /> Avisos
+                        <CardHeader className="border-b border-gray-50 p-3 md:p-4">
+                            <h3 className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <Bell className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" /> Avisos
                             </h3>
                         </CardHeader>
-                        <CardContent className="p-4">
+                        <CardContent className="p-3 md:p-4">
                             {notices && notices.length > 0 ? (
-                                <div className="space-y-3">
-                                    {notices.filter((n: any) => n.is_active !== false).slice(0, 3).map((notice: any) => (
+                                <div className="space-y-2">
+                                    {notices.filter((n: any) => n.is_active !== false).slice(0, isMobile ? 2 : 3).map((notice: any) => (
                                         <div
                                             key={notice.id}
-                                            className={`bg-gray-50 rounded-lg p-3 border border-gray-100 ${isAdmin ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''}`}
+                                            className={`bg-gray-50 rounded-lg p-2.5 md:p-3 border border-gray-100 ${isAdmin ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''}`}
                                             onClick={() => isAdmin && navigate('/maintenance')}
                                         >
-                                            <p className="text-xs font-medium text-gray-900">
+                                            <p className="text-[11px] md:text-xs font-medium text-gray-900">
                                                 {notice.common_areas?.name || 'General'}
                                             </p>
-                                            <p className="text-[11px] leading-relaxed text-gray-600 mt-1">
+                                            <p className="text-[10px] md:text-[11px] leading-relaxed text-gray-600 mt-0.5">
                                                 {notice.title}
                                             </p>
-                                            <p className="text-[10px] text-gray-400 mt-1">
+                                            <p className="text-[9px] md:text-[10px] text-gray-400 mt-0.5">
                                                 {formatDateTimeISO(notice.starts_at)} - {formatDateTimeISO(notice.ends_at)}
                                             </p>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                                    <p className="text-[11px] leading-relaxed text-gray-500">
+                                <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                                    <p className="text-[10px] leading-relaxed text-gray-500">
                                         No hay avisos actualmente.
                                     </p>
                                 </div>
                             )}
-                            <Button asChild variant="link" className="p-0 h-auto mt-3 text-xs font-bold text-primary">
-                                <Link to="/maintenance">Ver todos los avisos →</Link>
+                            <Button asChild variant="link" className="p-0 h-auto mt-2 text-[10px] md:text-xs font-bold text-primary">
+                                <Link to="/maintenance">Ver todos →</Link>
                             </Button>
                         </CardContent>
                     </Card>
 
                     <Button asChild className="hidden sm:flex w-full bg-primary hover:bg-primary/90 text-white font-semibold h-12 rounded-xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] border-none animate-neon">
                         <Link to="/reservations/new">Nueva {terminology.reservationLabel}</Link>
+                    </Button>
+
+                    <Button asChild className="flex sm:hidden w-full bg-primary hover:bg-primary/90 text-white font-bold h-10 rounded-xl shadow-lg active:scale-95 transition-all border-none text-xs">
+                        <Link to="/reservations/new">+ Nueva {terminology.reservationLabel}</Link>
                     </Button>
                 </div>
             </div>

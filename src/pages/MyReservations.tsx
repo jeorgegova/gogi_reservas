@@ -133,33 +133,33 @@ export default function MyReservationsPage() {
       </div>
 
       {/* Indicadores Financieros */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-1 border-none apple-shadow rounded-2xl bg-primary/5 border-l-4 border-primary overflow-hidden group hover:apple-shadow-hover transition-all duration-300">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Total Invertido</p>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left">
+      <div className="grid grid-cols-2 gap-3 md:gap-6">
+        <Card className="border-none apple-shadow rounded-2xl bg-primary/5 border-l-4 border-primary overflow-hidden group hover:apple-shadow-hover transition-all duration-300">
+          <CardContent className="p-3 md:p-5 flex items-center gap-2 md:gap-0 md:justify-between">
+            <div className="space-y-0.5 md:space-y-1 min-w-0">
+              <p className="text-[8px] md:text-[10px] font-bold text-primary uppercase tracking-widest truncate">Total Invertido</p>
+              <h3 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left truncate">
                 {formatCurrency(totalInvested)}
               </h3>
-              <p className="text-[10px] text-gray-400 font-medium">Suma de {terminology.reservationLabel.toLowerCase()}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'aprobados' : 'aprobadas'}</p>
+              <p className="text-[8px] md:text-[10px] text-gray-400 font-medium hidden md:block">Suma de {terminology.reservationLabel.toLowerCase()}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'aprobados' : 'aprobadas'}</p>
             </div>
-            <div className="p-3 bg-white rounded-xl shadow-sm group-hover:rotate-12 transition-transform">
-              <DollarSign className="w-5 h-5 text-primary" />
+            <div className="p-2 md:p-3 bg-white rounded-lg md:rounded-xl shadow-sm group-hover:rotate-12 transition-transform shrink-0">
+              <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-1 border-none apple-shadow rounded-2xl bg-blue-50/50 border-l-4 border-blue-500 overflow-hidden group hover:apple-shadow-hover transition-all duration-300">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'Aprobados' : 'Aprobadas'}</p>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left">
+        <Card className="border-none apple-shadow rounded-2xl bg-blue-50/50 border-l-4 border-blue-500 overflow-hidden group hover:apple-shadow-hover transition-all duration-300">
+          <CardContent className="p-3 md:p-5 flex items-center gap-2 md:gap-0 md:justify-between">
+            <div className="space-y-0.5 md:space-y-1 min-w-0">
+              <p className="text-[8px] md:text-[10px] font-bold text-blue-600 uppercase tracking-widest truncate">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'Aprobad.' : 'Aprobad.'}</p>
+              <h3 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight transition-all group-hover:scale-105 origin-left">
                 {totalServices}
               </h3>
-              <p className="text-[10px] text-gray-400 font-medium">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'aprobados' : 'aprobadas'}</p>
+              <p className="text-[8px] md:text-[10px] text-gray-400 font-medium hidden md:block">{terminology.reservationLabel}s {terminology.reservationLabel.toLowerCase() === 'servicio' ? 'aprobados' : 'aprobadas'}</p>
             </div>
-            <div className="p-3 bg-white rounded-xl shadow-sm group-hover:-rotate-12 transition-transform">
-              <ClipboardCheck className="w-5 h-5 text-blue-500" />
+            <div className="p-2 md:p-3 bg-white rounded-lg md:rounded-xl shadow-sm group-hover:-rotate-12 transition-transform shrink-0">
+              <ClipboardCheck className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
             </div>
           </CardContent>
         </Card>
@@ -167,67 +167,68 @@ export default function MyReservationsPage() {
 
       {/* Barra de Filtros */}
       <Card className="border-none apple-shadow rounded-2xl overflow-visible bg-white/80 backdrop-blur-sm sticky top-0 z-10 transition-all hover:bg-white hover:apple-shadow-hover">
-        <CardContent className="p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1.5">
-                <Calendar className="w-3 h-3 text-primary/60" /> Fecha Desde
+        <CardContent className="p-3 md:p-5">
+          <div className="grid grid-cols-3 gap-2 md:gap-4 items-end">
+            <div className="space-y-1">
+              <label className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
+                <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3 text-primary/60" /> <span className="hidden md:inline">Fecha</span> <span className="md:hidden">Desde</span>
               </label>
               <input
                 type="date"
-                className="w-full h-10 px-3 bg-gray-50/50 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                className="w-full h-8 md:h-10 px-1.5 md:px-3 bg-gray-50/50 border border-gray-100 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1.5">
-                <MapPin className="w-3 h-3 text-primary/60" /> {terminology.areaLabel}
+            <div className="space-y-1">
+              <label className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
+                <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3 text-primary/60" /> <span className="truncate">{terminology.areaLabel}</span>
               </label>
               <select
-                className="w-full h-10 px-3 bg-gray-50/50 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                className="w-full h-8 md:h-10 px-1.5 md:px-3 bg-gray-50/50 border border-gray-100 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
               >
-                <option value="all">Todas las {terminology.areaLabel.toLowerCase()}s</option>
+                <option value="all">Todas</option>
                 {areas.map(area => (
                   <option key={area.id} value={area.id}>{area.name}</option>
                 ))}
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1.5">
-                <Tag className="w-3 h-3 text-primary/60" /> Estado
+            <div className="space-y-1">
+              <label className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
+                <Tag className="w-2.5 h-2.5 md:w-3 md:h-3 text-primary/60" /> Estado
               </label>
               <select
-                className="w-full h-10 px-3 bg-gray-50/50 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                className="w-full h-8 md:h-10 px-1.5 md:px-3 bg-gray-50/50 border border-gray-100 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="all">Todos los estados</option>
+                <option value="all">Todos</option>
                 <option value="approved">{terminology.reservationLabel.toLowerCase() === 'servicio' ? 'Aprobado' : 'Aprobada'}</option>
-                <option value="pending_validation">Pendiente Validación</option>
-                <option value="pending_payment">Pendiente Pago</option>
+                <option value="pending_validation">Pend. Val.</option>
+                <option value="pending_payment">Pend. Pago</option>
                 <option value="cancelled">Cancelada</option>
                 <option value="rejected">Rechazada</option>
               </select>
             </div>
+          </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 h-10 text-xs font-semibold rounded-lg border-gray-100 hover:bg-gray-50 active:scale-95 transition-transform"
-                onClick={() => {
-                  setStatusFilter('all');
-                  setAreaFilter('all');
-                  setDateFilter(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-                }}
-              >
-                Restablecer Filtros
-              </Button>
-            </div>
+          <div className="mt-2 md:mt-0 md:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-[10px] font-semibold rounded-lg border-gray-100 hover:bg-gray-50 active:scale-95 transition-transform"
+              onClick={() => {
+                setStatusFilter('all');
+                setAreaFilter('all');
+                setDateFilter(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+              }}
+            >
+              Restablecer Filtros
+            </Button>
           </div>
         </CardContent>
       </Card>

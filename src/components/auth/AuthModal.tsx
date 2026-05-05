@@ -97,6 +97,9 @@ export function AuthModal() {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             full_name: fullName,
+            phone: phone,
+            apartment: apartment,
+            organization_id: organization?.id,
             habeas_data_accepted: true,
             habeas_data_accepted_at: new Date().toISOString(),
           },

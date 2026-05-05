@@ -75,6 +75,7 @@ export default function NewReservationPage() {
 
   const [availableAddons, setAvailableAddons] = useState<any[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
+  const [editAddonIds, setEditAddonIds] = useState<string[]>([]);
   const [operationSchedules, setOperationSchedules] = useState<any[]>([]);
   const [maxReservationDays, setMaxReservationDays] = useState<number | null>(null);
 
@@ -185,7 +186,7 @@ export default function NewReservationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('reservations')
-        .select('*, common_areas(*)')
+        .select('*, common_areas(*), reservation_addons(addon_id, charged_price)')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -270,6 +271,10 @@ export default function NewReservationPage() {
         const diffMs = endDate.getTime() - startDate.getTime();
         const diffHours = Math.round(diffMs / (1000 * 60 * 60));
         setDuration(diffHours);
+
+        if (reservationToEdit.reservation_addons && reservationToEdit.reservation_addons.length > 0) {
+          setEditAddonIds(reservationToEdit.reservation_addons.map((ra: any) => ra.addon_id));
+        }
         
         setStep(2);
       }
@@ -494,6 +499,16 @@ export default function NewReservationPage() {
       fetchAddons(reservationToEdit.common_areas.id);
     }
   }, [isEditing, selectedArea?.id]);
+
+  useEffect(() => {
+    if (isEditing && editAddonIds.length > 0 && availableAddons.length > 0) {
+      const matched = availableAddons.filter((a: any) => editAddonIds.includes(a.id));
+      if (matched.length > 0) {
+        setSelectedAddons(matched);
+      }
+      setEditAddonIds([]);
+    }
+  }, [availableAddons, editAddonIds, isEditing]);
 
   const toggleAddon = (addon: any) => {
     setSelectedAddons(prev => {
@@ -915,6 +930,16 @@ export default function NewReservationPage() {
     try {
       if (isEditing) {
         await updateMutation.mutateAsync({ id: id!, data: reservationData });
+
+        await supabase.from('reservation_addons').delete().eq('reservation_id', id);
+        if (selectedAddons.length > 0) {
+          const addonInserts = selectedAddons.map((addon: any) => ({
+            reservation_id: id,
+            addon_id: addon.id,
+            charged_price: addon.additional_cost || 0,
+          }));
+          await supabase.from('reservation_addons').insert(addonInserts);
+        }
       } else {
         const result = await createMutation.mutateAsync(reservationData);
 
@@ -1167,69 +1192,69 @@ export default function NewReservationPage() {
             )
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
             {areasData.map((area: any) => (
               <Card
                 key={area.id}
                 className={cn(
-                  "border-none apple-shadow bg-white rounded-2xl transition-all overflow-hidden",
-                  (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:apple-shadow-hover hover:-translate-y-1 cursor-pointer"
+                  "border-none apple-shadow bg-white rounded-2xl transition-all duration-300 overflow-hidden group",
+                  (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:apple-shadow-hover hover:-translate-y-1 cursor-pointer active:scale-[0.98]"
                 )}
                 onClick={() => (isAdmin && !usersLoading && users.length === 0) ? null : handleAreaSelect(area)}
               >
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-32 md:h-44 overflow-hidden">
                   {area.image_url ? (
-                    <img src={area.image_url} alt={area.name} className="w-full h-full object-contain bg-white" />
+                    <img src={area.image_url} alt={area.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <Building2 className="w-12 h-12 text-gray-300" />
+                    <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
+                      <Building2 className="w-10 h-10 md:w-12 md:h-12 text-primary/20" />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 bg-primary px-3 py-1 rounded-full text-xs font-bold text-white">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  <div className="absolute bottom-2 left-2.5 right-2.5">
+                    <h3 className="text-white text-sm md:text-base font-bold drop-shadow-lg leading-tight truncate">{area.name}</h3>
+                  </div>
+                  <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-black shadow-lg">
                     {area.is_free
-                      ? 'Gratuito'
+                      ? <span className="text-emerald-600">Gratuito</span>
                       : area.pricing_type === 'fixed'
-                        ? formatCurrency(area.fixed_cost)
+                        ? <span className="text-gray-900">{formatCurrency(area.fixed_cost)}</span>
                         : area.pricing_type === 'jornada'
-                          ? 'Por Jornada'
-                          : `${formatCurrency(area.cost_per_hour)}/h`}
+                          ? <span className="text-primary">Jornada</span>
+                          : <span className="text-gray-900">{formatCurrency(area.cost_per_hour)}<span className="text-[9px] text-gray-400 font-medium">/h</span></span>}
                   </div>
                 </div>
-                <CardHeader className="p-4">
-                  <CardTitle className="text-lg font-bold text-gray-900">{area.name}</CardTitle>
-                  <CardDescription className="text-gray-500 text-sm line-clamp-2 mt-1">
-                    {area.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4 pb-2">
-                  <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                <div className="p-2.5 md:p-4 space-y-2">
+                  {area.description && (
+                    <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1 leading-relaxed">
+                      {area.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] text-gray-400 font-medium">
                     {area.pricing_type === 'fixed' ? (
                       <>
-                        <Clock className="w-3 h-3 text-[#FF3B30]" />
+                        <Clock className="w-3 h-3 text-primary/60" />
                         <span>{area.estimated_duration_minutes || 60} min</span>
                       </>
                     ) : area.pricing_type === 'jornada' ? (
                       <>
-                        <Calendar className="w-3 h-3" />
+                        <Calendar className="w-3 h-3 text-primary/60" />
                         <span>Jornada Completa</span>
                       </>
                     ) : (
                       <>
-                        <Clock className="w-3 h-3 text-[#FF3B30]" />
-                        <span>Máx. {area.max_hours_per_reservation}h por {terminology.reservationLabel.toLowerCase()}</span>
+                        <Clock className="w-3 h-3 text-primary/60" />
+                        <span>Máx {area.max_hours_per_reservation}h por {terminology.reservationLabel.toLowerCase()}</span>
                       </>
                     )}
                   </div>
-                </CardContent>
-                <CardFooter className="p-4 pt-2">
                   <Button
-                    className="w-full !bg-[#1e293b] !hover:bg-[#0f172a] text-white font-bold h-11 rounded-xl shadow-lg shadow-slate-800/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
-                    style={{ backgroundColor: '#1e293b' }}
+                    className="w-full h-8 md:h-10 bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold text-[11px] md:text-xs rounded-xl transition-all duration-300 border-none shadow-none active:scale-95"
                     disabled={isAdmin && users.length === 0}
                   >
                     Seleccionar
                   </Button>
-                </CardFooter>
+                </div>
               </Card>
             ))}
           </div>

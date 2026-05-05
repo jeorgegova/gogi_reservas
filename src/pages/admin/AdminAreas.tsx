@@ -53,49 +53,36 @@ function CurrencyInput({ value, onChange, className, placeholder }: { value: num
   );
 }
 
-function DurationSelector({ value, onChange, minimumMinutes = 0 }: { value: number; onChange: (min: number) => void; minimumMinutes?: number }) {
-  const hours = Math.floor(value / 60);
-  const minutes = value % 60;
+function DurationSelector({ value, onChange }: { value: number; onChange: (min: number) => void }) {
+  const options = [
+    { label: '30 min', value: 30 },
+    { label: '1 hora', value: 60 },
+    { label: '1h 30min', value: 90 },
+    { label: '2 horas', value: 120 },
+    { label: '2h 30min', value: 150 },
+    { label: '3 horas', value: 180 },
+    { label: '3h 30min', value: 210 },
+    { label: '4 horas', value: 240 },
+    { label: '4h 30min', value: 270 },
+    { label: '5 horas', value: 300 },
+    { label: '5h 30min', value: 330 },
+    { label: '6 horas', value: 360 },
+    { label: '6h 30min', value: 390 },
+    { label: '7 horas', value: 420 },
+    { label: '7h 30min', value: 450 },
+    { label: '8 horas', value: 480 },
+  ];
 
   return (
-    <div className="flex items-center gap-2">
-      <select
-        value={hours}
-        onChange={e => {
-          const newHours = parseInt(e.target.value);
-          const total = newHours * 60 + minutes;
-          if (total >= minimumMinutes || total === 0) {
-            onChange(total);
-          }
-        }}
-        className="h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 flex-1"
-      >
-        {Array.from({ length: 13 }, (_, i) => i).filter(h => {
-          const total = h * 60 + minutes;
-          return total === 0 || total >= minimumMinutes;
-        }).map(i => (
-          <option key={i} value={i}>{i}h</option>
-        ))}
-      </select>
-      <select
-        value={minutes}
-        onChange={e => {
-          const newMinutes = parseInt(e.target.value);
-          const total = hours * 60 + newMinutes;
-          if (total === 0 || total >= minimumMinutes) {
-            onChange(total);
-          }
-        }}
-        className="h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 flex-1"
-      >
-        {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].filter(m => {
-          const total = hours * 60 + m;
-          return total === 0 || total >= minimumMinutes;
-        }).map(m => (
-          <option key={m} value={m}>{m.toString().padStart(2, '0')} min</option>
-        ))}
-      </select>
-    </div>
+    <select
+      value={value || 60}
+      onChange={e => onChange(parseInt(e.target.value))}
+      className="h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 w-full"
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
   );
 }
 
@@ -287,12 +274,19 @@ export default function AdminAreasPage() {
     const orgId = profile?.organization_id;
     const isFree = currentArea.is_free || false;
 
-    if (currentArea.pricing_type === 'fixed') {
-      const dur = currentArea.estimated_duration_minutes || 0;
-      if (dur === 0) {
-        toast.error('La duración del servicio no puede ser 0 horas y 0 minutos');
-        return;
-      }
+    if (currentArea.pricing_type === 'fixed' && (currentArea.estimated_duration_minutes || 0) === 0) {
+      toast.error('La duración del servicio no puede ser 0 horas y 0 minutos');
+      return;
+    }
+
+    if (currentArea.pricing_type === 'hourly' && (currentArea.max_hours_per_reservation || 0) === 0) {
+      toast.error('El máximo de horas no puede ser 0');
+      return;
+    }
+
+    if (!currentArea.name?.trim()) {
+      toast.error('El nombre del servicio es obligatorio');
+      return;
     }
 
     const areaData = {
@@ -375,21 +369,21 @@ export default function AdminAreasPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
             <Settings className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.areaLabel}s</h1>
-            <p className="text-gray-500 text-sm">Configura los espacios disponibles para {terminology.reservationLabel.toLowerCase()}s.</p>
+            <h1 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.areaLabel}s</h1>
+            <p className="text-gray-500 text-xs md:text-sm">Configura los espacios disponibles para {terminology.reservationLabel.toLowerCase()}s.</p>
           </div>
         </div>
         <Button
           onClick={handleStartNew}
-          className="bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 font-black h-12 px-6 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
+          className="bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 font-bold h-10 md:h-12 px-4 md:px-6 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none text-xs md:text-sm shrink-0"
         >
-          <Plus className="w-4 h-4 mr-2" /> Nueva {terminology.areaLabel}
+          <Plus className="w-4 h-4 mr-1.5" /> <span className="hidden md:inline">Nueva {terminology.areaLabel}</span><span className="md:hidden">Nueva</span>
         </Button>
       </div>
 
@@ -678,7 +672,7 @@ export default function AdminAreasPage() {
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[9px] uppercase font-bold text-gray-400">Duración Extra</Label>
-                            <DurationSelector value={newAddon.duration_minutes} onChange={(val) => setNewAddon({ ...newAddon, duration_minutes: val })} minimumMinutes={30} />
+                            <DurationSelector value={newAddon.duration_minutes} onChange={(val) => setNewAddon({ ...newAddon, duration_minutes: val })} />
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -706,88 +700,89 @@ export default function AdminAreasPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {loading ? (
-          [1, 2, 3].map(i => <div key={i} className="h-64 bg-gray-100 animate-pulse rounded-2xl" />)
+          [1, 2, 3].map(i => <div key={i} className="h-48 bg-gray-50 animate-pulse rounded-2xl border border-gray-100" />)
         ) : (
           areas.filter(area => !(isEditing && currentArea.id && area.id === currentArea.id)).map((area) => (
             <Card key={area.id}
               className={cn(
-                "overflow-hidden border-none apple-shadow rounded-2xl bg-white transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1",
-                !area.is_active && "opacity-60 grayscale"
+                "border-none apple-shadow rounded-2xl bg-white transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1",
+                !area.is_active && "opacity-50 grayscale"
               )}
             >
-              <div className="h-40 relative overflow-hidden group">
+              <div className="relative h-28 md:h-36 overflow-hidden">
                 {area.image_url ? (
-                  <img src={area.image_url} alt={area.name} className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-110" />
+                  <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
-                    <Building2 className="w-12 h-12" />
+                  <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
+                    <Building2 className="w-10 h-10 md:w-12 md:h-12 text-primary/20" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                  <Button size="sm" onClick={() => handleEdit(area)} className="bg-white text-gray-900 hover:bg-gray-100">
-                    <Edit2 className="w-3.5 h-3.5 mr-2" /> Editar
-                  </Button>
-                  <Button size="sm" variant={area.is_active ? "destructive" : "default"} onClick={() => handleToggleActive(area)}>
-                    {area.is_active ? 'Desactivar' : 'Activar'}
-                  </Button>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                <div className="absolute bottom-1.5 left-2 right-2">
+                  <h3 className="text-white text-xs md:text-sm font-bold drop-shadow-lg leading-tight truncate">{area.name}</h3>
+                </div>
+                <div className={cn(
+                  "absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] font-black uppercase border backdrop-blur-sm",
+                  area.is_active
+                    ? "bg-emerald-500/90 text-white border-emerald-400/50"
+                    : "bg-gray-500/80 text-white border-gray-400/50"
+                )}>
+                  {area.is_active ? 'Activo' : 'Off'}
+                </div>
+                <div className="absolute top-1.5 left-1.5 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] font-bold shadow-sm">
+                  {area.is_free
+                    ? <span className="text-emerald-600">Gratis</span>
+                    : area.pricing_type === 'fixed'
+                      ? <span className="text-gray-900">{formatCurrency(area.fixed_cost)}</span>
+                      : area.pricing_type === 'jornada'
+                        ? <span className="text-primary">Jornada</span>
+                        : <span className="text-gray-900">{formatCurrency(area.cost_per_hour)}/h</span>}
                 </div>
               </div>
-              <CardHeader className="p-4 pb-2">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-bold text-gray-900 truncate pr-2">{area.name}</h3>
-                  <div className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
-                    area.is_active ? "bg-green-50 text-green-700 border-green-100" : "bg-gray-50 text-gray-400 border-gray-200"
-                  )}>
-                    {area.is_active ? 'Activo' : 'Inactivo'}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-1 space-y-3">
-                <p className="text-xs text-gray-500 line-clamp-1">{area.description}</p>
-                <div className="pt-2 flex justify-between items-center text-xs border-t border-gray-50">
+              <div className="p-2.5 md:p-3.5 space-y-1.5 md:space-y-2">
+                {area.description && (
+                  <p className="text-[9px] md:text-[10px] text-gray-400 line-clamp-1">{area.description}</p>
+                )}
+                <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-400 font-medium">
                   {area.pricing_type === 'fixed' ? (
                     <>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-400 uppercase">Costo Fijo</span>
-                        <span className="font-bold text-gray-900">{formatCurrency(area.fixed_cost)}</span>
-                      </div>
-                      <div className="flex flex-col text-right">
-                        <span className="text-[10px] text-gray-400 uppercase">Duración</span>
-                        <span className="font-bold text-gray-600">{formatDuration(area.estimated_duration_minutes || 60)}</span>
-                      </div>
+                      <Clock className="w-2.5 h-2.5 text-primary/60" />
+                      <span>{formatDuration(area.estimated_duration_minutes || 60)}</span>
                     </>
                   ) : area.pricing_type === 'jornada' ? (
-                    <div className="flex flex-col w-full">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] text-gray-400 uppercase">Diurna</span>
-                        <span className="font-bold text-gray-900">{formatCurrency(area.cost_jornada_diurna)}</span>
-                      </div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] text-gray-400 uppercase">Nocturna</span>
-                        <span className="font-bold text-gray-900">{formatCurrency(area.cost_jornada_nocturna)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-gray-400 uppercase">Completo</span>
-                        <span className="font-bold text-gray-900">{formatCurrency(area.cost_jornada_ambos)}</span>
-                      </div>
-                    </div>
+                    <>
+                      <Calendar className="w-2.5 h-2.5 text-primary/60" />
+                      <span>Jornada</span>
+                    </>
                   ) : (
                     <>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-400 uppercase">Costo Hora</span>
-                        <span className="font-bold text-gray-900">{formatCurrency(area.cost_per_hour)}</span>
-                      </div>
-                      <div className="flex flex-col text-right">
-                        <span className="text-[10px] text-gray-400 uppercase">Máximo</span>
-                        <span className="font-bold text-gray-600">{area.max_hours_per_reservation}h</span>
-                      </div>
+                      <Clock className="w-2.5 h-2.5 text-primary/60" />
+                      <span>Máx {area.max_hours_per_reservation}h</span>
                     </>
                   )}
                 </div>
-              </CardContent>
+                <div className="flex gap-1.5 pt-1.5 border-t border-gray-50">
+                  <button
+                    onClick={() => handleEdit(area)}
+                    className="flex-1 h-7.5 md:h-9 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[9px] md:text-xs font-bold rounded-lg transition-all duration-300 active:scale-95 flex items-center justify-center gap-0.5 md:gap-1"
+                  >
+                    <Edit2 className="w-3 h-3" /> Editar
+                  </button>
+                  <button
+                    onClick={() => handleToggleActive(area)}
+                    className={cn(
+                      "flex-1 h-7.5 md:h-9 text-[9px] md:text-xs font-bold rounded-lg transition-all duration-300 active:scale-95 flex items-center justify-center",
+                      area.is_active
+                        ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200"
+                        : "bg-emerald-500 text-white hover:bg-emerald-600 border border-transparent"
+                    )}
+                  >
+                    {area.is_active ? 'Desactivar' : 'Activar'}
+                  </button>
+                </div>
+              </div>
             </Card>
           ))
         )}
