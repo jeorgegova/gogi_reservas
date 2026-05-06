@@ -5,15 +5,15 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  formatCurrency, 
-  formatDate, 
-  formatTime, 
-  cn 
+import {
+  formatCurrency,
+  formatDate,
+  formatTime,
+  cn
 } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { 
+import {
   Search,
   Calendar,
   Clock,
@@ -30,7 +30,7 @@ import {
 export default function AdminReservationsPage() {
   const { profile, terminology, businessType } = useAuth();
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
-  
+
   const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,7 +39,7 @@ export default function AdminReservationsPage() {
   const [blockingError, setBlockingError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -202,7 +202,7 @@ export default function AdminReservationsPage() {
     });
   }, [reservations, debouncedSearch, statusFilter, businessType]);
 
-  const pendingCount = useMemo(() => 
+  const pendingCount = useMemo(() =>
     reservations.filter(r => isPending(r.status)).length,
     [reservations]
   );
@@ -250,7 +250,7 @@ export default function AdminReservationsPage() {
       <div className="flex flex-col gap-2">
         {/* Month navigator */}
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
           >
@@ -261,7 +261,7 @@ export default function AdminReservationsPage() {
               {format(currentMonth, 'MMMM yyyy', { locale: es })}
             </span>
           </div>
-          <button 
+          <button
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
           >
@@ -279,8 +279,8 @@ export default function AdminReservationsPage() {
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <Input 
-              placeholder={`Buscar...`} 
+            <Input
+              placeholder={`Buscar...`}
               className={cn(
                 "pl-8 h-8 rounded-lg text-xs border-gray-200 transition-colors",
                 isSearching && "border-primary ring-2 ring-primary/20"
@@ -292,7 +292,7 @@ export default function AdminReservationsPage() {
               <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-primary animate-spin" />
             )}
           </div>
-          <select 
+          <select
             className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-[11px] text-gray-700 font-medium w-auto outline-none focus:ring-1 focus:ring-primary shrink-0"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -420,8 +420,8 @@ export default function AdminReservationsPage() {
             const userName = res.guest_name || res.profiles?.full_name;
 
             return (
-              <div 
-                key={res.id} 
+              <div
+                key={res.id}
                 className={cn(
                   "bg-white rounded-xl border transition-all duration-300",
                   pending ? "border-amber-200 shadow-md shadow-amber-100/50" : "border-gray-100 shadow-sm"
