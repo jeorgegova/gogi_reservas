@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
@@ -24,11 +25,14 @@ import {
   ChevronRight,
   Smartphone,
   AlertCircle,
-  Loader2
+  Loader2,
+  Pencil
 } from 'lucide-react';
 
 export default function AdminReservationsPage() {
+  const navigate = useNavigate();
   const { profile, terminology, businessType } = useAuth();
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
 
   const [reservations, setReservations] = useState<any[]>([]);
@@ -361,11 +365,15 @@ export default function AdminReservationsPage() {
                         {businessType === 'residential' && res.profiles?.apartment && (
                           <div className="text-[10px] text-gray-500 mt-0.5">{terminology.unitLabel} {res.profiles?.apartment}</div>
                         )}
-                        {res.guest_phone && (
+                        {res.guest_phone ? (
                           <a href={`tel:${res.guest_phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-1 text-[10px] text-primary font-medium mt-0.5 hover:text-primary/80">
                             <Smartphone className="w-2.5 h-2.5" />{res.guest_phone}
                           </a>
-                        )}
+                        ) : res.profiles?.phone ? (
+                          <a href={`tel:${res.profiles.phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-1 text-[10px] text-primary font-medium mt-0.5 hover:text-primary/80">
+                            <Smartphone className="w-2.5 h-2.5" />{res.profiles.phone}
+                          </a>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-gray-600 font-medium truncate">{res.common_areas?.name}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -382,16 +390,21 @@ export default function AdminReservationsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        {isPending(res.status) && (
-                          <div className="flex gap-1.5">
-                            <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.4)] hover:shadow-[0_0_18px_rgba(16,185,129,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => handleUpdateStatus(res.id, 'approved')}>
-                              {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
-                            </Button>
-                            <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-red-500 hover:bg-red-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(239,68,68,0.4)] hover:shadow-[0_0_18px_rgba(239,68,68,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => handleUpdateStatus(res.id, 'rejected')}>
-                              {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex gap-1.5">
+                          <Button size="sm" disabled={!!blockingError} variant="outline" className="h-8 px-2.5 text-[10px] font-bold rounded-lg border-gray-200 text-gray-600 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all flex items-center gap-1 whitespace-nowrap disabled:opacity-50" onClick={() => navigate(`/reservations/edit/${res.id}`)}>
+                            <Pencil className="w-3.5 h-3.5" /> Editar
+                          </Button>
+                          {isPending(res.status) && (
+                            <>
+                              <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.4)] hover:shadow-[0_0_18px_rgba(16,185,129,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => handleUpdateStatus(res.id, 'approved')}>
+                                {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
+                              </Button>
+                              <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-red-500 hover:bg-red-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(239,68,68,0.4)] hover:shadow-[0_0_18px_rgba(239,68,68,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => handleUpdateStatus(res.id, 'rejected')}>
+                                {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -466,33 +479,51 @@ export default function AdminReservationsPage() {
                     <span className="font-bold text-gray-900 text-xs shrink-0">{formatCurrency(res.total_cost)}</span>
                   </div>
 
-                  {res.guest_phone && (
+                  {res.guest_phone ? (
                     <a href={`tel:${res.guest_phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-1 text-primary font-bold w-fit">
                       <Smartphone className="w-3 h-3" />
                       <span className="text-[10px]">{res.guest_phone}</span>
                     </a>
-                  )}
+                  ) : res.profiles?.phone ? (
+                    <a href={`tel:${res.profiles.phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-1 text-primary font-bold w-fit">
+                      <Smartphone className="w-3 h-3" />
+                      <span className="text-[10px]">{res.profiles.phone}</span>
+                    </a>
+                  ) : null}
                 </div>
 
-                {pending && (
+                {(isAdmin || ['pending_validation', 'pending_payment'].includes(res.status)) && (
                   <div className="flex border-t border-amber-100">
                     <button
-                      disabled={!!blockingError || !!updatingId}
-                      onClick={() => handleUpdateStatus(res.id, 'approved')}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 active:bg-emerald-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+                      disabled={!!blockingError}
+                      onClick={() => navigate(`/reservations/edit/${res.id}`)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-gray-600 bg-gray-50 hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors disabled:opacity-50"
                     >
-                      {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <CheckCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(16,185,129,0.6))' }} />}
-                      {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
+                      <Pencil className="w-3.5 h-3.5" />
+                      Editar
                     </button>
-                    <div className="w-px bg-amber-100" />
-                    <button
-                      disabled={!!blockingError || !!updatingId}
-                      onClick={() => handleUpdateStatus(res.id, 'rejected')}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-red-600 bg-red-50/50 hover:bg-red-100 active:bg-red-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(239,68,68,0.2)]"
-                    >
-                      {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" /> : <XCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(239,68,68,0.6))' }} />}
-                      {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
-                    </button>
+                    {pending && (
+                      <>
+                        <div className="w-px bg-amber-100" />
+                        <button
+                          disabled={!!blockingError || !!updatingId}
+                          onClick={() => handleUpdateStatus(res.id, 'approved')}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 active:bg-emerald-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+                        >
+                          {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <CheckCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(16,185,129,0.6))' }} />}
+                          {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
+                        </button>
+                        <div className="w-px bg-amber-100" />
+                        <button
+                          disabled={!!blockingError || !!updatingId}
+                          onClick={() => handleUpdateStatus(res.id, 'rejected')}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-red-600 bg-red-50/50 hover:bg-red-100 active:bg-red-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+                        >
+                          {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" /> : <XCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(239,68,68,0.6))' }} />}
+                          {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

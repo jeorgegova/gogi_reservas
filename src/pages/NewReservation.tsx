@@ -262,6 +262,7 @@ export default function NewReservationPage() {
 
       if (reservationToEdit) {
         setSelectedArea(reservationToEdit.common_areas);
+        setSelectedUserId(reservationToEdit.user_id);
         const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
         const startDay = format(startDate, 'yyyy-MM-dd');
         setSelectedDate(startDay);
@@ -895,7 +896,7 @@ export default function NewReservationPage() {
     // Verificación final de disponibilidad (doble check local antes de enviar)
     if (selectedStartTime && selectedArea.pricing_type !== 'jornada') {
       const info = getSlotStatus(selectedStartTime);
-      if (info.status !== 'available') {
+      if (info.status !== 'available' && !(isAdmin && info.status === 'reserved')) {
         setErrorMessage(`El horario seleccionado ya no está disponible${info.reason ? `: ${info.reason}` : ''}. Por favor selecciona otro.`);
         setIsErrorAlertOpen(true);
         return;

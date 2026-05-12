@@ -350,7 +350,11 @@ export default function Calendario() {
             extendedProps: {
                 type: 'reservation',
                 status: res.status,
-                area: res.common_areas?.name || 'Área'
+                area: res.common_areas?.name || 'Área',
+                clientName: res.guest_name || res.profiles?.full_name || '',
+                clientApartment: res.profiles?.apartment || '',
+                clientPhone: res.guest_phone || '',
+                clientEmail: res.profiles?.email || ''
             }
         }));
 
@@ -972,6 +976,15 @@ export default function Calendario() {
                                         const eventTitle = info.event.title;
 
                                         if (props.type === 'reservation') {
+                                            const clientSection = isAdmin && props.clientName ? `
+                                                <div style="font-size: 13px; color: #374151; margin-bottom: 6px; border-top: 1px solid #f3f4f6; padding-top: 8px;">
+                                                    <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Cliente</strong><br/>
+                                                    <span style="font-weight: 600;">${props.clientName}</span>
+                                                    ${props.clientApartment ? `<br/><span style="font-size: 11px; color: #6b7280;">${props.clientApartment}</span>` : ''}
+                                                    ${props.clientPhone ? `<br/><span style="font-size: 11px; color: #6b7280;">${props.clientPhone}</span>` : ''}
+                                                    ${props.clientEmail ? `<br/><span style="font-size: 11px; color: #6b7280;">${props.clientEmail}</span>` : ''}
+                                                </div>
+                                            ` : '';
                                             tooltip.innerHTML = `
                                                 <div style="padding: 12px; min-width: 200px;">
                                                     <div style="font-weight: 700; font-size: 14px; color: #111827; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
@@ -984,6 +997,7 @@ export default function Calendario() {
                                                     <div style="font-size: 12px; color: #4b5563;">
                                                         <strong style="color: #6b7280; font-size: 11px; text-transform: uppercase;">Horario</strong><br/> ${start ? formatTime(start) : ''} - ${end ? formatTime(end) : ''}
                                                     </div>
+                                                    ${clientSection}
                                                 </div>
                                             `;
                                         } else {

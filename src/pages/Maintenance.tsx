@@ -580,6 +580,7 @@ export default function MaintenancePage() {
                       setNewNotice({ ...newNotice, starts_at: val });
                     }}
                     required
+                    min={new Date().toISOString().slice(0, 16)}
                     className="h-11 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                   />
                 </div>

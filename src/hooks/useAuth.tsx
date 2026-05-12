@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getTerminology, type BusinessTerminology, type BusinessType } from '../lib/terminology';
+import { queryClient } from '../lib/query-client';
 
 interface Profile {
   id: string;
@@ -284,7 +285,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    // 1. Sign out from Supabase (this handles session clearing)
     await supabase.auth.signOut();
+    
+    // 2. Clear all localStorage to remove organization slugs, impersonation IDs, and cached images
+    localStorage.clear();
+    
+    // 3. Clear sessionStorage just in case
+    sessionStorage.clear();
+    
+    // 4. Reset the React Query client to clear memory cache
+    queryClient.clear();
   };
 
   const contextFetchProfile = async () => {

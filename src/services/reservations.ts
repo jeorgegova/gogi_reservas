@@ -12,7 +12,7 @@ export interface Reservation {
   guest_name?: string | null;
   guest_phone?: string | null;
   common_areas?: { name: string };
-  profiles?: { full_name: string };
+  profiles?: { full_name: string; apartment?: string | null; email?: string };
   reservation_addons?: { addon_id: string; service_addons?: { name: string; additional_cost: number } }[];
 }
 
@@ -32,7 +32,10 @@ export const getReservations = async (
       total_cost,
       status,
       organization_id,
-      common_areas:common_area_id (name)
+      guest_name,
+      guest_phone,
+      common_areas:common_area_id (name),
+      profiles:user_id (full_name, apartment, email)
     `)
     .eq('organization_id', orgId)
     .gte('start_datetime', startDate)

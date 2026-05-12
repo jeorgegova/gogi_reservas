@@ -340,6 +340,35 @@ export default function AdminSettingsPage() {
                 placeholder="Sin límite (dejar vacío)"
                 className="h-10 rounded-xl"
               />
+              <div className="flex flex-wrap gap-2">
+                {[8, 15, 30, 180, 365].map(days => (
+                  <Button
+                    key={days}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMaxReservationDays(days)}
+                    className={cn(
+                      "h-8 px-3 text-[10px] font-bold rounded-lg transition-all",
+                      maxReservationDays === days ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                    )}
+                  >
+                    {days >= 30 ? (days >= 365 ? '1 Año' : `${Math.floor(days/30)} ${Math.floor(days/30) === 1 ? 'Mes' : 'Meses'}`) : `${days} Días`}
+                  </Button>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMaxReservationDays(null)}
+                  className={cn(
+                    "h-8 px-3 text-[10px] font-bold rounded-lg transition-all",
+                    maxReservationDays === null ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                  )}
+                >
+                  Sin Límite
+                </Button>
+              </div>
               <p className="text-xs text-gray-500">
                 Si configuras 30 días, los {terminology.userLabel.toLowerCase()}s solo verán disponibles fechas hasta 30 días desde hoy. Dejar vacío para sin límite.
               </p>
