@@ -28,36 +28,41 @@ import AdminSettingsPage from '@/pages/admin/AdminSettings';
 const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reservations', 'login', 'register', 'maintenance', 'payment', 'bonificaciones', 'forgot-password', 'verify-email'];
 
 const OrganizationHome = () => {
-  const { profile, loading, fetchOrgSettings, isGuest, setGuestMode, clearGuestMode } = useAuth();
+  const { profile, loading, fetchOrgSettings, setGuestMode, signOut } = useAuth();
   const { slug } = useParams<{ slug: string }>();
   const [settingsLoading, setSettingsLoading] = useState(true);
 
   useEffect(() => {
     if (!slug || loading || RESERVED_SLUGS.includes(slug)) return;
 
+    // Si ya estamos en la organización correcta, no hacemos nada
     if (profile?.organization_slug === slug) {
       setSettingsLoading(false);
       return;
     }
 
-    if (isGuest) {
-      clearGuestMode();
-    }
-
     setSettingsLoading(true);
 
-    fetchOrgSettings(slug).then(settings => {
+    fetchOrgSettings(slug).then(async (settings) => {
       if (settings && !settings.requires_auth && settings.guest_user_id) {
-        setGuestMode(settings.guest_user_id).finally(() => {
-          setSettingsLoading(false);
-        });
+        // Si hay una sesión activa de otra organización, la limpiamos según requerimiento del usuario
+        if (profile && profile.organization_slug !== slug) {
+          console.log('App: Sesión de otra organización detectada, limpiando para modo invitado...');
+          await signOut();
+        }
+
+        // Iniciamos como invitado
+        await setGuestMode(settings.guest_user_id);
+        setSettingsLoading(false);
       } else {
+        // Si requiere auth o no hay configuración de invitado, dejamos que muestre el login
         setSettingsLoading(false);
       }
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('App: Error al cargar configuración de la organización:', err);
       setSettingsLoading(false);
     });
-  }, [slug, loading, profile?.organization_slug, isGuest]);
+  }, [slug, loading, profile?.organization_slug]);
 
   if (loading || settingsLoading) {
     return (
@@ -86,7 +91,7 @@ const PrivateRoute = ({ children, adminOnly = false }: { children: React.ReactNo
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
   if (!profile && !isGuest) return <Navigate to="/" />; // Redirect to root for login
-  
+
   if (isGuest && adminOnly) return <Navigate to="/dashboard" />;
 
   if (adminOnly && profile?.role !== 'admin' && profile?.role !== 'super_admin') return <Navigate to="/dashboard" />;

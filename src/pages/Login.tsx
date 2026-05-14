@@ -95,9 +95,17 @@ export default function LoginPage() {
   const handleGuestLogin = async () => {
     if (organization?.guest_user_id && slug) {
       setLoading(true);
-      await setGuestMode(organization.guest_user_id);
-      localStorage.setItem('lastOrganizationSlug', slug);
-      navigate(`/${slug}`, { replace: true });
+      try {
+        console.log('LoginPage: Iniciando modo invitado para:', organization.guest_user_id);
+        await setGuestMode(organization.guest_user_id);
+        localStorage.setItem('lastOrganizationSlug', slug);
+        navigate(`/${slug}`, { replace: true });
+      } catch (err) {
+        console.error('LoginPage: Error al iniciar como invitado:', err);
+        setError('No se pudo iniciar como invitado. Por favor, intenta de nuevo.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 

@@ -175,17 +175,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const profileData = {
         ...globalProfile,
-        organization_slug: activeOrgSlug,
+        organization_slug: membershipData ? activeOrgSlug : globalProfile.organizations?.slug,
         role: membershipData?.role || globalProfile.role,
         organization_id: membershipData?.organization_id || globalProfile.organization_id,
         phone: membershipData?.phone || globalProfile.phone,
         apartment: membershipData?.apartment || globalProfile.apartment,
       };
 
-      // Ensure the newly resolved active organization context overrides local cache,
-      // so if the user reloads a slug-less page like /dashboard or /reservations/my,
-      // the system correctly persists they are engaging with this exact organization.
-      if (activeOrgSlug) {
+      // Only persist the slug if the user actually has a membership there
+      if (membershipData && activeOrgSlug) {
         localStorage.setItem('lastOrganizationSlug', activeOrgSlug);
       }
 
@@ -232,6 +230,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const fetchGuestProfile = async (guestUserId: string) => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -253,6 +252,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error('useAuth: Error fetching guest profile:', error);
+      setIsGuest(false);
+      setProfile(null);
+    } finally {
+      setLoading(false);
     }
   };
 
