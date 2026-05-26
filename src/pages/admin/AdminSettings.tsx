@@ -37,6 +37,7 @@ export default function AdminSettingsPage() {
   const [autoApprovePayments, setAutoApprovePayments] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [maxReservationDays, setMaxReservationDays] = useState<number | null>(null);
+  const [orgSlug, setOrgSlug] = useState('');
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -97,12 +98,13 @@ export default function AdminSettingsPage() {
     try {
       const { data, error } = await supabase
         .from('organizations')
-        .select('requires_auth, guest_user_id, logo_url, login_photo_url, name, phone, address, auto_approve_payments, max_reservation_days_ahead')
+        .select('slug, requires_auth, guest_user_id, logo_url, login_photo_url, name, phone, address, auto_approve_payments, max_reservation_days_ahead')
         .eq('id', profile?.organization_id)
         .single();
 
       if (error) throw error;
       if (data) {
+        setOrgSlug(data.slug || '');
         setRequiresAuth(data.requires_auth ?? true);
         setGuestUserId(data.guest_user_id);
         setLogoUrl(data.logo_url || '');
@@ -134,7 +136,7 @@ export default function AdminSettingsPage() {
       if (!requiresAuth) {
         const { data: newGuestId, error: rpcError } = await supabase.rpc('setup_guest_user', {
           org_id: profile.organization_id,
-          org_slug: profile.organization_slug
+          org_slug: orgSlug || profile.organization_slug
         });
 
         if (rpcError) throw rpcError;

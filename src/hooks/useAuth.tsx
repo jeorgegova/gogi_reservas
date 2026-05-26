@@ -17,6 +17,7 @@ interface Profile {
 }
 
 interface OrganizationSettings {
+  id: string;
   requires_auth: boolean;
   guest_user_id: string | null;
   business_type: BusinessType;
@@ -37,7 +38,7 @@ interface AuthContextType {
   isGuest: boolean;
   orgSettings: OrganizationSettings | null;
   fetchOrgSettings: (slug: string) => Promise<OrganizationSettings | null>;
-  setGuestMode: (guestUserId: string) => Promise<void>;
+  setGuestMode: (guestUserId: string, orgSlug?: string, orgId?: string) => Promise<void>;
   clearGuestMode: () => void;
   authModal: { isOpen: boolean; view: 'login' | 'register' };
   openAuthModal: (view: 'login' | 'register') => void;
@@ -203,7 +204,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('organizations')
-        .select('requires_auth, guest_user_id, business_type, name')
+        .select('id, requires_auth, guest_user_id, business_type, name')
         .eq('slug', slug)
         .single();
 
@@ -229,12 +230,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     profileRef.current = null;
   };
 
-  const fetchGuestProfile = async (guestUserId: string) => {
+  const fetchGuestProfile = async (guestUserId: string, orgSlug?: string, orgId?: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*, organizations!profiles_organization_id_fkey(slug, business_type)')
+        .select('*, organizations!profiles_organization_id_fkey(id, slug, business_type)')
         .eq('id', guestUserId)
         .single();
 
@@ -242,7 +243,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data) {
         const guestProfile = {
           ...data,
-          organization_slug: data.organizations?.slug,
+          organization_id: orgId || data.organization_id,
+          organization_slug: orgSlug || data.organizations?.slug,
           is_guest: true
         };
         profileRef.current = guestProfile;
@@ -276,7 +278,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsGuest(false);
         isGuestRef.current = false;
         if (event === 'SIGNED_IN') fetchProfile(currentUser.id, false);
-      } else if (!isGuestRef.current) {
+      } else {
+        // No user session - clear profile and guest state
         setProfile(null);
         profileRef.current = null;
         setIsGuest(false);
@@ -287,19 +290,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
-    // 1. Sign out from Supabase (this handles session clearing)
-    await supabase.auth.signOut();
-    
-    // 2. Clear all localStorage to remove organization slugs, impersonation IDs, and cached images
-    localStorage.clear();
-    
-    // 3. Clear sessionStorage just in case
-    sessionStorage.clear();
-    
-    // 4. Reset the React Query client to clear memory cache
-    queryClient.clear();
-  };
+    const signOut = async () => {
+      try {
+        // 1. Sign out from Supabase (this handles session clearing)
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.error('Error signing out from Supabase:', error);
+      }
+      
+      // 2. Clear all localStorage to remove organization slugs, impersonation IDs, and cached images
+      localStorage.clear();
+      
+      // 3. Clear sessionStorage just in case
+      sessionStorage.clear();
+      
+      // 4. Reset the React Query client to clear memory cache
+      queryClient.clear();
+      
+      // 5. Clear organization-related state
+      setOrgSettings(null);
+      setBusinessType('residential'); // Reset to default
+
+      // 6. Reset local authentication and profile states immediately
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setIsGuest(false);
+      isGuestRef.current = false;
+      profileRef.current = null;
+    };
 
   const contextFetchProfile = async () => {
     if (user) await fetchProfile(user.id);
