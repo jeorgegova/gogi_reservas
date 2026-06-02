@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { useCommonAreasQuery } from '@/hooks/useCommonAreas';
+import { useCommonAreasQuery } from '@/hooks/useResources';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,7 +66,7 @@ export default function AdminBonificaciones() {
       // 2. Fetch Configs
       const { data: bonusConfigs } = await supabase
         .from('bonus_configs')
-        .select('*, common_areas(name)')
+        .select('*, resources(name)')
         .eq('organization_id', profile?.organization_id);
       
       setConfigs(bonusConfigs || []);
@@ -86,7 +86,7 @@ export default function AdminBonificaciones() {
       .from('reservations')
       .select(`
         user_id, 
-        common_area_id, 
+        resource_id, 
         profiles!inner(full_name, apartment)
       `)
       .eq('organization_id', profile?.organization_id)
@@ -101,13 +101,13 @@ export default function AdminBonificaciones() {
     const groups: Record<string, any> = {};
     reservations.forEach(res => {
       const profileData = res.profiles as any;
-      const key = `${res.user_id}_${res.common_area_id}`;
+      const key = `${res.user_id}_${res.resource_id}`;
       if (!groups[key]) {
         groups[key] = {
           userId: res.user_id,
           userName: profileData?.full_name || 'Sin nombre',
           apartment: profileData?.apartment || 'S/A',
-          areaId: res.common_area_id,
+          areaId: res.resource_id,
           count: 0
         };
       }
@@ -145,7 +145,7 @@ export default function AdminBonificaciones() {
     try {
       const configData = {
         organization_id: profile?.organization_id,
-        common_area_id: selectedAreaId,
+        resource_id: selectedAreaId,
         reservations_required: reservationsRequired,
         discount_percentage: discountPercentage,
         is_active: true
@@ -380,7 +380,7 @@ export default function AdminBonificaciones() {
                         <Gift className="w-5 h-5 text-primary" />
                       </div>
                     </div>
-                    <CardTitle className="text-base font-bold">{config.common_areas?.name}</CardTitle>
+                    <CardTitle className="text-base font-bold">{config.resources?.name}</CardTitle>
                   </CardHeader>
 
                   <CardContent className="p-4 pt-0">
@@ -489,7 +489,7 @@ export default function AdminBonificaciones() {
                       </tr>
                     ) : (
                       filteredProgress.map((item, idx) => {
-                        const config = configs.find(c => c.common_area_id === item.areaId);
+                        const config = configs.find(c => c.resource_id === item.areaId);
                         const areaName = areas.find(a => a.id === item.areaId)?.name || 'Área desconocida';
                         const goal = config?.reservations_required || 5;
                         const bonusesEarned = Math.floor(item.count / goal);
@@ -584,7 +584,7 @@ export default function AdminBonificaciones() {
                   </div>
                 ) : (
                   filteredProgress.map((item, idx) => {
-                    const config = configs.find(c => c.common_area_id === item.areaId);
+                    const config = configs.find(c => c.resource_id === item.areaId);
                     const areaName = areas.find(a => a.id === item.areaId)?.name || 'Área desconocida';
                     const goal = config?.reservations_required || 5;
                     const bonusesEarned = Math.floor(item.count / goal);

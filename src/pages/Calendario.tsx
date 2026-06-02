@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, detoxTime, formatDate, formatDateTimeISO, formatTime } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { useCommonAreasQuery } from '@/hooks/useCommonAreas';
+import { useCommonAreasQuery } from '@/hooks/useResources';
 import { useReservationsQuery } from '@/hooks/useReservations';
 import { useQueryClient } from '@tanstack/react-query';
 import * as reservationService from '@/services/reservations';
@@ -116,7 +116,7 @@ export default function Calendario() {
                 .from('maintenance_notices')
                 .select(`
                     *,
-                    common_areas (name)
+                    resources (name)
                 `)
                 .eq('organization_id', profile?.organization_id)
                 .eq('is_active', true)
@@ -137,7 +137,7 @@ export default function Calendario() {
                 .from('reservations')
                 .select(`
                     *,
-                    common_areas (name),
+                    resources (name),
                     profiles:user_id (full_name)
                 `)
                 .eq('organization_id', profile?.organization_id)
@@ -178,7 +178,7 @@ export default function Calendario() {
         });
 
         const filteredByArea = selectedAreaId !== 'all'
-            ? filteredByMonth.filter(r => r.common_area_id === selectedAreaId)
+            ? filteredByMonth.filter(r => r.resource_id === selectedAreaId)
             : filteredByMonth;
 
         // Reservas hoy (independiente del filtro de mes)
@@ -202,7 +202,7 @@ export default function Calendario() {
         // Reservas por área (del mes seleccionado)
         const areaCount: Record<string, number> = {};
         filteredByArea.forEach(res => {
-            const areaName = res.common_areas?.name || 'Desconocida';
+            const areaName = res.resources?.name || 'Desconocida';
             areaCount[areaName] = (areaCount[areaName] || 0) + 1;
         });
         const reservationsByArea = Object.entries(areaCount)
@@ -338,10 +338,10 @@ export default function Calendario() {
     };
 
     const reservationEvents = reservationsData
-        .filter((res: any) => selectedAreaId === 'all' || res.common_area_id === selectedAreaId)
+        .filter((res: any) => selectedAreaId === 'all' || res.resource_id === selectedAreaId)
         .map((res: any) => ({
             id: res.id,
-            title: `${res.common_areas?.name || 'Área'}`,
+            title: `${res.resources?.name || 'Área'}`,
             start: detoxTime(res.start_datetime),
             end: detoxTime(res.end_datetime),
             backgroundColor: getStatusColor(res.status),
@@ -350,7 +350,7 @@ export default function Calendario() {
             extendedProps: {
                 type: 'reservation',
                 status: res.status,
-                area: res.common_areas?.name || 'Área',
+                area: res.resources?.name || 'Área',
                 clientName: res.guest_name || res.profiles?.full_name || '',
                 clientApartment: res.profiles?.apartment || '',
                 clientPhone: res.guest_phone || '',
@@ -359,10 +359,10 @@ export default function Calendario() {
         }));
 
     const maintenanceEvents = notices
-        .filter(notice => selectedAreaId === 'all' || notice.common_area_id === selectedAreaId || notice.common_area_id === null)
+        .filter(notice => selectedAreaId === 'all' || notice.resource_id === selectedAreaId || notice.resource_id === null)
         .map(notice => ({
             id: notice.id,
-            title: `[AVISO] ${notice.common_areas?.name || 'General'}: ${notice.title}`,
+            title: `[AVISO] ${notice.resources?.name || 'General'}: ${notice.title}`,
             start: detoxTime(notice.starts_at),
             end: detoxTime(notice.ends_at),
             backgroundColor: '#dbeafe', // light blue
@@ -372,7 +372,7 @@ export default function Calendario() {
             extendedProps: {
                 type: 'maintenance',
                 severity: notice.severity,
-                area: notice.common_areas?.name || 'General',
+                area: notice.resources?.name || 'General',
                 content: notice.content || ''
             }
         }));
@@ -707,7 +707,7 @@ export default function Calendario() {
                                     {adminStats.recentReservations.map((res: any, idx: number) => (
                                         <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                                                {res.common_areas?.name || 'N/A'}
+                                                {res.resources?.name || 'N/A'}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-600">
                                                 <div className="flex flex-col">
@@ -1124,7 +1124,7 @@ export default function Calendario() {
                                             onClick={() => isAdmin && navigate('/maintenance')}
                                         >
                                             <p className="text-[11px] md:text-xs font-medium text-gray-900">
-                                                {notice.common_areas?.name || 'General'}
+                                                {notice.resources?.name || 'General'}
                                             </p>
                                             <p className="text-[10px] md:text-[11px] leading-relaxed text-gray-600 mt-0.5">
                                                 {notice.title}

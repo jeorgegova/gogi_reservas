@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 export interface Reservation {
   id: string;
   user_id: string;
-  common_area_id: string;
+  resource_id: string;
   start_datetime: string;
   end_datetime: string;
   total_cost: number;
@@ -11,9 +11,9 @@ export interface Reservation {
   organization_id: string;
   guest_name?: string | null;
   guest_phone?: string | null;
-  common_areas?: { name: string };
+  resources?: { name: string };
   profiles?: { full_name: string; apartment?: string | null; email?: string };
-  reservation_addons?: { addon_id: string; service_addons?: { name: string; additional_cost: number } }[];
+  reservation_services?: { service_id: string; services?: { name: string; additional_cost: number } }[];
 }
 
 export const getReservations = async (
@@ -26,7 +26,7 @@ export const getReservations = async (
     .select(`
       id,
       user_id,
-      common_area_id,
+      resource_id,
       start_datetime,
       end_datetime,
       total_cost,
@@ -34,7 +34,7 @@ export const getReservations = async (
       organization_id,
       guest_name,
       guest_phone,
-      common_areas:common_area_id (name),
+      resources:resource_id (name),
       profiles:user_id (full_name, apartment, email)
     `)
     .eq('organization_id', orgId)
@@ -56,7 +56,7 @@ export const getAvailability = async (
   let query = supabase
     .from('reservations')
     .select('id', { count: 'exact', head: true })
-    .eq('common_area_id', areaId)
+    .eq('resource_id', areaId)
     .in('status', ['approved', 'pending_validation', 'pending_payment'])
     .lt('start_datetime', end)
     .gt('end_datetime', start);
@@ -74,7 +74,7 @@ export const getAvailability = async (
 export const createReservation = async (reservation: Partial<Reservation>) => {
   // CRITICAL: Validation MUST be done against the DB, not cache
   const isAvailable = await getAvailability(
-    reservation.common_area_id!,
+    reservation.resource_id!,
     reservation.start_datetime!,
     reservation.end_datetime!
   );
@@ -95,15 +95,15 @@ export const createReservation = async (reservation: Partial<Reservation>) => {
 
 export const updateReservation = async (id: string, reservation: Partial<Reservation>) => {
   // Only validate availability if dates or area are changing
-  if (reservation.start_datetime || reservation.end_datetime || reservation.common_area_id) {
+  if (reservation.start_datetime || reservation.end_datetime || reservation.resource_id) {
     // We need to get current values if some are missing for validation
     const { data: current } = await supabase
       .from('reservations')
-      .select('common_area_id, start_datetime, end_datetime')
+      .select('resource_id, start_datetime, end_datetime')
       .eq('id', id)
       .single();
 
-    const areaId = reservation.common_area_id || current?.common_area_id;
+    const areaId = reservation.resource_id || current?.resource_id;
     const start = reservation.start_datetime || current?.start_datetime;
     const end = reservation.end_datetime || current?.end_datetime;
 

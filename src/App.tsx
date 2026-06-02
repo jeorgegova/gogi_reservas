@@ -11,7 +11,7 @@ import Calendario from './pages/Calendario';
 import NewReservationPage from './pages/NewReservation';
 import MyReservationsPage from './pages/MyReservations';
 import AdminReservationsPage from './pages/admin/AdminReservations';
-import AdminAreasPage from './pages/admin/AdminAreas';
+import AdminResourcesPage from './pages/admin/AdminResources';
 import AdminUsersPage from './pages/admin/AdminUsers';
 import AdminSubscriptionPage from './pages/admin/AdminSubscription';
 import SuperAdminOrganizations from './pages/super-admin/Organizations';
@@ -24,6 +24,7 @@ import Bonificaciones from './pages/Bonificaciones';
 import AdminBonificaciones from './pages/admin/Bonificaciones';
 import VerifyEmail from './pages/VerifyEmail';
 import AdminSettingsPage from '@/pages/admin/AdminSettings';
+import AdminStatisticsPage from '@/pages/admin/AdminStatistics';
 
 const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reservations', 'login', 'register', 'maintenance', 'payment', 'bonificaciones', 'forgot-password', 'verify-email'];
 
@@ -257,11 +258,21 @@ function App() {
             }
           />
           <Route
-            path="/admin/areas"
+            path="/admin/resources"
             element={
               <PrivateRoute adminOnly>
                 <DashboardLayout>
-                  <AdminAreasPage />
+                  <AdminResourcesPage />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/statistics"
+            element={
+              <PrivateRoute adminOnly>
+                <DashboardLayout>
+                  <AdminStatisticsPage />
                 </DashboardLayout>
               </PrivateRoute>
             }

@@ -42,7 +42,7 @@ export default function PaymentPage() {
     if (!id) return;
     const { data } = await supabase
       .from('reservations')
-      .select(`*, common_areas (name)`)
+      .select(`*, resources (name)`)
       .eq('id', id)
       .single();
     setReservation(data);
@@ -168,7 +168,7 @@ export default function PaymentPage() {
             <p className="text-2xl font-bold text-gray-900">
               {formatCurrency(reservation.total_cost)}
             </p>
-            <p className="mt-2 text-xs text-gray-500">{reservation.common_areas?.name}</p>
+            <p className="mt-2 text-xs text-gray-500">{reservation.resources?.name}</p>
           </Card>
           <Button
             className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-md"
@@ -257,7 +257,7 @@ export default function PaymentPage() {
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">
-                {reservation.common_areas?.name}
+                {reservation.resources?.name}
               </h3>
               <p className="text-sm text-gray-500">Servicio reservado</p>
             </div>

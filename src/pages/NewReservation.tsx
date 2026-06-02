@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
-import { useCommonAreasQuery } from '@/hooks/useCommonAreas';
+import { useCommonAreasQuery } from '@/hooks/useResources';
 import { useCreateReservationMutation, useUpdateReservationMutation } from '@/hooks/useReservations';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as reservationService from '@/services/reservations';
@@ -30,7 +30,8 @@ import {
   Package,
   X,
   MapPin,
-  Phone
+  Phone,
+  User
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
@@ -186,7 +187,7 @@ export default function NewReservationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('reservations')
-        .select('*, common_areas(*), reservation_addons(addon_id, charged_price)')
+        .select('*, resources(*), reservation_services(service_id, charged_price)')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -261,7 +262,7 @@ export default function NewReservationPage() {
       }
 
       if (reservationToEdit) {
-        setSelectedArea(reservationToEdit.common_areas);
+        setSelectedArea(reservationToEdit.resources);
         setSelectedUserId(reservationToEdit.user_id);
         const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
         const startDay = format(startDate, 'yyyy-MM-dd');
@@ -273,8 +274,8 @@ export default function NewReservationPage() {
         const diffHours = Math.round(diffMs / (1000 * 60 * 60));
         setDuration(diffHours);
 
-        if (reservationToEdit.reservation_addons && reservationToEdit.reservation_addons.length > 0) {
-          setEditAddonIds(reservationToEdit.reservation_addons.map((ra: any) => ra.addon_id));
+        if (reservationToEdit.reservation_services && reservationToEdit.reservation_services.length > 0) {
+          setEditAddonIds(reservationToEdit.reservation_services.map((ra: any) => ra.service_id));
         }
         
         setStep(2);
@@ -352,24 +353,12 @@ export default function NewReservationPage() {
   );
 
   const fetchBusySlots = async (areaId: string) => {
-    const isSharedCalendar = businessType !== 'residential';
     let areaIds: string[] = [areaId];
-
-    if (isSharedCalendar) {
-      const { data: allAreas } = await supabase
-        .from('common_areas')
-        .select('id')
-        .eq('organization_id', profile?.organization_id)
-        .eq('is_active', true);
-      if (allAreas && allAreas.length > 0) {
-        areaIds = allAreas.map((a: any) => a.id);
-      }
-    }
 
     let query = supabase
       .from('reservations')
-      .select('start_datetime, end_datetime, common_area_id, profiles:user_id(full_name, phone), common_areas(name)')
-      .in('common_area_id', areaIds)
+      .select('start_datetime, end_datetime, resource_id, profiles:user_id(full_name, phone), resources(name)')
+      .in('resource_id', areaIds)
       .eq('organization_id', profile?.organization_id)
       .in('status', ['approved', 'pending_validation', 'pending_payment']);
 
@@ -383,7 +372,7 @@ export default function NewReservationPage() {
     const { data: maintData } = await supabase
       .from('maintenance_notices')
       .select('starts_at, ends_at, severity, title, content')
-      .or(`common_area_id.eq.${areaId},common_area_id.is.null`)
+      .or(`resource_id.eq.${areaId},resource_id.is.null`)
       .eq('organization_id', profile?.organization_id)
       .eq('is_active', true);
 
@@ -434,7 +423,7 @@ export default function NewReservationPage() {
       const { data: config } = await supabase
         .from('bonus_configs')
         .select('*')
-        .eq('common_area_id', areaId)
+        .eq('resource_id', areaId)
         .eq('is_active', true)
         .single();
 
@@ -446,7 +435,7 @@ export default function NewReservationPage() {
           .from('reservations')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', targetUserId)
-          .eq('common_area_id', areaId)
+          .eq('resource_id', areaId)
           .eq('status', 'approved');
 
         setUserReservationCount(count || 0);
@@ -462,18 +451,18 @@ export default function NewReservationPage() {
 
   const fetchAddons = async (areaId: string) => {
     const { data } = await supabase
-      .from('common_area_addons')
-      .select('*, service_addons(*)')
-      .eq('common_area_id', areaId);
+      .from('resource_services')
+      .select('*, services(*)')
+      .eq('resource_id', areaId);
     if (data) {
       const mapped = data
-        .filter((row: any) => row.service_addons?.is_active)
+        .filter((row: any) => row.services?.is_active)
         .map((row: any) => ({
-          id: row.addon_id,
-          name: row.service_addons?.name || '',
-          description: row.service_addons?.description || '',
-          additional_cost: row.custom_price ?? row.service_addons?.base_cost ?? 0,
-          additional_duration_minutes: row.service_addons?.duration_minutes || 0,
+          id: row.service_id,
+          name: row.services?.name || '',
+          description: row.services?.description || '',
+          additional_cost: row.custom_price ?? row.services?.base_cost ?? 0,
+          additional_duration_minutes: row.services?.duration_minutes || 0,
         }));
       setAvailableAddons(mapped);
     } else {
@@ -493,11 +482,11 @@ export default function NewReservationPage() {
   };
 
   useEffect(() => {
-    if (isEditing && reservationToEdit?.common_areas?.id && selectedArea?.id === reservationToEdit.common_areas.id) {
-      fetchBusySlots(reservationToEdit.common_areas.id);
+    if (isEditing && reservationToEdit?.resources?.id && selectedArea?.id === reservationToEdit.resources.id) {
+      fetchBusySlots(reservationToEdit.resources.id);
       fetchOperationSchedules();
-      fetchBonusInfo(reservationToEdit.common_areas.id);
-      fetchAddons(reservationToEdit.common_areas.id);
+      fetchBonusInfo(reservationToEdit.resources.id);
+      fetchAddons(reservationToEdit.resources.id);
     }
   }, [isEditing, selectedArea?.id]);
 
@@ -646,9 +635,8 @@ export default function NewReservationPage() {
       slotEnd = new Date(slotStart.getTime() + totalMinutes * 60 * 1000);
     }
 
-    const isSharedCalendar = businessType !== 'residential';
     const isReserved = existingReservations.some(res => {
-      if (!isSharedCalendar && res.common_area_id !== selectedArea?.id) return false;
+      if (res.resource_id !== selectedArea?.id) return false;
       const resStart = parseISO(detoxTime(res.start_datetime));
       const resEnd = parseISO(detoxTime(res.end_datetime));
       return (slotStart < resEnd && slotEnd > resStart);
@@ -656,7 +644,7 @@ export default function NewReservationPage() {
 
     if (isReserved) {
       const conflicts = existingReservations.filter(res => {
-        if (!isSharedCalendar && res.common_area_id !== selectedArea?.id) return false;
+        if (res.resource_id !== selectedArea?.id) return false;
         const resStart = parseISO(detoxTime(res.start_datetime));
         const resEnd = parseISO(detoxTime(res.end_datetime));
         return (slotStart < resEnd && slotEnd > resStart);
@@ -666,7 +654,7 @@ export default function NewReservationPage() {
         conflicts: conflicts.map((c: any) => ({
           userName: c.profiles?.full_name || 'Usuario',
           userPhone: c.profiles?.phone || '',
-          areaName: c.common_areas?.name || '',
+          areaName: c.resources?.name || '',
           start: c.start_datetime,
           end: c.end_datetime,
         }))
@@ -829,7 +817,7 @@ export default function NewReservationPage() {
     const { data } = await supabase
       .from('reservations')
       .select('start_datetime, end_datetime')
-      .eq('common_area_id', selectedArea.id)
+      .eq('resource_id', selectedArea.id)
       .eq('organization_id', profile?.organization_id)
       .in('status', ['approved', 'pending_validation', 'pending_payment'])
       .lt('start_datetime', monthEnd.toISOString())
@@ -918,7 +906,7 @@ export default function NewReservationPage() {
 
     const reservationData: Partial<reservationService.Reservation> = {
       user_id: reservationUserId,
-      common_area_id: selectedArea.id,
+      resource_id: selectedArea.id,
       start_datetime: start,
       end_datetime: end,
       total_cost: totalCost,
@@ -932,14 +920,14 @@ export default function NewReservationPage() {
       if (isEditing) {
         await updateMutation.mutateAsync({ id: id!, data: reservationData });
 
-        await supabase.from('reservation_addons').delete().eq('reservation_id', id);
+        await supabase.from('reservation_services').delete().eq('reservation_id', id);
         if (selectedAddons.length > 0) {
           const addonInserts = selectedAddons.map((addon: any) => ({
             reservation_id: id,
-            addon_id: addon.id,
+            service_id: addon.id,
             charged_price: addon.additional_cost || 0,
           }));
-          await supabase.from('reservation_addons').insert(addonInserts);
+          await supabase.from('reservation_services').insert(addonInserts);
         }
       } else {
         const result = await createMutation.mutateAsync(reservationData);
@@ -948,10 +936,10 @@ export default function NewReservationPage() {
           try {
             const addonInserts = selectedAddons.map((addon: any) => ({
               reservation_id: result.id,
-              addon_id: addon.id,
+              service_id: addon.id,
               charged_price: addon.additional_cost || 0,
             }));
-            await supabase.from('reservation_addons').insert(addonInserts);
+            await supabase.from('reservation_services').insert(addonInserts);
           } catch (addonError) {
             console.error('Error saving reservation add-ons:', addonError);
           }
@@ -1193,8 +1181,38 @@ export default function NewReservationPage() {
             )
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
+          <div className={cn("grid gap-3 md:gap-5", businessType !== 'residential' ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" : "grid-cols-2 md:grid-cols-2 lg:grid-cols-3")}>
             {areasData.map((area: any) => (
+              businessType !== 'residential' ? (
+                <Card
+                  key={area.id}
+                  className={cn(
+                    "border-none apple-shadow bg-white rounded-2xl transition-all duration-300 overflow-hidden group flex flex-col items-center p-4 text-center",
+                    (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:apple-shadow-hover hover:-translate-y-1 cursor-pointer active:scale-[0.98]"
+                  )}
+                  onClick={() => (isAdmin && !usersLoading && users.length === 0) ? null : handleAreaSelect(area)}
+                >
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-4 border-gray-50 shadow-sm relative group-hover:border-primary/20 transition-colors">
+                    {area.image_url ? (
+                      <img src={area.image_url} alt={area.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
+                        <User className="w-8 h-8 text-primary/40" />
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-sm md:text-base font-bold text-gray-900 leading-tight mb-1 truncate w-full">{area.name}</h3>
+                  <p className="text-[10px] md:text-xs text-gray-500 line-clamp-2 leading-relaxed mb-3 flex-1">
+                    {area.description || 'Sin especialidad'}
+                  </p>
+                  <Button
+                    className="w-full h-8 md:h-9 bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold text-[11px] md:text-xs rounded-xl transition-all duration-300 border-none shadow-none active:scale-95 mt-auto"
+                    disabled={isAdmin && users.length === 0}
+                  >
+                    Seleccionar
+                  </Button>
+                </Card>
+              ) : (
               <Card
                 key={area.id}
                 className={cn(
@@ -1257,6 +1275,7 @@ export default function NewReservationPage() {
                   </Button>
                 </div>
               </Card>
+              )
             ))}
           </div>
         </>

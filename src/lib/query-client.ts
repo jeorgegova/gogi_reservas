@@ -32,9 +32,9 @@ persistQueryClient({
       if (queryKey.includes('reservations')) {
         return false;
       }
-      // Persist commonAreas and organizations
+      // Persist resources and organizations
       return (
-        queryKey.includes('commonAreas') || 
+        queryKey.includes('resources') || 
         queryKey.includes('organizations') ||
         queryKey.includes('organization')
       );

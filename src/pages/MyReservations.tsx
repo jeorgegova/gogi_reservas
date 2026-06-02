@@ -45,7 +45,7 @@ export default function MyReservationsPage() {
   const fetchAreas = async () => {
     if (!profile?.organization_id) return;
     const { data } = await supabase
-      .from('common_areas')
+      .from('resources')
       .select('id, name')
       .eq('organization_id', profile.organization_id)
       .eq('is_active', true);
@@ -58,7 +58,7 @@ export default function MyReservationsPage() {
       .from('reservations')
       .select(`
         *,
-        common_areas (name, image_url)
+        resources (name, image_url)
       `)
       .eq('user_id', profile?.id)
       .eq('organization_id', profile?.organization_id)
@@ -91,7 +91,7 @@ export default function MyReservationsPage() {
   const filteredReservations = useMemo(() => {
     return reservations.filter(res => {
       const matchStatus = statusFilter === 'all' || res.status === statusFilter;
-      const matchArea = areaFilter === 'all' || res.common_area_id === areaFilter;
+      const matchArea = areaFilter === 'all' || res.resource_id === areaFilter;
 
       let matchDate = true;
       if (dateFilter) {
@@ -282,7 +282,7 @@ export default function MyReservationsPage() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-bold text-gray-900 group-hover:text-primary transition-colors truncate">{res.common_areas?.name}</h3>
+                    <h3 className="font-bold text-gray-900 group-hover:text-primary transition-colors truncate">{res.resources?.name}</h3>
                     <div className={cn(
                       "text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-tighter whitespace-nowrap",
                       res.status === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :

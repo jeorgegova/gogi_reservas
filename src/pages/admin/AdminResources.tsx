@@ -17,6 +17,7 @@ import {
   X,
   Clock,
   Package,
+  User,
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -87,7 +88,7 @@ function DurationSelector({ value, onChange }: { value: number; onChange: (min: 
 }
 
 interface LinkedAddon {
-  addon_id: string;
+  service_id: string;
   name: string;
   description: string;
   base_cost: number;
@@ -95,7 +96,7 @@ interface LinkedAddon {
   custom_price: number;
 }
 
-export default function AdminAreasPage() {
+export default function AdminResourcesPage() {
   const { profile, terminology, businessType } = useAuth();
   const isResidential = businessType === 'residential';
   const [areas, setAreas] = useState<any[]>([]);
@@ -137,7 +138,7 @@ export default function AdminAreasPage() {
     if (!profile?.organization_id) return;
     setLoading(true);
     const { data } = await supabase
-      .from('common_areas')
+      .from('resources')
       .select('*')
       .eq('organization_id', profile.organization_id)
       .order('created_at', { ascending: false });
@@ -148,7 +149,7 @@ export default function AdminAreasPage() {
   const fetchOrgAddons = async () => {
     if (!profile?.organization_id) return;
     const { data } = await supabase
-      .from('service_addons')
+      .from('services')
       .select('*')
       .eq('organization_id', profile.organization_id)
       .eq('is_active', true)
@@ -158,17 +159,17 @@ export default function AdminAreasPage() {
 
   const fetchLinkedAddons = async (areaId: string) => {
     const { data } = await supabase
-      .from('common_area_addons')
-      .select('*, service_addons(*)')
-      .eq('common_area_id', areaId);
+      .from('resource_services')
+      .select('*, services(*)')
+      .eq('resource_id', areaId);
     if (data) {
       const mapped: LinkedAddon[] = data.map((row: any) => ({
-        addon_id: row.addon_id,
-        name: row.service_addons?.name || '',
-        description: row.service_addons?.description || '',
-        base_cost: row.service_addons?.base_cost || 0,
-        duration_minutes: row.service_addons?.duration_minutes || 0,
-        custom_price: row.custom_price ?? row.service_addons?.base_cost ?? 0,
+        service_id: row.service_id,
+        name: row.services?.name || '',
+        description: row.services?.description || '',
+        base_cost: row.services?.base_cost || 0,
+        duration_minutes: row.services?.duration_minutes || 0,
+        custom_price: row.custom_price ?? row.services?.base_cost ?? 0,
       }));
       setLinkedAddons(mapped);
     }
@@ -199,7 +200,7 @@ export default function AdminAreasPage() {
 
   const handleToggleActive = async (area: any) => {
     await supabase
-      .from('common_areas')
+      .from('resources')
       .update({ is_active: !area.is_active })
       .eq('id', area.id)
       .eq('organization_id', profile?.organization_id);
@@ -207,13 +208,13 @@ export default function AdminAreasPage() {
   };
 
   const handleAddExistingAddon = (addon: any) => {
-    const alreadyLinked = linkedAddons.find(la => la.addon_id === addon.id);
+    const alreadyLinked = linkedAddons.find(la => la.service_id === addon.id);
     if (alreadyLinked) {
       toast.error('Este servicio adicional ya está agregado');
       return;
     }
     setLinkedAddons(prev => [...prev, {
-      addon_id: addon.id,
+      service_id: addon.id,
       name: addon.name,
       description: addon.description || '',
       base_cost: addon.base_cost || 0,
@@ -224,11 +225,11 @@ export default function AdminAreasPage() {
   };
 
   const handleRemoveLinkedAddon = (addonId: string) => {
-    setLinkedAddons(prev => prev.filter(la => la.addon_id !== addonId));
+    setLinkedAddons(prev => prev.filter(la => la.service_id !== addonId));
   };
 
   const handleUpdateLinkedAddonPrice = (addonId: string, price: number) => {
-    setLinkedAddons(prev => prev.map(la => la.addon_id === addonId ? { ...la, custom_price: price } : la));
+    setLinkedAddons(prev => prev.map(la => la.service_id === addonId ? { ...la, custom_price: price } : la));
   };
 
   const handleCreateAndAddAddon = async () => {
@@ -236,7 +237,7 @@ export default function AdminAreasPage() {
     setSavingAddon(true);
     try {
       const { data, error } = await supabase
-        .from('service_addons')
+        .from('services')
         .insert({
           organization_id: profile.organization_id,
           name: newAddon.name.trim(),
@@ -250,7 +251,7 @@ export default function AdminAreasPage() {
       if (error) throw error;
       if (data) {
         setLinkedAddons(prev => [...prev, {
-          addon_id: data.id,
+          service_id: data.id,
           name: data.name,
           description: data.description || '',
           base_cost: data.base_cost || 0,
@@ -313,14 +314,14 @@ export default function AdminAreasPage() {
 
       if (areaId) {
         const { error } = await supabase
-          .from('common_areas')
+          .from('resources')
           .update(areaData)
           .eq('id', areaId)
           .eq('organization_id', orgId);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
-          .from('common_areas')
+          .from('resources')
           .insert(areaData)
           .select('id')
           .single();
@@ -330,18 +331,18 @@ export default function AdminAreasPage() {
 
       // Sync linked addons
       await supabase
-        .from('common_area_addons')
+        .from('resource_services')
         .delete()
-        .eq('common_area_id', areaId);
+        .eq('resource_id', areaId);
 
       if (linkedAddons.length > 0) {
         const inserts = linkedAddons.map(la => ({
-          common_area_id: areaId,
-          addon_id: la.addon_id,
+          resource_id: areaId,
+          service_id: la.service_id,
           custom_price: la.custom_price,
         }));
         const { error: junctionError } = await supabase
-          .from('common_area_addons')
+          .from('resource_services')
           .insert(inserts);
         if (junctionError) console.error('Error saving area addons:', junctionError);
       }
@@ -356,7 +357,7 @@ export default function AdminAreasPage() {
   };
 
   const availableToAdd = orgAddons.filter(
-    (oa: any) => !linkedAddons.find(la => la.addon_id === oa.id)
+    (oa: any) => !linkedAddons.find(la => la.service_id === oa.id)
   );
 
   const formatDuration = (min: number) => {
@@ -586,7 +587,7 @@ export default function AdminAreasPage() {
                 {linkedAddons.length > 0 && (
                   <div className="space-y-2 mb-4">
                     {linkedAddons.map((la) => (
-                      <div key={la.addon_id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                      <div key={la.service_id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-900">{la.name}</span>
@@ -601,11 +602,11 @@ export default function AdminAreasPage() {
                           <Label className="text-[9px] uppercase font-bold text-gray-400 whitespace-nowrap">Precio:</Label>
                           <CurrencyInput
                             value={la.custom_price}
-                            onChange={(val) => handleUpdateLinkedAddonPrice(la.addon_id, val)}
+                            onChange={(val) => handleUpdateLinkedAddonPrice(la.service_id, val)}
                             className="h-8 rounded-lg text-xs w-32"
                           />
                         </div>
-                        <button type="button" onClick={() => handleRemoveLinkedAddon(la.addon_id)} className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-colors">
+                        <button type="button" onClick={() => handleRemoveLinkedAddon(la.service_id)} className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-colors">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
@@ -711,17 +712,31 @@ export default function AdminAreasPage() {
                 !area.is_active && "opacity-50 grayscale"
               )}
             >
-              <div className="relative h-28 md:h-36 overflow-hidden">
-                {area.image_url ? (
-                  <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
-                    <Building2 className="w-10 h-10 md:w-12 md:h-12 text-primary/20" />
+              <div className={cn("relative overflow-hidden", isResidential ? "h-28 md:h-36" : "h-36 md:h-44 flex flex-col items-center justify-center bg-gray-50 pt-6 pb-4")}>
+                {!isResidential ? (
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-4 border-white shadow-sm relative z-10 mb-2">
+                    {area.image_url ? (
+                      <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
+                        <User className="w-8 h-8 text-primary/40" />
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <>
+                    {area.image_url ? (
+                      <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
+                        <Building2 className="w-10 h-10 md:w-12 md:h-12 text-primary/20" />
+                      </div>
+                    )}
+                  </>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                <div className="absolute bottom-1.5 left-2 right-2">
-                  <h3 className="text-white text-xs md:text-sm font-bold drop-shadow-lg leading-tight truncate">{area.name}</h3>
+                <div className={cn("absolute inset-0 bg-gradient-to-t via-transparent", isResidential ? "from-black/50 to-transparent" : "from-black/10 to-transparent")} />
+                <div className={cn("absolute", isResidential ? "bottom-1.5 left-2 right-2" : "bottom-1.5 w-full text-center")}>
+                  <h3 className={cn("font-bold leading-tight truncate", isResidential ? "text-white text-xs md:text-sm drop-shadow-lg" : "text-gray-900 text-sm md:text-base")}>{area.name}</h3>
                 </div>
                 <div className={cn(
                   "absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] font-black uppercase border backdrop-blur-sm",

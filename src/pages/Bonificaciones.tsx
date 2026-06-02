@@ -31,7 +31,7 @@ export default function BonificacionesUsuario() {
     try {
       const { data: bonusConfigs } = await supabase
         .from('bonus_configs')
-        .select('*, common_areas(name, image_url)')
+        .select('*, resources(name, image_url)')
         .eq('organization_id', profile?.organization_id)
         .eq('is_active', true);
 
@@ -39,7 +39,7 @@ export default function BonificacionesUsuario() {
 
       const { data: reservations } = await supabase
         .from('reservations')
-        .select('common_area_id')
+        .select('resource_id')
         .eq('user_id', profile?.id)
         .eq('status', 'approved');
 
@@ -52,7 +52,7 @@ export default function BonificacionesUsuario() {
   };
 
   const getAreaProgress = (areaId: string) => {
-    return userReservations.filter(res => res.common_area_id === areaId).length;
+    return userReservations.filter(res => res.resource_id === areaId).length;
   };
 
   if (loading) {
@@ -90,12 +90,12 @@ export default function BonificacionesUsuario() {
           </div>
         ) : (
           configs.map((config) => {
-            const currentReservations = getAreaProgress(config.common_area_id);
+            const currentReservations = getAreaProgress(config.resource_id);
             const goal = config.reservations_required;
             const progress = (currentReservations % goal);
             const hasDiscount = currentReservations > 0 && progress === 0;
             const progressPercent = (progress / goal) * 100;
-            const area = config.common_areas;
+            const area = config.resources;
             const remaining = goal - progress;
 
             return (

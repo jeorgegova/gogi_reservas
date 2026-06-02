@@ -32,31 +32,52 @@ AS $$
 DECLARE
   guest_uuid uuid;
   guest_email text;
+  existing_email text;
 BEGIN
   guest_email := org_slug || '-guest@system.gogireservas.com';
 
-  -- 1. Verificar si ya existe en profiles por email
+  -- 🔒 1. Lock de la organización para evitar concurrencia y obtener el ID
+  SELECT guest_user_id INTO guest_uuid
+  FROM public.organizations
+  WHERE id = org_id
+  FOR UPDATE;
+
+  -- Si hay un invitado asignado, obtener su correo en una consulta separada
+  IF guest_uuid IS NOT NULL THEN
+    SELECT email INTO existing_email
+    FROM public.profiles
+    WHERE id = guest_uuid;
+  END IF;
+
+  -- Si ya existe Y el correo es el correcto para esta organización, devolverlo inmediatamente
+  IF guest_uuid IS NOT NULL AND existing_email = guest_email THEN
+    RETURN guest_uuid;
+  END IF;
+
+  -- 2. Verificar si ya existe en profiles por el correo correcto
   SELECT id INTO guest_uuid
   FROM public.profiles
   WHERE email = guest_email
   LIMIT 1;
 
   IF guest_uuid IS NOT NULL THEN
-    -- Asegurar que el perfil tenga la org y nombre correctos
+    -- Corregir datos si están vinculados a otra org o incompletos
     UPDATE public.profiles
-    SET organization_id = org_id, full_name = 'Invitado', role = 'guest'
+    SET organization_id = org_id,
+        full_name = 'Invitado',
+        role = 'guest'
     WHERE id = guest_uuid
       AND (organization_id IS NULL OR organization_id != org_id);
 
-    -- Asegurar que la organización lo tenga seteado
+    -- Vincular a la organización
     UPDATE public.organizations
     SET guest_user_id = guest_uuid
-    WHERE id = org_id AND (guest_user_id IS NULL OR guest_user_id != guest_uuid);
+    WHERE id = org_id;
 
     RETURN guest_uuid;
   END IF;
 
-  -- 2. Crear usuario en auth.users
+  -- 3. Crear usuario en auth.users si no existe por email
   INSERT INTO auth.users (
     instance_id,
     id,
@@ -88,7 +109,7 @@ BEGIN
   )
   RETURNING id INTO guest_uuid;
 
-  -- 3. Insert en profiles con todos los datos correctos
+  -- 4. Insert en profiles con protección de conflicto
   INSERT INTO public.profiles (id, email, full_name, role, organization_id)
   VALUES (
     guest_uuid,
@@ -103,7 +124,7 @@ BEGIN
     role = 'guest',
     organization_id = org_id;
 
-  -- 4. Actualizar organización
+  -- 5. Actualizar organización con el nuevo ID correcto
   UPDATE public.organizations
   SET guest_user_id = guest_uuid
   WHERE id = org_id;
@@ -111,6 +132,7 @@ BEGIN
   RETURN guest_uuid;
 END;
 $$;
+
 
 -- 4. Agregar columnas de descanso/almuerzo a operation_schedules
 ALTER TABLE public.operation_schedules ADD COLUMN IF NOT EXISTS break_start text;

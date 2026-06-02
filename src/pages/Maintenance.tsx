@@ -31,8 +31,8 @@ interface Notice {
   severity: 'info' | 'warning' | 'critical';
   starts_at: string;
   ends_at: string;
-  common_area_id: string | null;
-  common_areas?: {
+  resource_id: string | null;
+  resources?: {
     name: string;
   };
   is_active: boolean;
@@ -58,7 +58,7 @@ export default function MaintenancePage() {
     severity: 'info',
     starts_at: '',
     ends_at: '',
-    common_area_id: '',
+    resource_id: '',
     mode: 'range' as 'range' | 'day',
     single_date: '',
   });
@@ -102,7 +102,7 @@ export default function MaintenancePage() {
   const fetchNoticeToEdit = async (id: string) => {
     const { data, error } = await supabase
       .from('maintenance_notices')
-      .select(`*, common_areas (name)`)
+      .select(`*, resources (name)`)
       .eq('id', id)
       .eq('organization_id', profile?.organization_id)
       .single();
@@ -120,7 +120,7 @@ export default function MaintenancePage() {
         .from('maintenance_notices')
         .select(`
           *,
-          common_areas (name)
+          resources (name)
         `)
         .eq('organization_id', profile?.organization_id)
         .order('created_at', { ascending: false })
@@ -138,7 +138,7 @@ export default function MaintenancePage() {
   const fetchAreas = async () => {
     if (!profile?.organization_id) return;
     const { data } = await supabase
-      .from('common_areas')
+      .from('resources')
       .select('id, name')
       .eq('organization_id', profile.organization_id)
       .eq('is_active', true);
@@ -180,7 +180,7 @@ export default function MaintenancePage() {
     if (startsAt && endsAt && profile?.organization_id) {
       const { data: conflicts } = await supabase
         .from('reservations')
-        .select('id, start_datetime, end_datetime, profiles:user_id(full_name), common_areas(name)')
+        .select('id, start_datetime, end_datetime, profiles:user_id(full_name), resources(name)')
         .eq('organization_id', profile.organization_id)
         .in('status', ['approved', 'pending_validation', 'pending_payment'])
         .lt('start_datetime', endsAt.includes('T') ? endsAt : endsAt + 'T23:59:59')
@@ -188,7 +188,7 @@ export default function MaintenancePage() {
 
       if (conflicts && conflicts.length > 0) {
         const conflictList = conflicts.map((c: any) =>
-          `- ${c.profiles?.full_name || 'Usuario'} en ${c.common_areas?.name || 'Área'} (${new Date(c.start_datetime).toLocaleString('es')} → ${new Date(c.end_datetime).toLocaleString('es')})`
+          `- ${c.profiles?.full_name || 'Usuario'} en ${c.resources?.name || 'Área'} (${new Date(c.start_datetime).toLocaleString('es')} → ${new Date(c.end_datetime).toLocaleString('es')})`
         ).join('\n');
         const proceed = confirm(
           `⚠️ Se encontraron ${conflicts.length} ${conflicts.length === 1 ? 'reserva' : 'reservas'} en el rango del aviso:\n\n${conflictList}\n\n¿Deseas continuar publicando el aviso de todas formas?`
@@ -209,7 +209,7 @@ export default function MaintenancePage() {
           severity: newNotice.severity,
           starts_at: startsAt,
           ends_at: endsAt,
-          common_area_id: newNotice.common_area_id || null
+          resource_id: newNotice.resource_id || null
         })
         .eq('id', editingNotice.id);
 
@@ -224,7 +224,7 @@ export default function MaintenancePage() {
           severity: 'info',
           starts_at: '',
           ends_at: '',
-          common_area_id: '',
+          resource_id: '',
           mode: 'range',
           single_date: '',
         });
@@ -238,7 +238,7 @@ export default function MaintenancePage() {
         severity: newNotice.severity,
         starts_at: startsAt,
         ends_at: endsAt,
-        common_area_id: newNotice.common_area_id || null,
+        resource_id: newNotice.resource_id || null,
         organization_id: profile?.organization_id
       });
       if (!error) {
@@ -250,7 +250,7 @@ export default function MaintenancePage() {
           severity: 'info',
           starts_at: '',
           ends_at: '',
-          common_area_id: '',
+          resource_id: '',
           mode: 'range',
           single_date: '',
         });
@@ -270,7 +270,7 @@ export default function MaintenancePage() {
         severity: editingNotice.severity || 'info',
         starts_at: editingNotice.starts_at ? editingNotice.starts_at.slice(0, 16) : '',
         ends_at: editingNotice.ends_at ? editingNotice.ends_at.slice(0, 16) : '',
-        common_area_id: editingNotice.common_area_id || '',
+        resource_id: editingNotice.resource_id || '',
         mode: 'range',
         single_date: '',
       });
@@ -287,7 +287,7 @@ export default function MaintenancePage() {
       severity: 'info',
       starts_at: '',
       ends_at: '',
-      common_area_id: '',
+      resource_id: '',
       mode: 'range',
       single_date: '',
     });
@@ -465,8 +465,8 @@ export default function MaintenancePage() {
                   <select
                     id="area"
                     className="w-full h-11 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-                    value={newNotice.common_area_id}
-                    onChange={e => setNewNotice({ ...newNotice, common_area_id: e.target.value })}
+                    value={newNotice.resource_id}
+                    onChange={e => setNewNotice({ ...newNotice, resource_id: e.target.value })}
                     required
                   >
                     <option value="">Selecciona un {terminology.areaLabel.toLowerCase()}...</option>
@@ -706,10 +706,10 @@ export default function MaintenancePage() {
                             {notice.title}
                           </h3>
                           <div className="flex items-center gap-2 flex-wrap">
-                            {notice.common_areas && (
+                            {notice.resources && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium text-gray-600">
                                 <MapPin className="h-3 w-3" />
-                                {notice.common_areas.name}
+                                {notice.resources.name}
                               </span>
                             )}
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${styles.badge}`}>

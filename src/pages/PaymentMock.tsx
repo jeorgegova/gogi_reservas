@@ -31,7 +31,7 @@ export default function PaymentMockPage() {
       .from('reservations')
       .select(`
         *,
-        common_areas (name)
+        resources (name)
       `)
       .eq('id', id)
       .single();
@@ -74,7 +74,7 @@ export default function PaymentMockPage() {
               <div className="flex items-center gap-4 mb-4">
                 <CreditCard className="w-8 h-8 text-primary" />
                 <div>
-                  <h3 className="font-semibold text-gray-900">{reservation.common_areas?.name}</h3>
+                  <h3 className="font-semibold text-gray-900">{reservation.resources?.name}</h3>
                   <p className="text-sm text-gray-500">Servicio reservado</p>
                 </div>
               </div>

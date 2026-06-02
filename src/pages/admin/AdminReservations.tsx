@@ -76,7 +76,7 @@ export default function AdminReservationsPage() {
       const baseSelect = `
         *,
         profiles (full_name, apartment, email, role),
-        common_areas (name)
+        resources (name)
       `;
 
       const fetchMonth = supabase
@@ -201,7 +201,7 @@ export default function AdminReservationsPage() {
         res.profiles?.full_name?.toLowerCase().includes(q) ||
         res.guest_name?.toLowerCase().includes(q) ||
         (businessType === 'residential' && res.profiles?.apartment?.toLowerCase().includes(q)) ||
-        res.common_areas?.name?.toLowerCase().includes(q)
+        res.resources?.name?.toLowerCase().includes(q)
       );
     });
   }, [reservations, debouncedSearch, statusFilter, businessType]);
@@ -375,7 +375,7 @@ export default function AdminReservationsPage() {
                           </a>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 font-medium truncate">{res.common_areas?.name}</td>
+                      <td className="px-4 py-3 text-gray-600 font-medium truncate">{res.resources?.name}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-gray-700 text-xs">{formatDate(res.start_datetime)}</div>
                         <div className="text-[10px] text-gray-400 font-medium">{formatTime(res.start_datetime)} - {formatTime(res.end_datetime)}</div>
@@ -450,7 +450,7 @@ export default function AdminReservationsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-gray-500 truncate">{res.common_areas?.name}</span>
+                        <span className="text-[10px] text-gray-500 truncate">{res.resources?.name}</span>
                         {businessType === 'residential' && res.profiles?.apartment && (
                           <span className="text-[10px] text-gray-400 shrink-0">{terminology.unitLabel} {res.profiles?.apartment}</span>
                         )}

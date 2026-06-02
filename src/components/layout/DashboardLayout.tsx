@@ -23,6 +23,7 @@ import {
   Copy,
   Check,
   MessageCircle,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -32,7 +33,7 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { AuthModal } from '../auth/AuthModal';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, terminology: terminologyHook, isGuest, openAuthModal } = useAuth();
+  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, terminology: terminologyHook, isGuest, openAuthModal, businessType } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [organization, setOrganization] = useState<any>(null);
   const [orgLoading, setOrgLoading] = useState(false);
@@ -133,7 +134,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: 'Dashboard (informes)', path: '/admin', icon: LayoutDashboard },
       { name: `Calendario (${terminology.reservationLabel}s)`, path: '/dashboard', icon: Calendar },
       { name: `Gestión ${terminology.reservationLabel}s`, path: '/admin/reservations', icon: Calendar },
-      { name: terminology.areaLabel + 's', path: '/admin/areas', icon: Building2 },
+      { name: terminology.areaLabel + (businessType !== 'residential' ? 's' : 's'), path: '/admin/resources', icon: businessType !== 'residential' ? Users : Building2 },
+      ...(businessType !== 'residential' ? [{ name: 'Rendimiento / Estadísticas', path: '/admin/statistics', icon: History }] : []),
       { name: terminology.userLabel + 's', path: '/admin/users', icon: User },
       { name: 'Suscripción', path: '/admin/subscription', icon: Crown },
       { name: 'Bonificaciones', path: '/admin/bonificaciones', icon: Gift },
