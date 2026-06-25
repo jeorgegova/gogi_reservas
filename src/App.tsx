@@ -30,14 +30,13 @@ import AdminStatisticsPage from '@/pages/admin/AdminStatistics';
 const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reservations', 'login', 'register', 'maintenance', 'payment', 'bonificaciones', 'forgot-password', 'verify-email'];
 
 const OrganizationHome = () => {
-  const { profile, loading, fetchOrgSettings, setGuestMode, signOut } = useAuth();
+  const { profile, loading, fetchOrgSettings, setGuestMode, signOut, restoreGuestSession } = useAuth();
   const { slug } = useParams<{ slug: string }>();
   const [settingsLoading, setSettingsLoading] = useState(true);
 
   useEffect(() => {
     if (!slug || loading || RESERVED_SLUGS.includes(slug)) return;
 
-    // Si ya estamos en la organización correcta, no hacemos nada
     if (profile?.organization_slug === slug) {
       setSettingsLoading(false);
       return;
@@ -45,43 +44,30 @@ const OrganizationHome = () => {
 
     setSettingsLoading(true);
 
-    fetchOrgSettings(slug).then(async (settings) => {
-      if (settings && !settings.requires_auth && settings.guest_user_id) {
-        // Si hay una sesión activa de otra organización, la limpiamos según requerimiento del usuario
-        if (profile && profile.organization_slug !== slug) {
-          console.log('App: Sesión de otra organización detectada, limpiando para modo invitado...', { profileSlug: profile.organization_slug, targetSlug: slug });
-          try {
-            await signOut();
-          } catch (signOutError) {
-            console.error('Error during signOut:', signOutError);
-          }
-
-          try {
-            await setGuestMode(settings.guest_user_id, slug, settings.id);
-          } catch (setGuestModeError) {
-            console.error('Error setting guest mode:', setGuestModeError);
-          } finally {
-            setSettingsLoading(false);
+    const loadOrgSettings = () => {
+      fetchOrgSettings(slug).then(async (settings) => {
+        if (settings && !settings.requires_auth && settings.guest_user_id) {
+          if (profile && profile.organization_slug !== slug) {
+            try { await signOut(); } catch {}
+            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch {} finally { setSettingsLoading(false); }
+          } else {
+            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch {} finally { setSettingsLoading(false); }
           }
         } else {
-          // Iniciamos como invitado
-          try {
-            await setGuestMode(settings.guest_user_id, slug, settings.id);
-          } catch (setGuestModeError) {
-            console.error('Error setting guest mode:', setGuestModeError);
-          } finally {
-            setSettingsLoading(false);
-          }
+          setSettingsLoading(false);
         }
-      } else {
-        // Si requiere auth o no hay configuración de invitado, dejamos que muestre el login
-        setSettingsLoading(false);
-      }
-    }).catch((err) => {
-      console.error('App: Error al cargar configuración de la organización:', err);
-      setSettingsLoading(false);
-    });
-  }, [slug, loading, profile, fetchOrgSettings, setGuestMode, signOut]);
+      }).catch(() => setSettingsLoading(false));
+    };
+
+    if (!profile) {
+      restoreGuestSession().then((restored) => {
+        if (restored) { setSettingsLoading(false); return; }
+        loadOrgSettings();
+      });
+    } else {
+      loadOrgSettings();
+    }
+  }, [slug, loading, profile, fetchOrgSettings, setGuestMode, signOut, restoreGuestSession]);
 
   if (loading || settingsLoading) {
     return (

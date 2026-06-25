@@ -4,8 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useCommonAreasQuery } from '@/hooks/useResources';
 import { useCreateReservationMutation, useUpdateReservationMutation } from '@/hooks/useReservations';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,16 +17,13 @@ import {
   AlertCircle,
   ArrowRight,
   ChevronLeft,
-  Calendar as CalendarIcon,
-  Users,
-  Search,
   HelpCircle,
   Gift,
   Package,
-  X,
-  MapPin,
-  Phone,
-  User
+  User,
+  LogIn,
+  UserPlus,
+  Building2,
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format, addMinutes, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
@@ -37,34 +35,53 @@ interface CustomService {
   description: string;
   cost: number;
   duration: number;
+  image_url?: string;
+}
+
+interface AddonOption {
+  id: string;
+  name: string;
+  description: string;
+  additional_cost: number;
+  additional_duration_minutes: number;
 }
 
 export default function NewReservationPage() {
-  const { profile, terminology, openAuthModal, businessType } = useAuth();
-  const queryClient = useQueryClient();
-  const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
+  const { profile, openAuthModal, terminology } = useAuth();
+  const [orgBusinessType, setOrgBusinessType] = useState<string>('residential');
+  const isResidential = orgBusinessType === 'residential';
+
+  useEffect(() => {
+    if (profile?.organization_id) {
+      supabase.from('organizations').select('business_type').eq('id', profile.organization_id).single().then(({ data }) => {
+        if (data) setOrgBusinessType(data.business_type);
+      });
+    }
+  }, [profile?.organization_id]);
+  const { status: subscriptionStatus, daysUntilExpiry, previousSubscriptionExpiredBeyond20Days, loading: subscriptionLoading } = useSubscriptionStatus(profile?.organization_id);
   const navigate = useNavigate();
   const { id } = useParams();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isEditing = !!id;
 
   const [step, setStep] = useState(1);
-  const [selectedArea, setSelectedArea] = useState<any>(null); // selectedEmployee
+  const [selectedArea, setSelectedArea] = useState<any>(null);
   const [searchParams] = useSearchParams();
   const initialDate = searchParams.get('date');
 
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), 'yyyy-MM-dd'));
   const [selectedStartTime, setSelectedStartTime] = useState<string>('');
-  
-  // New architecture fields: list of services linking to employee
+  const [selectedHourSlots, setSelectedHourSlots] = useState<string[]>([]);
+  const [selectedJornada, setSelectedJornada] = useState<string>('');
+
   const [availableServices, setAvailableServices] = useState<CustomService[]>([]);
-  const [selectedServices, setSelectedServices] = useState<CustomService[]>([]);
+  const [selectedService, setSelectedService] = useState<CustomService | null>(null);
+  const [availableAddons, setAvailableAddons] = useState<AddonOption[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<AddonOption[]>([]);
   const [existingReservations, setExistingReservations] = useState<any[]>([]);
   const [activeMaintenances, setActiveMaintenances] = useState<any[]>([]);
 
-  // Admin user selection
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [userSearchTerm, setUserSearchTerm] = useState<string>('');
 
   const [isErrorAlertOpen, setIsErrorAlertOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -74,47 +91,16 @@ export default function NewReservationPage() {
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0);
-  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [pendingEmployee, setPendingEmployee] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   const [operationSchedules, setOperationSchedules] = useState<any[]>([]);
   const [maxReservationDays, setMaxReservationDays] = useState<number | null>(null);
 
-  // Queries
   const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
   const createMutation = useCreateReservationMutation();
   const updateMutation = useUpdateReservationMutation();
-
-  const fallbackSlots = Array.from({ length: 28 }, (_, i) => {
-    const hour = Math.floor(8 + i / 2);
-    const minute = i % 2 === 0 ? '00' : '30';
-    return `${hour.toString().padStart(2, '0')}:${minute}`;
-  });
-
-  const getNextBlockStart = (startTime: string): Date | null => {
-    if (!startTime) return null;
-    const start = parseISO(`${selectedDate} ${startTime}:00`);
-    let earliestBlock: Date | null = null;
-
-    for (const res of existingReservations) {
-      const resStart = parseISO(detoxTime(res.start_datetime));
-      if (resStart > start) {
-        if (!earliestBlock || resStart < earliestBlock) {
-          earliestBlock = resStart;
-        }
-      }
-    }
-
-    for (const maint of activeMaintenances) {
-      const maintStart = parseISO(detoxTime(maint.starts_at));
-      if (maintStart > start) {
-        if (!earliestBlock || maintStart < earliestBlock) {
-          earliestBlock = maintStart;
-        }
-      }
-    }
-
-    return earliestBlock;
-  };
 
   const targetUserIdForPendingCheck = (isAdmin && selectedUserId) ? selectedUserId : profile?.id;
   const isGuestUser = !profile?.id || profile?.role === 'guest';
@@ -129,9 +115,7 @@ export default function NewReservationPage() {
         .eq('organization_id', profile?.organization_id)
         .in('status', ['pending_payment', 'pending_validation']);
 
-      if (isEditing && id) {
-        query = query.neq('id', id);
-      }
+      if (isEditing && id) query = query.neq('id', id);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -147,21 +131,11 @@ export default function NewReservationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('memberships')
-        .select(`
-          user_id,
-          phone,
-          apartment,
-          profiles (
-            id,
-            full_name,
-            email
-          )
-        `)
+        .select(`user_id, phone, apartment, profiles (id, full_name, email)`)
         .eq('organization_id', profile?.organization_id)
         .eq('role', 'user');
 
       if (error) throw error;
-
       return (data || []).map((m: any) => ({
         id: m.profiles.id,
         full_name: m.profiles.full_name,
@@ -185,7 +159,7 @@ export default function NewReservationPage() {
     },
     enabled: isEditing && !!id,
   });
-  
+
   const { data: organization } = useQuery({
     queryKey: ['organization', profile?.organization_id],
     queryFn: async () => {
@@ -216,9 +190,10 @@ export default function NewReservationPage() {
       const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
       setSelectedDate(format(startDate, 'yyyy-MM-dd'));
       setSelectedStartTime(format(startDate, 'HH:mm'));
-      
-      // Load services linked to edit
+
       fetchLinkedServicesForEdit(reservationToEdit.resources.id, reservationToEdit.reservation_services);
+      fetchBusySlots(reservationToEdit.resources.id);
+      fetchOperationSchedules();
       setStep(3);
     }
   }, [reservationToEdit, isEditing, profile?.id, isAdmin]);
@@ -228,7 +203,7 @@ export default function NewReservationPage() {
       .from('resource_services')
       .select('*, services(*)')
       .eq('resource_id', employeeId);
-    
+
     if (data) {
       const mapped = data
         .filter((row: any) => row.services?.is_active)
@@ -238,18 +213,23 @@ export default function NewReservationPage() {
           description: row.services.description || '',
           cost: row.custom_price ?? row.services.base_cost ?? 0,
           duration: row.services.duration_minutes || 30,
+          image_url: row.services.image_url,
         }));
       setAvailableServices(mapped);
-      
-      const savedIds = savedServices.map(s => s.service_id);
-      const selected = mapped.filter(m => savedIds.includes(m.id));
-      setSelectedServices(selected);
+
+      const savedIds = savedServices.map((s: any) => s.service_id);
+      const matched = mapped.find((m: CustomService) => savedIds.includes(m.id));
+      if (matched) {
+        setSelectedService(matched);
+        fetchServiceAddons(matched.id, employeeId);
+      }
     }
   };
 
   const blockingError = (() => {
+    if (subscriptionLoading) return null;
     if (subscriptionStatus === 'cancelled') return 'Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.';
-    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return 'Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.';
+    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return 'Servicio temporalmente inhabilitado.';
 
     if (isEditing && reservationToEdit) {
       if (reservationToEdit.user_id !== profile?.id && !isAdmin) return `No tienes permiso para editar esta reserva.`;
@@ -260,35 +240,23 @@ export default function NewReservationPage() {
       return `Tienes una reserva pendiente de pago o validación. Debes completar el pago o esperar aprobación antes de hacer una nueva.`;
     }
 
-    if (isGuestUser && isEditing) {
-      return `Como invitado no puedes editar reservas. Por favor inicia sesión para gestionar tus citas.`;
-    }
+    if (isGuestUser && isEditing) return `Como invitado no puedes editar reservas.`;
 
     return null;
   })();
 
-  const totalSelectedDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
-  const totalSelectedCost = selectedServices.reduce((sum, s) => sum + s.cost, 0);
+  const mainDuration = isResidential
+    ? (selectedArea?.pricing_type === 'jornada' ? (selectedArea.jornada_hours_diurna || 10) * 60 + (selectedArea.jornada_hours_nocturna || 6) * 60 : selectedHourSlots.length * 60 || selectedArea?.estimated_duration_minutes || 60)
+    : (selectedService?.duration || 60);
+  const addonsDuration = selectedAddons.reduce((sum, a) => sum + (a.additional_duration_minutes || 0), 0);
+  const totalSelectedDuration = mainDuration + addonsDuration;
+  const mainCost = isResidential
+    ? (selectedArea?.is_free ? 0 : selectedArea?.pricing_type === 'hourly' ? selectedHourSlots.length * (selectedArea?.cost_per_hour || 0) : selectedArea?.pricing_type === 'jornada' ? (selectedJornada === 'diurna' ? selectedArea?.cost_jornada_diurna : selectedJornada === 'nocturna' ? selectedArea?.cost_jornada_nocturna : selectedArea?.cost_jornada_ambos) || 0 : selectedArea?.fixed_cost || 0)
+    : (selectedService?.cost || 0);
+  const addonsCost = selectedAddons.reduce((sum, a) => sum + (a.additional_cost || 0), 0);
+  const totalSelectedCost = mainCost + addonsCost;
 
-  // Auto adjustment and validation for proposed time slots
-  useEffect(() => {
-    if (selectedStartTime && selectedArea && totalSelectedDuration > 0) {
-      const nextBlock = getNextBlockStart(selectedStartTime);
-      const start = parseISO(`${selectedDate} ${selectedStartTime}:00`);
-      
-      if (nextBlock && totalSelectedDuration > (nextBlock.getTime() - start.getTime()) / (1000 * 60)) {
-        setSelectedStartTime('');
-        setErrorMessage('La duración acumulada de los servicios seleccionados excede el tiempo disponible antes de la próxima reserva.');
-        setIsErrorAlertOpen(true);
-      }
-    }
-  }, [selectedStartTime, selectedArea, selectedServices, existingReservations, activeMaintenances]);
-
-  const filteredUsers = (users || []).filter((user: any) =>
-    user.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    (terminology.unitLabel && user.apartment?.toLowerCase().includes(userSearchTerm.toLowerCase()))
-  );
+  const filteredUsers = users;
 
   const fetchBusySlots = async (employeeId: string) => {
     const { data: resData } = await supabase
@@ -310,18 +278,59 @@ export default function NewReservationPage() {
     setActiveMaintenances(maintData || []);
   };
 
-  const handleEmployeeSelect = async (employee: any) => {
+  const fetchServiceAddons = async (serviceId: string, resourceId: string) => {
+    const { data: configs } = await supabase
+      .from('resource_addon_configs')
+      .select('addon_id')
+      .eq('resource_id', resourceId)
+      .eq('service_id', serviceId);
+
+    if (configs && configs.length > 0) {
+      const addonIds = configs.map((c: any) => c.addon_id);
+      const { data } = await supabase
+        .from('service_addons')
+        .select('*')
+        .in('id', addonIds)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      setAvailableAddons(data || []);
+    } else {
+      setAvailableAddons([]);
+    }
+    setSelectedAddons([]);
+  };
+
+  const handleEmployeeClick = async (employee: any) => {
     if (isAdmin && !selectedUserId) {
       setUserError('Por favor selecciona un usuario antes de continuar.');
       return;
     }
 
+    if (isGuestUser) {
+      setPendingEmployee(employee);
+      setShowGuestModal(true);
+      return;
+    }
+
+    proceedWithEmployee(employee);
+  };
+
+  const proceedWithEmployee = async (employee: any) => {
     setUserError(null);
     setSelectedArea(employee);
-    setSelectedServices([]);
+    setSelectedService(null);
+    setSelectedAddons([]);
     setSelectedStartTime('');
-    
-    // Step 2: Fetch services linked to this employee
+
+    fetchBusySlots(employee.id);
+    fetchBonusInfo(employee.id);
+    fetchOperationSchedules();
+
+    if (isResidential) {
+      setStep(3);
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -329,7 +338,7 @@ export default function NewReservationPage() {
         .select('*, services(*)')
         .eq('resource_id', employee.id);
       if (error) throw error;
-      
+
       if (data) {
         const mapped = data
           .filter((row: any) => row.services?.is_active)
@@ -339,32 +348,46 @@ export default function NewReservationPage() {
             description: row.services.description || '',
             cost: row.custom_price ?? row.services.base_cost ?? 0,
             duration: row.services.duration_minutes || 30,
+            image_url: row.services.image_url,
           }));
         setAvailableServices(mapped);
       }
     } catch (e: any) {
-      toast.error('Error al cargar servicios del empleado: ' + e.message);
+      toast.error('Error al cargar servicios: ' + e.message);
     } finally {
       setLoading(false);
     }
 
-    fetchBusySlots(employee.id);
-    fetchBonusInfo(employee.id);
-    fetchOperationSchedules();
+    setStep(2);
+  };
 
-    if (isGuestUser) {
-      setShowPromoModal(true);
+  const handleContinueAsGuest = () => {
+    setShowGuestModal(false);
+    if (pendingEmployee) {
+      proceedWithEmployee(pendingEmployee);
+    }
+  };
+
+  const handleSelectService = async (service: CustomService) => {
+    setSelectedService(service);
+    setSelectedStartTime('');
+    fetchServiceAddons(service.id, selectedArea.id);
+    setStep(3);
+  };
+
+  const handleGoBackFromSchedule = () => {
+    if (isResidential) {
+      setSelectedArea(null);
+      setStep(1);
     } else {
+      setSelectedService(null);
+      setSelectedAddons([]);
       setStep(2);
     }
   };
 
   const fetchBonusInfo = async (employeeId: string) => {
-    if (!profile?.id || isGuestUser) {
-      setBonusConfig(null);
-      setUserReservationCount(0);
-      return;
-    }
+    if (!profile?.id || isGuestUser) { setBonusConfig(null); setUserReservationCount(0); return; }
 
     try {
       const { data: org } = await supabase
@@ -373,15 +396,12 @@ export default function NewReservationPage() {
         .eq('id', profile?.organization_id)
         .single();
 
-      if (!org?.bonus_system_active) {
-        setBonusConfig(null);
-        return;
-      }
+      if (!org?.bonus_system_active) { setBonusConfig(null); return; }
 
       const { data: config } = await supabase
         .from('bonus_configs')
         .select('*')
-        .eq('common_area_id', employeeId)
+        .eq('resource_id', employeeId)
         .eq('is_active', true)
         .single();
 
@@ -395,13 +415,11 @@ export default function NewReservationPage() {
           .eq('user_id', targetUserId)
           .eq('resource_id', employeeId)
           .eq('status', 'approved');
-
         setUserReservationCount(count || 0);
       } else {
         setUserReservationCount(0);
       }
-    } catch (error) {
-      console.error('Error fetching bonus info:', error);
+    } catch {
       setBonusConfig(null);
       setUserReservationCount(0);
     }
@@ -424,28 +442,6 @@ export default function NewReservationPage() {
     if (!schedule) return null;
     return { start: schedule.start_time, end: schedule.end_time };
   };
-
-  const baseTimeSlots = (() => {
-    const hours = getOperationHoursForDate(selectedDate);
-    if (hours) {
-      const startH = parseInt(hours.start.split(':')[0]);
-      const startM = parseInt(hours.start.split(':')[1] || '0');
-      const endH = parseInt(hours.end.split(':')[0]);
-      const endM = parseInt(hours.end.split(':')[1] || '0');
-      const endTotalMin = endH * 60 + endM;
-      const slots: string[] = [];
-      let current = startH * 60 + startM;
-      while (current < endTotalMin) {
-        const h = Math.floor(current / 60);
-        const m = current % 60;
-        slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
-        current += 30;
-      }
-      if (slots.length === 0) return fallbackSlots;
-      return slots;
-    }
-    return fallbackSlots;
-  })();
 
   const isDateWithinOperationSchedule = (dateStr: string) => {
     if (operationSchedules.length === 0) return true;
@@ -486,6 +482,84 @@ export default function NewReservationPage() {
     return slots;
   };
 
+  const getAllHalfHourSlots = (): string[] => {
+    const hours = getOperationHoursForDate(selectedDate);
+    if (!hours) return [];
+    const startH = parseInt(hours.start.split(':')[0]);
+    const startM = parseInt(hours.start.split(':')[1] || '0');
+    const endH = parseInt(hours.end.split(':')[0]);
+    const endM = parseInt(hours.end.split(':')[1] || '0');
+    const endTotalMin = endH * 60 + endM;
+    const slots: string[] = [];
+    let current = startH * 60 + startM;
+    while (current + 60 <= endTotalMin) {
+      const h = Math.floor(current / 60);
+      const m = current % 60;
+      if (m === 0) slots.push(`${h.toString().padStart(2, '0')}:00`);
+      current += 60;
+    }
+    return slots;
+  };
+
+  const toggleHourSlot = (time: string) => {
+    setSelectedHourSlots(prev => {
+      if (prev.includes(time)) {
+        if (prev[prev.length - 1] === time) return prev.slice(0, -1);
+        return prev;
+      }
+      const maxSlots = selectedArea?.max_hours_per_reservation || 4;
+      if (prev.length >= maxSlots) return prev;
+      if (prev.length === 0) return [time];
+      const allSlots = getAllHalfHourSlots();
+      const lastIdx = allSlots.indexOf(prev[prev.length - 1]);
+      const clickedIdx = allSlots.indexOf(time);
+      if (clickedIdx === lastIdx + 1) return [...prev, time];
+      return [time];
+    });
+  };
+
+  const quickSelectHours = (count: number) => {
+    const allSlots = getAllHalfHourSlots();
+    const now = new Date();
+    const isAvailable = (time: string) => {
+      const t = parseISO(`${selectedDate}T${time}:00`);
+      if (t < now) return false;
+      return !existingReservations.some(res => {
+        const rs = parseISO(detoxTime(res.start_datetime));
+        const re = parseISO(detoxTime(res.end_datetime));
+        return t >= rs && t < re;
+      });
+    };
+
+    // If already have a selection, try extending from the last selected slot
+    if (selectedHourSlots.length > 0) {
+      const lastIdx = allSlots.indexOf(selectedHourSlots[selectedHourSlots.length - 1]);
+      const startIdx = selectedHourSlots.length >= count ? allSlots.indexOf(selectedHourSlots[0]) : lastIdx + 1 - (count - 1);
+      for (let i = Math.max(0, startIdx); i <= allSlots.length - count; i++) {
+        let contiguous = true;
+        for (let j = 0; j < count; j++) {
+          if (!isAvailable(allSlots[i + j])) { contiguous = false; break; }
+        }
+        if (contiguous) {
+          setSelectedHourSlots(allSlots.slice(i, i + count));
+          return;
+        }
+      }
+    }
+
+    // No selection or couldn't extend: find first contiguous block
+    for (let i = 0; i <= allSlots.length - count; i++) {
+      let contiguous = true;
+      for (let j = 0; j < count; j++) {
+        if (!isAvailable(allSlots[i + j])) { contiguous = false; break; }
+      }
+      if (contiguous) {
+        setSelectedHourSlots(allSlots.slice(i, i + count));
+        return;
+      }
+    }
+  };
+
   useEffect(() => {
     if (bonusConfig) {
       const cycleLength = bonusConfig.reservations_required + 1;
@@ -498,9 +572,7 @@ export default function NewReservationPage() {
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
-    if (selectedArea) {
-      fetchBusySlots(selectedArea.id);
-    }
+    if (selectedArea) fetchBusySlots(selectedArea.id);
   };
 
   const getSlotStatus = (time: string) => {
@@ -554,10 +626,9 @@ export default function NewReservationPage() {
   };
 
   const calculateTotalCost = () => {
-    if (appliedDiscount > 0) {
-      return totalSelectedCost * (1 - appliedDiscount / 100);
-    }
-    return totalSelectedCost;
+    const subtotal = totalSelectedCost;
+    if (appliedDiscount > 0) return subtotal * (1 - appliedDiscount / 100);
+    return subtotal;
   };
 
   const getEndTime = () => {
@@ -565,16 +636,17 @@ export default function NewReservationPage() {
     return format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), "yyyy-MM-dd'T'HH:mm:ss");
   };
 
-  const toggleServiceSelection = (service: CustomService) => {
-    setSelectedServices(prev => {
-      const exists = prev.find(s => s.id === service.id);
-      if (exists) return prev.filter(s => s.id !== service.id);
-      return [...prev, service];
+  const toggleAddonSelection = (addon: AddonOption) => {
+    setSelectedAddons(prev => {
+      const exists = prev.find(a => a.id === addon.id);
+      if (exists) return prev.filter(a => a.id !== addon.id);
+      return [...prev, addon];
     });
   };
 
   const handleReserve = async () => {
-    if (!profile || !selectedArea || !selectedStartTime || selectedServices.length === 0) return;
+    if (!profile || !selectedArea || !selectedStartTime) return;
+    if (!isResidential && !selectedService) return;
 
     if (isGuestUser && (!guestName || !guestPhone)) {
       setErrorMessage('Por favor ingresa tu nombre y teléfono de contacto');
@@ -582,7 +654,7 @@ export default function NewReservationPage() {
       return;
     }
 
-    if (isGuestUser && guestPhone) {
+    if ((isGuestUser || isAdmin) && guestPhone) {
       const { count } = await supabase
         .from('reservations')
         .select('*', { count: 'exact', head: true })
@@ -591,16 +663,14 @@ export default function NewReservationPage() {
         .in('status', ['pending_payment', 'pending_validation']);
 
       if (count && count > 0) {
-        setErrorMessage(`Ya existe una reserva pendiente de validación asociada a tu teléfono. Espera a que sea procesada.`);
+        setErrorMessage(`Ya existe una reserva pendiente de validación asociada a tu teléfono.`);
         setIsErrorAlertOpen(true);
         return;
       }
     }
 
-    setErrorMessage('');
-
     const info = getSlotStatus(selectedStartTime);
-    if (info.status !== 'available' && !(isAdmin && info.status === 'reserved')) {
+    if (info.status !== 'available') {
       setErrorMessage(`El horario seleccionado ya no está disponible.`);
       setIsErrorAlertOpen(true);
       return;
@@ -626,30 +696,43 @@ export default function NewReservationPage() {
       total_cost: totalCost,
       organization_id: profile?.organization_id,
       status: 'pending_validation',
-      guest_name: isGuestUser ? guestName : null,
-      guest_phone: isGuestUser ? guestPhone : null
+      guest_name: guestName || null,
+      guest_phone: guestPhone || null
     };
 
     try {
       if (isEditing) {
         await updateMutation.mutateAsync({ id: id!, data: reservationData });
         await supabase.from('reservation_services').delete().eq('reservation_id', id);
-        
-        const serviceInserts = selectedServices.map(service => ({
-          reservation_id: id,
-          service_id: service.id,
-          charged_price: service.cost
-        }));
-        await supabase.from('reservation_services').insert(serviceInserts);
+        await supabase.from('reservation_addons').delete().eq('reservation_id', id);
+
+        if (!isResidential && selectedService) {
+          await supabase.from('reservation_services').insert({
+            reservation_id: id,
+            service_id: selectedService.id,
+            charged_price: selectedService.cost
+          });
+          if (selectedAddons.length > 0) {
+            await supabase.from('reservation_addons').insert(selectedAddons.map(a => ({
+              reservation_id: id, addon_id: a.id, charged_price: a.additional_cost
+            })));
+          }
+        }
       } else {
         const result = await createMutation.mutateAsync(reservationData);
         if (result?.id) {
-          const serviceInserts = selectedServices.map(service => ({
-            reservation_id: result.id,
-            service_id: service.id,
-            charged_price: service.cost
-          }));
-          await supabase.from('reservation_services').insert(serviceInserts);
+          if (!isResidential && selectedService) {
+            await supabase.from('reservation_services').insert({
+              reservation_id: result.id,
+              service_id: selectedService.id,
+              charged_price: selectedService.cost
+            });
+            if (selectedAddons.length > 0) {
+              await supabase.from('reservation_addons').insert(selectedAddons.map(a => ({
+                reservation_id: result.id, addon_id: a.id, charged_price: a.additional_cost
+              })));
+            }
+          }
         }
       }
 
@@ -658,7 +741,7 @@ export default function NewReservationPage() {
         : (isAdmin ? '/admin/reservations' : '/reservations/my');
 
       navigate(targetPath);
-      toast.success(isEditing ? 'Reserva actualizada con éxito' : 'Reserva creada con éxito');
+      toast.success(isEditing ? `${terminology.reservationLabel} actualizada con éxito` : `${terminology.reservationLabel} creada con éxito`);
     } catch (error: any) {
       setErrorMessage(error.message || `Error al procesar la reserva`);
       setIsErrorAlertOpen(true);
@@ -696,48 +779,88 @@ export default function NewReservationPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {isEditing ? 'Editar Cita' : 'Nueva Reserva'}
+            {isEditing ? `Editar ${terminology.reservationLabel}` : `Nueva ${terminology.reservationLabel}`}
           </h1>
           <p className="text-gray-500 text-sm">Agenda tu sesión con nuestro personal profesional.</p>
         </div>
-        
-        {/* Progress Bar steps */}
+
         <div className="w-full max-w-xl">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 1 ? "bg-primary text-white" : step > 1 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
+          <div className="flex items-center gap-1 md:gap-2">
+            <div className="flex items-center gap-1 md:gap-2">
+              <div className={cn("w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold shrink-0", step === 1 ? "bg-primary text-white" : step > 1 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
                 {step > 1 ? "✓" : "1"}
               </div>
-              <span className="text-xs font-medium text-gray-700">Profesional</span>
+              <span className="text-[10px] md:text-xs font-medium text-gray-700 hidden sm:inline">{terminology.areaLabel}</span>
             </div>
-            <div className={cn("flex-1 h-0.5 mx-1", step > 1 ? "bg-emerald-500" : "bg-gray-200")} />
-            
-            <div className="flex items-center gap-2">
-              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 2 ? "bg-primary text-white" : step > 2 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
+            {!isResidential && (
+              <>
+            <div className={cn("flex-1 h-0.5 mx-0.5 md:mx-1", step > 1 ? "bg-emerald-500" : "bg-gray-200")} />
+            <div className="flex items-center gap-1 md:gap-2">
+              <div className={cn("w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold shrink-0", step === 2 ? "bg-primary text-white" : step > 2 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
                 {step > 2 ? "✓" : "2"}
               </div>
-              <span className="text-xs font-medium text-gray-700">Servicios</span>
+              <span className="text-[10px] md:text-xs font-medium text-gray-700 hidden sm:inline">Servicio</span>
             </div>
-            <div className={cn("flex-1 h-0.5 mx-1", step > 2 ? "bg-emerald-500" : "bg-gray-200")} />
-
-            <div className="flex items-center gap-2">
-              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 3 ? "bg-primary text-white" : step > 3 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
-                {step > 3 ? "✓" : "3"}
+              </>
+            )}
+            <div className={cn("flex-1 h-0.5 mx-0.5 md:mx-1", step > (isResidential ? 1 : 2) ? "bg-emerald-500" : "bg-gray-200")} />
+            <div className="flex items-center gap-1 md:gap-2">
+              <div className={cn("w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold shrink-0", step === (isResidential ? 2 : 3) ? "bg-primary text-white" : step > (isResidential ? 2 : 3) ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
+                {step > (isResidential ? 2 : 3) ? "✓" : isResidential ? "2" : "3"}
               </div>
-              <span className="text-xs font-medium text-gray-700">Horario</span>
+              <span className="text-[10px] md:text-xs font-medium text-gray-700 hidden sm:inline">Horario</span>
             </div>
-            <div className={cn("flex-1 h-0.5 mx-1", step > 3 ? "bg-emerald-500" : "bg-gray-200")} />
-
-            <div className="flex items-center gap-2">
-              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 4 ? "bg-primary text-white" : "bg-gray-200 text-gray-500")}>
-                4
+            <div className={cn("flex-1 h-0.5 mx-0.5 md:mx-1", step > (isResidential ? 2 : 3) ? "bg-emerald-500" : "bg-gray-200")} />
+            <div className="flex items-center gap-1 md:gap-2">
+              <div className={cn("w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold shrink-0", step === (isResidential ? 3 : 4) ? "bg-primary text-white" : "bg-gray-200 text-gray-500")}>
+                {isResidential ? "3" : "4"}
               </div>
-              <span className="text-xs font-medium text-gray-700">Confirmar</span>
+              <span className="text-[10px] md:text-xs font-medium text-gray-700 hidden sm:inline">Confirmar</span>
             </div>
           </div>
         </div>
       </div>
 
+      {/* GUEST MODAL */}
+      {showGuestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="border-none shadow-2xl bg-white rounded-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-300">
+            <CardHeader className="text-center pt-8 pb-4">
+              <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <User className="w-7 h-7 text-primary" />
+              </div>
+              <CardTitle className="text-xl font-black">Estás ingresando como invitado</CardTitle>
+              <CardDescription className="text-sm mt-2">
+                Al registrarte podrás hacer seguimiento de tus citas, acumular bonificaciones y mucho más.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-6 space-y-3">
+              <Button
+                onClick={() => { setShowGuestModal(false); openAuthModal('register'); }}
+                className="w-full h-12 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl shadow-lg shadow-primary/20"
+              >
+                <UserPlus className="w-4 h-4 mr-2" /> Registrarme
+              </Button>
+              <Button
+                onClick={() => { setShowGuestModal(false); openAuthModal('login'); }}
+                variant="outline"
+                className="w-full h-12 font-bold rounded-xl border-gray-200"
+              >
+                <LogIn className="w-4 h-4 mr-2" /> Iniciar Sesión
+              </Button>
+              <Button
+                onClick={handleContinueAsGuest}
+                variant="ghost"
+                className="w-full h-12 font-bold rounded-xl text-gray-500"
+              >
+                Continuar como invitado <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* STEP 1: Select Professional */}
       {step === 1 && (
         <>
           {isAdmin && (
@@ -749,10 +872,7 @@ export default function NewReservationPage() {
               <CardContent className="space-y-3">
                 <select
                   value={selectedUserId}
-                  onChange={(e) => {
-                    setSelectedUserId(e.target.value);
-                    setUserError(null);
-                  }}
+                  onChange={(e) => { setSelectedUserId(e.target.value); setUserError(null); }}
                   className={cn("w-full p-2.5 border rounded-lg bg-white text-gray-900 text-sm", selectedUserId ? "border-green-200 bg-green-50/50" : "border-gray-200")}
                 >
                   <option value="">Seleccionar cliente...</option>
@@ -769,12 +889,37 @@ export default function NewReservationPage() {
             </Card>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className={cn("grid gap-4", isResidential ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
             {areasData.map((employee: any) => (
+              isResidential ? (
+                <Card
+                  key={employee.id}
+                  className="border-none apple-shadow bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col"
+                  onClick={() => handleEmployeeClick(employee)}
+                >
+                  <div className="h-40 bg-gray-100 overflow-hidden">
+                    {employee.image_url ? (
+                      <img src={employee.image_url} alt={employee.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"><Building2 className="w-10 h-10 text-primary/20" /></div>
+                    )}
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col">
+                    <h3 className="font-bold text-gray-900 text-sm truncate">{employee.name}</h3>
+                    {employee.description && <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{employee.description}</p>}
+                    <div className="mt-2 text-[10px] font-medium text-gray-400">
+                      {employee.is_free ? 'Gratuito' : employee.pricing_type === 'hourly' ? `${formatCurrency(employee.cost_per_hour)}/hora · Máx ${employee.max_hours_per_reservation}h` : employee.pricing_type === 'jornada' ? `Jornada desde ${formatCurrency(employee.cost_jornada_diurna)}` : `${formatCurrency(employee.fixed_cost)} fijo · ${employee.estimated_duration_minutes}min`}
+                    </div>
+                    <Button className="w-full h-8 mt-3 bg-primary/10 text-primary font-bold text-xs rounded-xl hover:bg-primary hover:text-white border-none shadow-none">
+                      Seleccionar
+                    </Button>
+                  </div>
+                </Card>
+              ) : (
               <Card
                 key={employee.id}
                 className="border-none apple-shadow bg-white rounded-2xl p-4 text-center cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col justify-between"
-                onClick={() => handleEmployeeSelect(employee)}
+                onClick={() => handleEmployeeClick(employee)}
               >
                 <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3 border-2 border-gray-100 shadow-sm">
                   {employee.employee_photo_url ? (
@@ -791,84 +936,119 @@ export default function NewReservationPage() {
                   Seleccionar
                 </Button>
               </Card>
+              )
             ))}
           </div>
         </>
       )}
 
+      {/* STEP 2: Select Service (single-select, click to advance) */}
       {step === 2 && selectedArea && (
-        <Card className="border-none apple-shadow bg-white rounded-2xl max-w-xl mx-auto overflow-hidden">
+        <Card className="border-none apple-shadow bg-white rounded-2xl max-w-3xl mx-auto overflow-hidden">
           <CardHeader className="flex flex-row items-center gap-4 p-4 border-b border-gray-50">
             <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setStep(1)}><ChevronLeft className="w-5 h-5" /></Button>
             <div>
               <CardTitle className="text-lg font-bold">Servicios de {selectedArea.name}</CardTitle>
-              <CardDescription>Selecciona los servicios que deseas para tu cita</CardDescription>
+              <CardDescription>Selecciona el servicio que deseas</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="p-5 space-y-4">
-            {availableServices.length > 0 ? (
-              <div className="space-y-2">
-                {availableServices.map((service) => {
-                  const isChecked = selectedServices.some(s => s.id === service.id);
-                  return (
-                    <button
-                      key={service.id}
-                      onClick={() => toggleServiceSelection(service)}
-                      className={cn(
-                        "w-full p-4 rounded-xl border text-left flex items-center gap-3 transition-all",
-                        isChecked ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-white border-gray-100 hover:border-gray-200"
+            {loading ? (
+              <div className="text-center py-8 text-gray-400">Cargando servicios...</div>
+            ) : availableServices.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {availableServices.map((service) => (
+                  <button
+                    key={service.id}
+                    onClick={() => handleSelectService(service)}
+                    className="p-4 rounded-xl border border-gray-100 bg-white hover:border-primary/30 hover:bg-primary/5 hover:shadow-md transition-all duration-300 text-left flex flex-col gap-3 group"
+                  >
+                    {service.image_url && (
+                      <div className="w-full h-32 rounded-lg overflow-hidden bg-gray-100">
+                        <img src={service.image_url} alt={service.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-sm font-bold text-gray-900">{service.name}</span>
+                        <span className="text-sm font-black text-primary shrink-0">{formatCurrency(service.cost)}</span>
+                      </div>
+                      {service.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{service.description}</p>
                       )}
-                    >
-                      <div className={cn("w-5 h-5 rounded-md flex items-center justify-center border transition-colors", isChecked ? "bg-primary border-primary text-white" : "border-gray-300")}>
-                        {isChecked && <span className="text-[10px] font-bold">✓</span>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-semibold text-gray-900 truncate">{service.name}</span>
-                          <span className="text-sm font-bold text-primary">{formatCurrency(service.cost)}</span>
-                        </div>
-                        {service.description && (
-                          <p className="text-xs text-gray-500 truncate mt-0.5">{service.description}</p>
-                        )}
-                        <span className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{service.duration} min</span>
-                      </div>
-                    </button>
-                  );
-                })}
+                      <span className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />{service.duration} min
+                      </span>
+                    </div>
+                    <div className="flex justify-end">
+                      <span className="text-[10px] font-bold text-primary/60 group-hover:text-primary flex items-center gap-1 transition-colors">
+                        Seleccionar <ArrowRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </button>
+                ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-6">Este empleado no tiene servicios vinculados actualmente.</p>
+              <p className="text-sm text-gray-400 text-center py-8">Este profesional no tiene servicios vinculados actualmente.</p>
             )}
-
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400">Total seleccionado</p>
-                <p className="text-lg font-black text-gray-900">{formatCurrency(totalSelectedCost)} ({totalSelectedDuration} min)</p>
-              </div>
-              <Button
-                disabled={selectedServices.length === 0}
-                onClick={() => setStep(3)}
-                className="bg-primary text-white font-bold h-11 px-5 rounded-xl border-none shadow-none"
-              >
-                Continuar Horario <ArrowRight className="w-4 h-4 ml-1.5" />
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
 
-      {step === 3 && selectedArea && (
+      {/* STEP 3: Schedule + Add-ons */}
+      {step === 3 && selectedArea && (selectedService || isResidential) && (
         <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
           <CardHeader className="flex flex-row items-center gap-4 p-4 border-b border-gray-50">
-            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setStep(2)}><ChevronLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={handleGoBackFromSchedule}><ChevronLeft className="w-5 h-5" /></Button>
             <div>
               <CardTitle className="text-lg font-bold">Seleccionar Horario</CardTitle>
-              <CardDescription>Para {selectedServices.map(s => s.name).join(', ')} ({totalSelectedDuration} min)</CardDescription>
+              <CardDescription>
+                {isResidential 
+                  ? `${selectedArea.name}`
+                  : `${selectedService?.name || ''} (${mainDuration} min)${addonsDuration > 0 ? ` + ${addonsDuration} min extra` : ''}`
+                }
+              </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-6 space-y-6">
+            {/* Add-ons section - only for non-residential */}
+            {!isResidential && availableAddons.length > 0 && (
+              <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <Label className="text-xs font-bold text-gray-700 uppercase">Servicios Adicionales</Label>
+                <div className="space-y-2">
+                  {availableAddons.map((addon) => {
+                    const isChecked = selectedAddons.some(a => a.id === addon.id);
+                    return (
+                      <button
+                        key={addon.id}
+                        onClick={() => toggleAddonSelection(addon)}
+                        className={cn(
+                          "w-full p-3 rounded-lg border text-left flex items-center gap-3 transition-all",
+                          isChecked ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-white border-gray-200 hover:border-gray-300"
+                        )}
+                      >
+                        <div className={cn("w-5 h-5 rounded-md flex items-center justify-center border transition-colors", isChecked ? "bg-primary border-primary text-white" : "border-gray-300")}>
+                          {isChecked && <span className="text-[10px] font-bold">✓</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-gray-900">{addon.name}</span>
+                            <span className="text-xs font-bold text-primary">+{formatCurrency(addon.additional_cost)}</span>
+                          </div>
+                          {addon.description && <p className="text-[10px] text-gray-400 truncate">{addon.description}</p>}
+                          {addon.additional_duration_minutes > 0 && (
+                            <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-1"><Clock className="w-3 h-3" />+{addon.additional_duration_minutes} min</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Calendario */}
+              {/* Calendar */}
               <div className="space-y-4">
                 <div className="p-4 bg-white border border-gray-200 rounded-xl">
                   <div className="flex items-center justify-between mb-4">
@@ -907,43 +1087,145 @@ export default function NewReservationPage() {
                 </div>
               </div>
 
-              {/* Horas */}
+              {/* Time slots */}
               <div className="space-y-4">
+                {isResidential && selectedArea?.pricing_type === 'jornada' && !selectedArea?.is_free ? (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold text-gray-700">Seleccionar Jornada</Label>
+                    {[
+                      { key: 'diurna', label: 'Diurna', time: `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_diurna || '18:00'}`, cost: selectedArea.cost_jornada_diurna },
+                      { key: 'nocturna', label: 'Nocturna', time: `${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`, cost: selectedArea.cost_jornada_nocturna },
+                      { key: 'ambos', label: 'Completa (Día + Noche)', time: `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`, cost: selectedArea.cost_jornada_ambos },
+                    ].map(j => (
+                      <button key={j.key} onClick={() => { setSelectedJornada(j.key); setSelectedStartTime(j.key); }} className={cn("w-full p-4 rounded-xl border text-left transition-all", selectedJornada === j.key ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-white border-gray-200 hover:border-gray-300")}>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-gray-900">{j.label}</span>
+                            <p className="text-xs text-gray-500 mt-0.5">{j.time}</p>
+                          </div>
+                          <span className="font-black text-primary text-lg">{formatCurrency(j.cost)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : isResidential && selectedArea?.pricing_type === 'hourly' && !selectedArea?.is_free ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold text-gray-700">Seleccionar Horas ({selectedDate})</Label>
+                      <span className="text-xs text-gray-400">{selectedHourSlots.length > 0 ? `${selectedHourSlots.length}h seleccionadas` : 'Sin selección'}</span>
+                    </div>
+                    <div className="grid grid-cols-6 gap-1.5 max-h-48 overflow-y-auto p-1">
+                      {getAllHalfHourSlots().map((time) => {
+                        const isSelected = selectedHourSlots.includes(time);
+                        const slotStart = parseISO(`${selectedDate}T${time}:00`);
+                        const isPast = slotStart < new Date();
+                        const isReserved = existingReservations.some(res => {
+                          const rs = parseISO(detoxTime(res.start_datetime));
+                          const re = parseISO(detoxTime(res.end_datetime));
+                          return slotStart >= rs && slotStart < re;
+                        });
+                        const reservedBy = existingReservations.find(res => {
+                          const rs = parseISO(detoxTime(res.start_datetime));
+                          const re = parseISO(detoxTime(res.end_datetime));
+                          return slotStart >= rs && slotStart < re;
+                        });
+                        const reservedName = reservedBy ? (reservedBy.guest_name || reservedBy.profiles?.full_name || 'Reservado') : '';
+                        const maxSlots = selectedArea?.max_hours_per_reservation || 4;
+                        const canSelect = !isPast && !isReserved && (isSelected || selectedHourSlots.length < maxSlots);
+                        return (
+                          <button
+                            key={time}
+                            disabled={!canSelect}
+                            onClick={() => { if (canSelect) toggleHourSlot(time); }}
+                            title={isReserved ? reservedName : undefined}
+                            className={cn(
+                              "h-9 rounded-lg text-[10px] font-bold transition-all",
+                              isSelected && "bg-primary text-white shadow-sm",
+                              !isSelected && !isPast && !isReserved && "bg-white border border-gray-200 text-gray-600 hover:border-primary/50 hover:bg-primary/5",
+                              (isPast || isReserved) && "bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed"
+                            )}
+                          >
+                            {formatTime(time)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="text-[10px] font-bold text-gray-400 self-center mr-1">Selección rápida:</span>
+                      {Array.from({ length: selectedArea?.max_hours_per_reservation || 4 }, (_, i) => i + 1).map(n => (
+                        <button key={n} onClick={() => quickSelectHours(n)} className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all", selectedHourSlots.length === n ? "bg-primary text-white border-primary" : "border-gray-200 bg-white text-gray-600 hover:border-primary hover:text-primary")}>
+                          {n}h
+                        </button>
+                      ))}
+                    </div>
+                    {selectedHourSlots.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 p-3 bg-primary/5 rounded-xl">
+                        {selectedHourSlots.map((t, i) => (
+                          <span key={t} className="px-2 py-1 bg-primary text-white rounded-lg text-[10px] font-bold">
+                            {formatTime(t)}{i < selectedHourSlots.length - 1 ? ' →' : ''}
+                          </span>
+                        ))}
+                        <span className="ml-auto text-xs font-bold text-primary self-center">
+                          {selectedHourSlots.length}h · {formatCurrency(selectedHourSlots.length * (selectedArea?.cost_per_hour || 0))}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
                 <Label className="text-sm font-semibold text-gray-700">Horas Disponibles ({selectedDate})</Label>
                 <div className="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
                   {getFixedTimeSlots().map((time) => {
                     const info = getSlotStatus(time);
-                    const isOccupied = info.status !== 'available' && !(isAdmin && info.status === 'reserved');
+                    const isOccupied = info.status !== 'available';
+                    const startSlot = parseISO(`${selectedDate}T${time}:00`);
+                    const endRange = selectedStartTime ? addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration) : null;
+                    const isInRange = selectedStartTime && startSlot >= parseISO(`${selectedDate}T${selectedStartTime}:00`) && startSlot < endRange!;
 
                     return (
+                      <div key={time} className="group" title={isOccupied && info.status === 'reserved' && info.conflicts ? info.conflicts.map((c: any) => `${c.userName}${c.userPhone ? ` (${c.userPhone})` : ''}`).join('\n') : undefined}>
                       <Button
-                        key={time}
                         variant="outline"
-                        disabled={isOccupied}
+                        disabled={isOccupied || (!selectedStartTime && false)}
                         onClick={() => setSelectedStartTime(time)}
                         className={cn(
-                          "h-10 text-xs font-semibold rounded-xl",
-                          selectedStartTime === time ? "bg-primary text-white border-none scale-105" : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50",
+                          "h-10 text-xs font-semibold rounded-xl transition-all w-full",
+                          selectedStartTime === time ? "bg-primary text-white border-none scale-105 ring-2 ring-primary/30" : 
+                          isInRange ? "bg-primary/20 text-primary border-primary/30" :
+                          "border-gray-200 text-gray-700 bg-white hover:bg-gray-50",
                           isOccupied && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50"
                         )}
                       >
                         {formatTime(time)}
                       </Button>
+                      </div>
                     );
                   })}
                 </div>
+                </>
+                )}
 
-                <div className="pt-4 flex justify-between items-center">
-                  <div>
-                    <span className="text-xs text-gray-400">Inicio de cita</span>
-                    <p className="text-sm font-bold text-gray-800">{selectedStartTime ? formatTime(selectedStartTime) : 'No seleccionada'}</p>
+                <div className="pt-4 flex justify-between items-center gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-gray-400">
+                      {isResidential && selectedHourSlots.length > 0
+                        ? `${formatTime(selectedHourSlots[0])} - ${formatTime(format(addMinutes(parseISO(`${selectedDate}T${selectedHourSlots[selectedHourSlots.length - 1]}:00`), 60), 'HH:mm'))}`
+                        : `Inicio`
+                      }
+                    </span>
+                    <p className="text-xs md:text-sm font-bold text-gray-800 truncate">
+                      {isResidential && selectedArea?.pricing_type === 'jornada' ? (selectedJornada === 'diurna' ? 'Jornada Diurna' : selectedJornada === 'nocturna' ? 'Jornada Nocturna' : 'Jornada Completa') :
+                       isResidential && selectedHourSlots.length > 0 ? `${selectedHourSlots.length}h (${formatCurrency(selectedHourSlots.length * (selectedArea?.cost_per_hour || 0))})` :
+                       selectedStartTime ? `${formatTime(selectedStartTime)} - ${formatTime(format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), 'HH:mm'))}` : 'No seleccionada'}
+                    </p>
                   </div>
                   <Button
-                    disabled={!selectedStartTime}
+                    disabled={isResidential ? (selectedArea?.pricing_type === 'jornada' ? !selectedJornada : selectedArea?.pricing_type === 'hourly' ? selectedHourSlots.length === 0 : !selectedStartTime) : !selectedStartTime}
                     onClick={() => setStep(4)}
-                    className="bg-primary text-white font-bold h-11 px-6 rounded-xl border-none shadow-none"
+                    size="sm"
+                    className="bg-primary text-white font-bold h-9 md:h-11 px-4 md:px-6 rounded-xl border-none shadow-none text-xs md:text-sm shrink-0"
                   >
-                    Confirmar Reserva
+                    Confirmar
                   </Button>
                 </div>
               </div>
@@ -952,63 +1234,80 @@ export default function NewReservationPage() {
         </Card>
       )}
 
-      {step === 4 && selectedArea && (
+      {/* STEP 4: Confirmation */}
+      {step === 4 && selectedArea && (selectedService || isResidential) && (
         <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden max-w-md mx-auto">
           <CardHeader className="text-center pt-8 border-b border-gray-50">
             <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Package className="w-7 h-7 text-primary" />
             </div>
-            <CardTitle className="text-xl font-black">Resumen de tu Cita</CardTitle>
+            <CardTitle className="text-xl font-black">Resumen de tu {terminology.reservationLabel}</CardTitle>
             <CardDescription>Revisa los detalles finales antes de agendar</CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
             <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
-                <span className="text-xs font-bold text-gray-500 uppercase">Profesional</span>
+                <span className="text-xs font-bold text-gray-500 uppercase">{isResidential ? terminology.areaLabel : 'Profesional'}</span>
                 <span className="text-sm font-bold text-gray-800">{selectedArea.name}</span>
               </div>
+              {isResidential && (
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
+                  <span className="text-xs font-bold text-gray-500 uppercase">Tipo</span>
+                  <span className="text-sm font-bold text-gray-800">
+                    {isResidential && selectedArea?.is_free ? 'Gratuito' : selectedArea?.pricing_type === 'hourly' ? `Por Hora (${selectedHourSlots.length}h)` : selectedArea?.pricing_type === 'jornada' ? `Jornada ${selectedJornada === 'diurna' ? 'Diurna' : selectedJornada === 'nocturna' ? 'Nocturna' : 'Completa'}` : `Precio Fijo`}
+                  </span>
+                </div>
+              )}
+              {!isResidential && selectedService && (
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
+                  <span className="text-xs font-bold text-gray-500 uppercase">Servicio</span>
+                  <span className="text-sm font-bold text-gray-800">{selectedService.name} ({mainDuration} min)</span>
+                </div>
+              )}
+              {!isResidential && selectedAddons.length > 0 && (
+                <div className="py-1.5 border-b border-gray-200/50">
+                  <span className="text-xs font-bold text-gray-500 uppercase">Adicionales</span>
+                  {selectedAddons.map(a => (
+                    <div key={a.id} className="flex justify-between items-center text-xs mt-1">
+                      <span className="text-gray-600">{a.name}{a.additional_duration_minutes > 0 ? ` (+${a.additional_duration_minutes} min)` : ''}</span>
+                      <span className="font-bold text-gray-800">+{formatCurrency(a.additional_cost)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
                 <span className="text-xs font-bold text-gray-500 uppercase">Fecha</span>
                 <span className="text-sm font-bold text-gray-800">{selectedDate}</span>
               </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
+              <div className="flex justify-between items-center py-1.5">
                 <span className="text-xs font-bold text-gray-500 uppercase">Horario</span>
                 <span className="text-sm font-bold text-gray-800">
-                  {formatTime(selectedStartTime)} - {formatTime(format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), 'HH:mm'))}
+                  {isResidential && selectedArea?.pricing_type === 'jornada'
+                    ? (selectedJornada === 'diurna' ? `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_diurna || '18:00'}` : selectedJornada === 'nocturna' ? `${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}` : `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`)
+                    : isResidential && selectedHourSlots.length > 0
+                    ? `${formatTime(selectedHourSlots[0])} - ${formatTime(format(addMinutes(parseISO(`${selectedDate}T${selectedHourSlots[selectedHourSlots.length - 1]}:00`), 30), 'HH:mm'))}`
+                    : `${formatTime(selectedStartTime)} - ${formatTime(format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), 'HH:mm'))}`
+                  }
                 </span>
-              </div>
-              <div className="py-2 border-b border-gray-200/50">
-                <span className="text-xs font-bold text-gray-500 uppercase">Servicios</span>
-                <div className="mt-1 space-y-1.5">
-                  {selectedServices.map(service => (
-                    <div key={service.id} className="flex justify-between items-center text-xs">
-                      <span className="text-gray-600">{service.name} ({service.duration} min)</span>
-                      <span className="font-bold text-gray-800">{formatCurrency(service.cost)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-sm font-black text-gray-900 uppercase">Total</span>
-                <span className="text-2xl font-black text-primary">{formatCurrency(calculateTotalCost())}</span>
               </div>
             </div>
 
-            {isGuestUser && (
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-sm font-black text-gray-900 uppercase">Total</span>
+              <span className="text-2xl font-black text-primary">{formatCurrency(calculateTotalCost())}</span>
+            </div>
+
+            {appliedDiscount > 0 && (
+              <div className="flex items-center gap-2 justify-center text-emerald-600 bg-emerald-50 p-2 rounded-lg text-xs font-bold">
+                <Gift className="w-3.5 h-3.5" /> ¡Bonificación aplicada! {appliedDiscount}% de descuento
+              </div>
+            )}
+
+            {(isGuestUser || isAdmin) && (
               <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
                 <Label className="text-xs font-bold text-primary uppercase">Datos de Contacto</Label>
-                <Input
-                  placeholder="Nombre completo"
-                  value={guestName}
-                  onChange={e => setGuestName(e.target.value)}
-                  className="h-10 text-sm bg-white"
-                />
-                <Input
-                  placeholder="Teléfono / WhatsApp"
-                  value={guestPhone}
-                  onChange={e => setGuestPhone(e.target.value)}
-                  className="h-10 text-sm bg-white"
-                />
+                <Input placeholder="Nombre completo" value={guestName} onChange={e => setGuestName(e.target.value)} className="h-10 text-sm bg-white" />
+                <Input placeholder="Teléfono / WhatsApp" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} className="h-10 text-sm bg-white" />
               </div>
             )}
           </CardContent>
@@ -1018,7 +1317,7 @@ export default function NewReservationPage() {
               onClick={handleReserve}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
-              Confirmar Cita
+              Confirmar {terminology.reservationLabel}
             </Button>
             <Button variant="ghost" className="w-full text-gray-500 font-bold h-9 text-xs" onClick={() => setStep(3)}>
               Modificar horario

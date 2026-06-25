@@ -357,23 +357,27 @@ export default function AdminReservationsPage() {
                     )}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <div className="font-bold text-gray-900 truncate">{res.guest_name || res.profiles?.full_name}</div>
+                          <div className="font-bold text-gray-900 truncate">
+                            {res.guest_name || (res.profiles?.role === 'guest' ? 'Invitado' : res.profiles?.full_name) || 'Invitado'}
+                          </div>
                           {res.profiles?.role === 'guest' && (
-                            <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-1 py-0.5 rounded border border-blue-100 uppercase shrink-0">Inv</span>
+                            <span className="bg-blue-50 text-blue-600 text-[9px] font-medium px-1.5 py-0.5 rounded border border-blue-100 shrink-0">Invitado</span>
                           )}
                         </div>
                         {businessType === 'residential' && res.profiles?.apartment && (
                           <div className="text-[10px] text-gray-500 mt-0.5">{terminology.unitLabel} {res.profiles?.apartment}</div>
                         )}
+                        <div className="flex items-center gap-3 mt-0.5">
                         {res.guest_phone ? (
-                          <a href={`tel:${res.guest_phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-1 text-[10px] text-primary font-medium mt-0.5 hover:text-primary/80">
-                            <Smartphone className="w-2.5 h-2.5" />{res.guest_phone}
-                          </a>
+                          <span className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
+                            <Smartphone className="w-2.5 h-2.5 text-gray-400" />{res.guest_phone}
+                          </span>
                         ) : res.profiles?.phone ? (
-                          <a href={`tel:${res.profiles.phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-1 text-[10px] text-primary font-medium mt-0.5 hover:text-primary/80">
-                            <Smartphone className="w-2.5 h-2.5" />{res.profiles.phone}
-                          </a>
+                          <span className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
+                            <Smartphone className="w-2.5 h-2.5 text-gray-400" />{res.profiles.phone}
+                          </span>
                         ) : null}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-600 font-medium truncate">{res.resources?.name}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -446,7 +450,7 @@ export default function AdminReservationsPage() {
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-gray-900 text-sm truncate">{userName}</span>
                         {res.profiles?.role === 'guest' && (
-                          <span className="bg-blue-50 text-blue-600 text-[8px] font-black px-1 py-0.5 rounded border border-blue-100 uppercase shrink-0">Inv</span>
+                          <span className="bg-blue-50 text-blue-600 text-[8px] font-medium px-1 py-0.5 rounded border border-blue-100 shrink-0">Invitado</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">

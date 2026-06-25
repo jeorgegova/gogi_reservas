@@ -35,16 +35,28 @@ export function AuthModal() {
     if (isOpen) {
       setView(authModal.view);
       setError(null);
-      // Intentar cargar la organización si hay slug
-      if (slug) fetchOrganization();
+      if (slug) {
+        fetchOrganizationBySlug(slug);
+      } else if (profile?.organization_id) {
+        fetchOrganizationById(profile.organization_id);
+      }
     }
-  }, [isOpen, authModal.view, slug]);
+  }, [isOpen, authModal.view, slug, profile?.organization_id]);
 
-  const fetchOrganization = async () => {
+  const fetchOrganizationBySlug = async (orgSlug: string) => {
     const { data } = await supabase
       .from('organizations')
       .select('*')
-      .eq('slug', slug)
+      .eq('slug', orgSlug)
+      .single();
+    if (data) setOrganization(data);
+  };
+
+  const fetchOrganizationById = async (orgId: string) => {
+    const { data } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', orgId)
       .single();
     if (data) setOrganization(data);
   };

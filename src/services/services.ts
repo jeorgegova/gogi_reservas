@@ -5,7 +5,6 @@ export const getServices = async (orgId: string) => {
     .from('services')
     .select('*')
     .eq('organization_id', orgId)
-    .order('display_order', { ascending: true })
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;

@@ -22,8 +22,8 @@ import {
     BarChart3,
     PieChart,
     Activity,
-    Target,
-    AlertCircle
+    Briefcase,
+    Percent
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -90,6 +90,7 @@ export default function Calendario() {
     const [adminStats, setAdminStats] = useState({
         totalReservations: 0,
         totalRevenue: 0,
+        totalCommissions: 0,
         activeUsers: 0,
         occupancyRate: 0,
         reservationsToday: 0,
@@ -256,9 +257,18 @@ export default function Calendario() {
             .filter(r => r.status === 'approved')
             .reduce((sum, r) => sum + (r.total_cost || 0), 0);
 
+        // Calcular comisiones
+        const totalCommissions = filteredByArea
+            .filter(r => r.status === 'approved')
+            .reduce((sum, r) => {
+                const resource = areas.find((a: any) => a.id === r.resource_id);
+                return sum + Math.round((r.total_cost || 0) * (resource?.commission_percentage || 0) / 100);
+            }, 0);
+
         return {
             totalReservations: filteredByArea.length,
             totalRevenue,
+            totalCommissions,
             activeUsers: userCount,
             occupancyRate,
             reservationsToday,
@@ -456,56 +466,23 @@ export default function Calendario() {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.reservationLabel}s Hoy</h3>
-                            <Activity className="w-4 h-4 text-indigo-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-gray-900">{adminStats.reservationsToday}</div>
-                            <p className="text-[10px] text-gray-500 mt-1 flex items-center">
-                                <span className="text-indigo-600 font-bold mr-1">En curso</span> para el día de hoy
-                            </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card className="border-none shadow-sm bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden rounded-2xl">
+                        <CardContent className="p-5 flex items-center justify-between">
+                            <div><p className="text-xs font-medium text-primary/80">Ingresos del Mes</p><p className="text-2xl font-black text-primary">{formatCurrency(adminStats.totalRevenue)}</p></div>
+                            <DollarSign className="w-8 h-8 text-primary/30" />
                         </CardContent>
                     </Card>
-
-                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ingresos Mes</h3>
-                            <DollarSign className="w-4 h-4 text-emerald-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-gray-900">{formatCurrency(adminStats.totalRevenue)}</div>
-                            <p className="text-[10px] text-gray-500 mt-1 flex items-center">
-                                <span className="text-emerald-600 font-bold mr-1">Aprobados</span> en el período
-                            </p>
+                    <Card className="border-none shadow-sm bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 overflow-hidden rounded-2xl">
+                        <CardContent className="p-5 flex items-center justify-between">
+                            <div><p className="text-xs font-medium text-emerald-600/80">Trabajos del Mes</p><p className="text-2xl font-black text-emerald-600">{adminStats.totalReservations}</p></div>
+                            <Briefcase className="w-8 h-8 text-emerald-500/30" />
                         </CardContent>
                     </Card>
-
-                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Por Validar</h3>
-                            <AlertCircle className="w-4 h-4 text-amber-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-gray-900">{adminStats.pendingValidation}</div>
-                            <p className="text-[10px] text-gray-500 mt-1 flex items-center">
-                                <span className="text-amber-600 font-bold mr-1">Pendientes</span> de revisión manual
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-none apple-shadow bg-white overflow-hidden group rounded-2xl">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ocupación</h3>
-                            <Target className="w-4 h-4 text-rose-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-gray-900">{adminStats.occupancyRate}%</div>
-                            <p className="text-[10px] text-gray-500 mt-1 flex items-center">
-                                <span className="text-rose-600 font-bold mr-1">Eficiencia</span> de uso de {terminology.areaLabel.toLowerCase()}s
-                            </p>
+                    <Card className="border-none shadow-sm bg-gradient-to-br from-amber-500/10 to-amber-500/5 overflow-hidden rounded-2xl">
+                        <CardContent className="p-5 flex items-center justify-between">
+                            <div><p className="text-xs font-medium text-amber-600/80">Comisiones</p><p className="text-2xl font-black text-amber-600">{formatCurrency(adminStats.totalCommissions)}</p></div>
+                            <Percent className="w-8 h-8 text-amber-500/30" />
                         </CardContent>
                     </Card>
                 </div>
@@ -757,7 +734,7 @@ export default function Calendario() {
                         </Link>
                     </Button>
                     <Button asChild variant="outline" className="h-12 rounded-xl shadow-sm">
-                        <Link to="/admin/areas">
+                        <Link to="/admin/resources">
                             <Activity className="w-4 h-4 mr-2" />
                             Configurar {terminology.areaLabel}s
                         </Link>

@@ -40,6 +40,7 @@ interface AuthContextType {
   fetchOrgSettings: (slug: string) => Promise<OrganizationSettings | null>;
   setGuestMode: (guestUserId: string, orgSlug?: string, orgId?: string) => Promise<void>;
   clearGuestMode: () => void;
+  restoreGuestSession: () => Promise<boolean>;
   authModal: { isOpen: boolean; view: 'login' | 'register' };
   openAuthModal: (view: 'login' | 'register') => void;
   closeAuthModal: () => void;
@@ -228,6 +229,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setOrgSettings(null);
     isGuestRef.current = false;
     profileRef.current = null;
+    localStorage.removeItem('guestSession');
+  };
+
+  const restoreGuestSession = async () => {
+    const saved = localStorage.getItem('guestSession');
+    if (!saved) return false;
+    try {
+      const data = JSON.parse(saved);
+      const guestProfile: Profile = {
+        id: data.orgId || 'guest',
+        email: 'guest@guest.com',
+        full_name: null,
+        phone: null,
+        apartment: null,
+        role: 'guest',
+        organization_id: data.orgId,
+        organization_slug: data.orgSlug,
+        is_guest: true,
+      };
+      profileRef.current = guestProfile;
+      isGuestRef.current = true;
+      setProfile(guestProfile);
+      setIsGuest(true);
+      return true;
+    } catch {
+      localStorage.removeItem('guestSession');
+      return false;
+    }
   };
 
   const fetchGuestProfile = async (guestUserId: string, orgSlug?: string, orgId?: string) => {
@@ -251,11 +280,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isGuestRef.current = true;
         setProfile(guestProfile);
         setIsGuest(true);
+        localStorage.setItem('guestSession', JSON.stringify({ orgSlug: orgSlug || data.organizations?.slug, orgId: orgId || data.organization_id }));
       }
     } catch (error) {
       console.error('useAuth: Error fetching guest profile:', error);
       setIsGuest(false);
       setProfile(null);
+      localStorage.removeItem('guestSession');
     } finally {
       setLoading(false);
     }
@@ -266,7 +297,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) fetchProfile(session.user.id, true);
-      else setLoading(false);
+      else restoreGuestSession().finally(() => setLoading(false));
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -278,8 +309,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsGuest(false);
         isGuestRef.current = false;
         if (event === 'SIGNED_IN') fetchProfile(currentUser.id, false);
-      } else {
-        // No user session - clear profile and guest state
+      } else if (event === 'SIGNED_OUT') {
         setProfile(null);
         profileRef.current = null;
         setIsGuest(false);
@@ -345,6 +375,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       fetchOrgSettings,
       clearGuestMode,
   setGuestMode: fetchGuestProfile,
+      restoreGuestSession,
       authModal,
       openAuthModal,
       closeAuthModal,

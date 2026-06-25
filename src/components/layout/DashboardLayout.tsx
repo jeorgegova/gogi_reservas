@@ -31,10 +31,11 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { getTerminology } from '@/lib/terminology';
 import { AuthModal } from '../auth/AuthModal';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, terminology: terminologyHook, isGuest, openAuthModal, businessType } = useAuth();
+  const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, isGuest, openAuthModal, businessType } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [organization, setOrganization] = useState<any>(null);
   const [orgLoading, setOrgLoading] = useState(false);
@@ -102,7 +103,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  const terminology = terminologyHook;
+  const effectiveBusinessType = organization?.business_type || businessType;
+  const terminology = getTerminology(effectiveBusinessType);
+  const isResidential = effectiveBusinessType === 'residential';
   let navItems = [
     { name: 'Calendario', path: '/dashboard', icon: LayoutDashboard },
     { name: terminology.reservationLabel, path: '/reservations/new', icon: Calendar },
@@ -135,9 +138,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: 'Dashboard (informes)', path: '/admin', icon: LayoutDashboard },
       { name: `Calendario (${terminology.reservationLabel}s)`, path: '/dashboard', icon: Calendar },
       { name: `Gestión ${terminology.reservationLabel}s`, path: '/admin/reservations', icon: Calendar },
-      { name: terminology.areaLabel + (businessType !== 'residential' ? 's' : 's'), path: '/admin/resources', icon: businessType !== 'residential' ? Users : Building2 },
-      { name: 'Servicios', path: '/admin/services', icon: Package },
-      ...(businessType !== 'residential' ? [{ name: 'Rendimiento / Estadísticas', path: '/admin/statistics', icon: History }] : []),
+      { name: terminology.areaLabel + (isResidential ? 's' : 's'), path: '/admin/resources', icon: isResidential ? Building2 : Users },
+      ...(!isResidential ? [{ name: 'Servicios', path: '/admin/services', icon: Package }] : []),
+      ...(!isResidential ? [{ name: 'Rendimiento / Estadísticas', path: '/admin/statistics', icon: History }] : []),
       { name: terminology.userLabel + 's', path: '/admin/users', icon: User },
       { name: 'Suscripción', path: '/admin/subscription', icon: Crown },
       { name: 'Bonificaciones', path: '/admin/bonificaciones', icon: Gift },
@@ -270,12 +273,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Compartir enlace - Solo para Administradores */}
             {isAdmin && organization?.slug && (
               <div className="mx-0 mt-6 mb-2 p-4 bg-primary/5 rounded-2xl border border-primary/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <p className="text-xs font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <div className="text-xs font-bold text-gray-900 mb-2 flex items-center gap-2">
                   <div className="p-1 bg-primary/10 rounded-lg text-primary">
                     <Share2 className="w-3.5 h-3.5" />
                   </div>
                   Compartir negocio
-                </p>
+                </div>
                 <p className="text-[10px] text-gray-500 mb-3 leading-relaxed">
                   Comparte este enlace con tus clientes para que puedan reservar.
                 </p>
