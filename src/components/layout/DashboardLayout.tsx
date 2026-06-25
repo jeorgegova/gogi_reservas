@@ -24,6 +24,7 @@ import {
   Check,
   MessageCircle,
   Users,
+  Package,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -135,6 +136,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: `Calendario (${terminology.reservationLabel}s)`, path: '/dashboard', icon: Calendar },
       { name: `Gestión ${terminology.reservationLabel}s`, path: '/admin/reservations', icon: Calendar },
       { name: terminology.areaLabel + (businessType !== 'residential' ? 's' : 's'), path: '/admin/resources', icon: businessType !== 'residential' ? Users : Building2 },
+      { name: 'Servicios', path: '/admin/services', icon: Package },
       ...(businessType !== 'residential' ? [{ name: 'Rendimiento / Estadísticas', path: '/admin/statistics', icon: History }] : []),
       { name: terminology.userLabel + 's', path: '/admin/users', icon: User },
       { name: 'Suscripción', path: '/admin/subscription', icon: Crown },

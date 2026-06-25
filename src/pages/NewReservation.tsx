@@ -5,7 +5,6 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useCommonAreasQuery } from '@/hooks/useResources';
 import { useCreateReservationMutation, useUpdateReservationMutation } from '@/hooks/useReservations';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as reservationService from '@/services/reservations';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,12 +16,7 @@ import {
   AlertCircle,
   ArrowRight,
   ChevronLeft,
-  Building2,
-  Hammer,
-  ClipboardCheck,
-  Sun,
-  Moon,
-  Calendar,
+  Calendar as CalendarIcon,
   Users,
   Search,
   HelpCircle,
@@ -34,8 +28,16 @@ import {
   User
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
-import { format, addHours, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
+import { format, addMinutes, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+interface CustomService {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  duration: number;
+}
 
 export default function NewReservationPage() {
   const { profile, terminology, openAuthModal, businessType } = useAuth();
@@ -47,20 +49,20 @@ export default function NewReservationPage() {
   const isEditing = !!id;
 
   const [step, setStep] = useState(1);
-  const [selectedArea, setSelectedArea] = useState<any>(null);
-  const isFree = selectedArea?.is_free || false;
+  const [selectedArea, setSelectedArea] = useState<any>(null); // selectedEmployee
   const [searchParams] = useSearchParams();
   const initialDate = searchParams.get('date');
 
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), 'yyyy-MM-dd'));
   const [selectedStartTime, setSelectedStartTime] = useState<string>('');
-  const [duration, setDuration] = useState<number>(1);
-  // Tipo de jornada seleccionada: 'diurna' | 'nocturna' | 'ambos' | null
-  const [selectedJornada, setSelectedJornada] = useState<'diurna' | 'nocturna' | 'ambos' | null>(null);
+  
+  // New architecture fields: list of services linking to employee
+  const [availableServices, setAvailableServices] = useState<CustomService[]>([]);
+  const [selectedServices, setSelectedServices] = useState<CustomService[]>([]);
   const [existingReservations, setExistingReservations] = useState<any[]>([]);
   const [activeMaintenances, setActiveMaintenances] = useState<any[]>([]);
 
-  // Para admins: seleccionar usuario para la reserva
+  // Admin user selection
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [userSearchTerm, setUserSearchTerm] = useState<string>('');
 
@@ -74,30 +76,25 @@ export default function NewReservationPage() {
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [showPromoModal, setShowPromoModal] = useState(false);
 
-  const [availableAddons, setAvailableAddons] = useState<any[]>([]);
-  const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
-  const [editAddonIds, setEditAddonIds] = useState<string[]>([]);
   const [operationSchedules, setOperationSchedules] = useState<any[]>([]);
   const [maxReservationDays, setMaxReservationDays] = useState<number | null>(null);
 
-  // React Query Hooks
+  // Queries
   const { data: areasData = [] } = useCommonAreasQuery(profile?.organization_id);
   const createMutation = useCreateReservationMutation();
   const updateMutation = useUpdateReservationMutation();
 
-  const fallbackSlots = Array.from({ length: 14 }, (_, i) => {
-    const hour = 8 + i;
-    return `${hour.toString().padStart(2, '0')}:00`;
+  const fallbackSlots = Array.from({ length: 28 }, (_, i) => {
+    const hour = Math.floor(8 + i / 2);
+    const minute = i % 2 === 0 ? '00' : '30';
+    return `${hour.toString().padStart(2, '0')}:${minute}`;
   });
 
   const getNextBlockStart = (startTime: string): Date | null => {
-
     if (!startTime) return null;
-
     const start = parseISO(`${selectedDate} ${startTime}:00`);
     let earliestBlock: Date | null = null;
 
-    // Check reservations
     for (const res of existingReservations) {
       const resStart = parseISO(detoxTime(res.start_datetime));
       if (resStart > start) {
@@ -107,7 +104,6 @@ export default function NewReservationPage() {
       }
     }
 
-    // Check maintenance
     for (const maint of activeMaintenances) {
       const maintStart = parseISO(detoxTime(maint.starts_at));
       if (maintStart > start) {
@@ -120,7 +116,6 @@ export default function NewReservationPage() {
     return earliestBlock;
   };
 
-  // Fetch pending reservations to prevent duplicates
   const targetUserIdForPendingCheck = (isAdmin && selectedUserId) ? selectedUserId : profile?.id;
   const isGuestUser = !profile?.id || profile?.role === 'guest';
 
@@ -143,14 +138,11 @@ export default function NewReservationPage() {
       return data || [];
     },
     enabled: !!profile?.organization_id && !!targetUserIdForPendingCheck,
-    refetchOnMount: 'always',
-    staleTime: 0,
   });
 
   const hasPendingReservation = pendingReservations.length > 0;
 
-  // Fetch users for admin selection
-  const { data: users = [], isLoading: usersLoading } = useQuery({
+  const { data: users = [] } = useQuery({
     queryKey: ['users', profile?.organization_id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -170,7 +162,6 @@ export default function NewReservationPage() {
 
       if (error) throw error;
 
-      // Transformar para mantener compatibilidad
       return (data || []).map((m: any) => ({
         id: m.profiles.id,
         full_name: m.profiles.full_name,
@@ -181,7 +172,6 @@ export default function NewReservationPage() {
     enabled: isAdmin && !!profile?.organization_id,
   });
 
-  // Fetch single reservation for edit using useQuery
   const { data: reservationToEdit } = useQuery({
     queryKey: ['reservation', id],
     queryFn: async () => {
@@ -196,7 +186,6 @@ export default function NewReservationPage() {
     enabled: isEditing && !!id,
   });
   
-  // Fetch organization details for address and phone
   const { data: organization } = useQuery({
     queryKey: ['organization', profile?.organization_id],
     queryFn: async () => {
@@ -218,133 +207,82 @@ export default function NewReservationPage() {
   }, [organization]);
 
   useEffect(() => {
-    if (profile?.organization_id) {
-      // Manual checks if needed
-    }
-
-    // Suscripción en tiempo real para actualizar el estado de reservas pendientes
-    if (profile?.organization_id) {
-      const channel = supabase
-        .channel('reservation_changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'reservations',
-            filter: `organization_id=eq.${profile.organization_id}`,
-          },
-          () => {
-            // Invalidar el query de reservas pendientes para el usuario actual o seleccionado
-            queryClient.invalidateQueries({
-              queryKey: ['pendingReservations', targetUserIdForPendingCheck, profile.organization_id],
-            });
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [profile?.organization_id, targetUserIdForPendingCheck, queryClient]);
-
-  useEffect(() => {
     if (reservationToEdit && isEditing) {
-      // Logic from fetchReservationToEdit
-      if (reservationToEdit.user_id !== profile?.id && !isAdmin) {
-        // We'll handle this error below
-        return;
-      }
-      if (reservationToEdit.status !== 'pending_validation' && !isAdmin) {
-        // We'll handle this error below
-        return;
-      }
+      if (reservationToEdit.user_id !== profile?.id && !isAdmin) return;
+      if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return;
 
-      if (reservationToEdit) {
-        setSelectedArea(reservationToEdit.resources);
-        setSelectedUserId(reservationToEdit.user_id);
-        const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
-        const startDay = format(startDate, 'yyyy-MM-dd');
-        setSelectedDate(startDay);
-        setSelectedStartTime(format(startDate, 'HH:mm'));
-        
-        const endDate = parseISO(detoxTime(reservationToEdit.end_datetime));
-        const diffMs = endDate.getTime() - startDate.getTime();
-        const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-        setDuration(diffHours);
-
-        if (reservationToEdit.reservation_services && reservationToEdit.reservation_services.length > 0) {
-          setEditAddonIds(reservationToEdit.reservation_services.map((ra: any) => ra.service_id));
-        }
-        
-        setStep(2);
-      }
+      setSelectedArea(reservationToEdit.resources);
+      setSelectedUserId(reservationToEdit.user_id);
+      const startDate = parseISO(detoxTime(reservationToEdit.start_datetime));
+      setSelectedDate(format(startDate, 'yyyy-MM-dd'));
+      setSelectedStartTime(format(startDate, 'HH:mm'));
+      
+      // Load services linked to edit
+      fetchLinkedServicesForEdit(reservationToEdit.resources.id, reservationToEdit.reservation_services);
+      setStep(3);
     }
   }, [reservationToEdit, isEditing, profile?.id, isAdmin]);
 
-  useEffect(() => {
-    // Subscription status is handled by blockingError derivation
-  }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
+  const fetchLinkedServicesForEdit = async (employeeId: string, savedServices: any[]) => {
+    const { data } = await supabase
+      .from('resource_services')
+      .select('*, services(*)')
+      .eq('resource_id', employeeId);
+    
+    if (data) {
+      const mapped = data
+        .filter((row: any) => row.services?.is_active)
+        .map((row: any) => ({
+          id: row.services.id,
+          name: row.services.name,
+          description: row.services.description || '',
+          cost: row.custom_price ?? row.services.base_cost ?? 0,
+          duration: row.services.duration_minutes || 30,
+        }));
+      setAvailableServices(mapped);
+      
+      const savedIds = savedServices.map(s => s.service_id);
+      const selected = mapped.filter(m => savedIds.includes(m.id));
+      setSelectedServices(selected);
+    }
+  };
 
   const blockingError = (() => {
-    if (!subscriptionLoading) {
-      if (subscriptionStatus === 'cancelled') return 'Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.';
-      if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return 'Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.';
-    }
+    if (subscriptionStatus === 'cancelled') return 'Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.';
+    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return 'Servicio temporalmente inhabilitado. Si tienes dudas por favor comunícate con administración.';
 
     if (isEditing && reservationToEdit) {
-      if (reservationToEdit.user_id !== profile?.id && !isAdmin) return `No tienes permiso para editar esta ${terminology.reservationLabel.toLowerCase()}.`;
-      if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return `La ${terminology.reservationLabel.toLowerCase()} ya se validó y no se puede editar.`;
+      if (reservationToEdit.user_id !== profile?.id && !isAdmin) return `No tienes permiso para editar esta reserva.`;
+      if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return `La reserva ya se validó y no se puede editar.`;
     }
 
     if (!isAdmin && !isEditing && hasPendingReservation && !isGuestUser) {
-      return `Tiene una ${terminology.reservationLabel.toLowerCase()} pendiente de pago o validación. Debe completar el pago o esperar aprobación antes de hacer una nueva ${terminology.reservationLabel.toLowerCase()}.`;
+      return `Tienes una reserva pendiente de pago o validación. Debes completar el pago o esperar aprobación antes de hacer una nueva.`;
     }
 
     if (isGuestUser && isEditing) {
-      return `Como invitado no puedes editar ${terminology.reservationLabel.toLowerCase()}s. Por favor inicia sesión para gestionar tus citas.`;
+      return `Como invitado no puedes editar reservas. Por favor inicia sesión para gestionar tus citas.`;
     }
 
     return null;
   })();
 
-  // Lógica de ajuste automático de duración para no exceder la medianoche o la siguiente reserva
-  useEffect(() => {
-    if (selectedStartTime && selectedArea && selectedArea.pricing_type !== 'jornada') {
-      const startHour = parseInt(selectedStartTime.split(':')[0]);
-      const maxAllowedByDay = 24 - startHour;
+  const totalSelectedDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+  const totalSelectedCost = selectedServices.reduce((sum, s) => sum + s.cost, 0);
 
+  // Auto adjustment and validation for proposed time slots
+  useEffect(() => {
+    if (selectedStartTime && selectedArea && totalSelectedDuration > 0) {
       const nextBlock = getNextBlockStart(selectedStartTime);
       const start = parseISO(`${selectedDate} ${selectedStartTime}:00`);
-      const addonDuration = getTotalAddonDuration();
       
-      let maxAllowedHours = maxAllowedByDay;
-
-      if (selectedArea.pricing_type === 'fixed') {
-        const baseDuration = selectedArea.estimated_duration_minutes || 60;
-        if (nextBlock && (baseDuration + addonDuration) > (nextBlock.getTime() - start.getTime()) / (1000 * 60)) {
-            setSelectedStartTime('');
-            setErrorMessage('La duración total con los servicios adicionales excede el tiempo disponible antes de la próxima reserva.');
-            setIsErrorAlertOpen(true);
-        }
-      } else {
-        const minRequiredMinutes = 60 + addonDuration;
-        const availableMinutes = nextBlock ? (nextBlock.getTime() - start.getTime()) / (1000 * 60) : maxAllowedByDay * 60;
-
-        if (minRequiredMinutes > availableMinutes) {
-            setSelectedStartTime('');
-            setErrorMessage('Los servicios adicionales seleccionados no caben en este horario. Por favor elige otro horario o quita servicios.');
-            setIsErrorAlertOpen(true);
-        } else if (duration > maxAllowedHours) {
-            maxAllowedHours = maxAllowedHours >= 1 ? Math.floor(maxAllowedHours) : 1;
-            setDuration(maxAllowedHours);
-        }
+      if (nextBlock && totalSelectedDuration > (nextBlock.getTime() - start.getTime()) / (1000 * 60)) {
+        setSelectedStartTime('');
+        setErrorMessage('La duración acumulada de los servicios seleccionados excede el tiempo disponible antes de la próxima reserva.');
+        setIsErrorAlertOpen(true);
       }
     }
-  }, [selectedStartTime, selectedArea, duration, selectedAddons, existingReservations, activeMaintenances]);
-
-
+  }, [selectedStartTime, selectedArea, selectedServices, existingReservations, activeMaintenances]);
 
   const filteredUsers = (users || []).filter((user: any) =>
     user.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
@@ -352,46 +290,66 @@ export default function NewReservationPage() {
     (terminology.unitLabel && user.apartment?.toLowerCase().includes(userSearchTerm.toLowerCase()))
   );
 
-  const fetchBusySlots = async (areaId: string) => {
-    let areaIds: string[] = [areaId];
-
-    let query = supabase
+  const fetchBusySlots = async (employeeId: string) => {
+    const { data: resData } = await supabase
       .from('reservations')
       .select('start_datetime, end_datetime, resource_id, profiles:user_id(full_name, phone), resources(name)')
-      .in('resource_id', areaIds)
+      .eq('resource_id', employeeId)
       .eq('organization_id', profile?.organization_id)
       .in('status', ['approved', 'pending_validation', 'pending_payment']);
 
-    if (isEditing && id) {
-      query = query.neq('id', id);
-    }
-
-    const { data: resData } = await query;
     setExistingReservations(resData || []);
 
     const { data: maintData } = await supabase
       .from('maintenance_notices')
       .select('starts_at, ends_at, severity, title, content')
-      .or(`resource_id.eq.${areaId},resource_id.is.null`)
+      .or(`resource_id.eq.${employeeId},resource_id.is.null`)
       .eq('organization_id', profile?.organization_id)
       .eq('is_active', true);
 
     setActiveMaintenances(maintData || []);
   };
 
-  const handleAreaSelect = (area: any) => {
+  const handleEmployeeSelect = async (employee: any) => {
     if (isAdmin && !selectedUserId) {
-      setUserError('Por favor selecciona un usuario antes de elegir un área.');
+      setUserError('Por favor selecciona un usuario antes de continuar.');
       return;
     }
 
     setUserError(null);
-    setSelectedArea(area);
-    setSelectedJornada(null);
-    setSelectedAddons([]);
-    fetchBusySlots(area.id);
-    fetchBonusInfo(area.id);
-    fetchAddons(area.id);
+    setSelectedArea(employee);
+    setSelectedServices([]);
+    setSelectedStartTime('');
+    
+    // Step 2: Fetch services linked to this employee
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('resource_services')
+        .select('*, services(*)')
+        .eq('resource_id', employee.id);
+      if (error) throw error;
+      
+      if (data) {
+        const mapped = data
+          .filter((row: any) => row.services?.is_active)
+          .map((row: any) => ({
+            id: row.services.id,
+            name: row.services.name,
+            description: row.services.description || '',
+            cost: row.custom_price ?? row.services.base_cost ?? 0,
+            duration: row.services.duration_minutes || 30,
+          }));
+        setAvailableServices(mapped);
+      }
+    } catch (e: any) {
+      toast.error('Error al cargar servicios del empleado: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+
+    fetchBusySlots(employee.id);
+    fetchBonusInfo(employee.id);
     fetchOperationSchedules();
 
     if (isGuestUser) {
@@ -401,7 +359,7 @@ export default function NewReservationPage() {
     }
   };
 
-  const fetchBonusInfo = async (areaId: string) => {
+  const fetchBonusInfo = async (employeeId: string) => {
     if (!profile?.id || isGuestUser) {
       setBonusConfig(null);
       setUserReservationCount(0);
@@ -423,7 +381,7 @@ export default function NewReservationPage() {
       const { data: config } = await supabase
         .from('bonus_configs')
         .select('*')
-        .eq('resource_id', areaId)
+        .eq('common_area_id', employeeId)
         .eq('is_active', true)
         .single();
 
@@ -435,7 +393,7 @@ export default function NewReservationPage() {
           .from('reservations')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', targetUserId)
-          .eq('resource_id', areaId)
+          .eq('resource_id', employeeId)
           .eq('status', 'approved');
 
         setUserReservationCount(count || 0);
@@ -449,28 +407,6 @@ export default function NewReservationPage() {
     }
   };
 
-  const fetchAddons = async (areaId: string) => {
-    const { data } = await supabase
-      .from('resource_services')
-      .select('*, services(*)')
-      .eq('resource_id', areaId);
-    if (data) {
-      const mapped = data
-        .filter((row: any) => row.services?.is_active)
-        .map((row: any) => ({
-          id: row.service_id,
-          name: row.services?.name || '',
-          description: row.services?.description || '',
-          additional_cost: row.custom_price ?? row.services?.base_cost ?? 0,
-          additional_duration_minutes: row.services?.duration_minutes || 0,
-        }));
-      setAvailableAddons(mapped);
-    } else {
-      setAvailableAddons([]);
-    }
-    setSelectedAddons([]);
-  };
-
   const fetchOperationSchedules = async () => {
     if (!profile?.organization_id) return;
     const { data } = await supabase
@@ -479,42 +415,6 @@ export default function NewReservationPage() {
       .eq('organization_id', profile.organization_id)
       .eq('is_active', true);
     setOperationSchedules(data || []);
-  };
-
-  useEffect(() => {
-    if (isEditing && reservationToEdit?.resources?.id && selectedArea?.id === reservationToEdit.resources.id) {
-      fetchBusySlots(reservationToEdit.resources.id);
-      fetchOperationSchedules();
-      fetchBonusInfo(reservationToEdit.resources.id);
-      fetchAddons(reservationToEdit.resources.id);
-    }
-  }, [isEditing, selectedArea?.id]);
-
-  useEffect(() => {
-    if (isEditing && editAddonIds.length > 0 && availableAddons.length > 0) {
-      const matched = availableAddons.filter((a: any) => editAddonIds.includes(a.id));
-      if (matched.length > 0) {
-        setSelectedAddons(matched);
-      }
-      setEditAddonIds([]);
-    }
-  }, [availableAddons, editAddonIds, isEditing]);
-
-  const toggleAddon = (addon: any) => {
-    setSelectedAddons(prev => {
-      const exists = prev.find((a: any) => a.id === addon.id);
-      if (exists) return prev.filter((a: any) => a.id !== addon.id);
-      return [...prev, addon];
-    });
-  };
-
-  const getTotalAddonCost = () => selectedAddons.reduce((sum: number, a: any) => sum + (a.additional_cost || 0), 0);
-  const getTotalAddonDuration = () => selectedAddons.reduce((sum: number, a: any) => sum + (a.additional_duration_minutes || 0), 0);
-
-  const getTotalServiceDurationMinutes = () => {
-    if (!selectedArea) return 60;
-    const base = selectedArea.estimated_duration_minutes || 60;
-    return base + getTotalAddonDuration();
   };
 
   const getOperationHoursForDate = (dateStr: string) => {
@@ -572,10 +472,9 @@ export default function NewReservationPage() {
     const endTotalMin = endH * 60 + endM;
     const brk = getBreakForDate(selectedDate);
     const slots: string[] = [];
-    const totalDuration = getTotalServiceDurationMinutes();
     let current = startH * 60 + startM;
-    while (current + totalDuration <= endTotalMin) {
-      const slotEnd = current + totalDuration;
+    while (current + totalSelectedDuration <= endTotalMin) {
+      const slotEnd = current + totalSelectedDuration;
       const overlapsBreak = brk && (current < brk.end && slotEnd > brk.start);
       if (!overlapsBreak) {
         const h = Math.floor(current / 60);
@@ -587,20 +486,11 @@ export default function NewReservationPage() {
     return slots;
   };
 
-
-
-  // Recalcular el descuento aplicado (ciclo de requeridas + 1)
   useEffect(() => {
     if (bonusConfig) {
       const cycleLength = bonusConfig.reservations_required + 1;
       const progressInCycle = userReservationCount % cycleLength;
-
-      const isEligible = progressInCycle === bonusConfig.reservations_required;
-      if (isEligible) {
-        setAppliedDiscount(bonusConfig.discount_percentage);
-      } else {
-        setAppliedDiscount(0);
-      }
+      setAppliedDiscount(progressInCycle === bonusConfig.reservations_required ? bonusConfig.discount_percentage : 0);
     } else {
       setAppliedDiscount(0);
     }
@@ -608,35 +498,18 @@ export default function NewReservationPage() {
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
-    setJornadaError(null);
     if (selectedArea) {
       fetchBusySlots(selectedArea.id);
     }
   };
 
-
-
-
-
   const getSlotStatus = (time: string) => {
     const slotStart = parseISO(`${selectedDate}T${time}:00`);
+    if (slotStart < new Date()) return { status: 'past' as const };
 
-    if (slotStart < new Date()) {
-      return { status: 'past' as const };
-    }
-
-    let slotEnd: Date;
-
-    if (selectedArea?.pricing_type === 'fixed') {
-      const totalMinutes = getTotalServiceDurationMinutes();
-      slotEnd = new Date(slotStart.getTime() + totalMinutes * 60 * 1000);
-    } else {
-      const totalMinutes = duration * 60 + getTotalAddonDuration();
-      slotEnd = new Date(slotStart.getTime() + totalMinutes * 60 * 1000);
-    }
+    const slotEnd = new Date(slotStart.getTime() + totalSelectedDuration * 60 * 1000);
 
     const isReserved = existingReservations.some(res => {
-      if (res.resource_id !== selectedArea?.id) return false;
       const resStart = parseISO(detoxTime(res.start_datetime));
       const resEnd = parseISO(detoxTime(res.end_datetime));
       return (slotStart < resEnd && slotEnd > resStart);
@@ -644,7 +517,6 @@ export default function NewReservationPage() {
 
     if (isReserved) {
       const conflicts = existingReservations.filter(res => {
-        if (res.resource_id !== selectedArea?.id) return false;
         const resStart = parseISO(detoxTime(res.start_datetime));
         const resEnd = parseISO(detoxTime(res.end_datetime));
         return (slotStart < resEnd && slotEnd > resStart);
@@ -681,188 +553,35 @@ export default function NewReservationPage() {
     return { status: 'available' };
   };
 
-  // Calcular el costo total según el tipo de precio
   const calculateTotalCost = () => {
-    if (isFree) return 0;
-
-    if (!selectedArea) return 0;
-
-    let finalBaseCost = 0;
-    if (selectedArea.pricing_type === 'fixed') {
-      finalBaseCost = selectedArea.fixed_cost || 0;
-    } else if (selectedArea.pricing_type === 'jornada') {
-      if (selectedJornada === 'diurna') finalBaseCost = selectedArea.cost_jornada_diurna || 0;
-      else if (selectedJornada === 'nocturna') finalBaseCost = selectedArea.cost_jornada_nocturna || 0;
-      else if (selectedJornada === 'ambos') finalBaseCost = selectedArea.cost_jornada_ambos || 0;
-    } else {
-      finalBaseCost = selectedArea.cost_per_hour * duration;
-    }
-
-    const addonCost = getTotalAddonCost();
-    const totalBeforeDiscount = finalBaseCost + addonCost;
-
     if (appliedDiscount > 0) {
-      return totalBeforeDiscount * (1 - appliedDiscount / 100);
+      return totalSelectedCost * (1 - appliedDiscount / 100);
     }
-
-    return totalBeforeDiscount;
+    return totalSelectedCost;
   };
 
-  // Obtener la hora de fin de la jornada según la configuración del área
-  const getJornadaEndTime = () => {
-    if (!selectedArea) return '';
-    if (selectedJornada === 'diurna') return selectedArea.jornada_end_diurna || '18:00';
-    if (selectedJornada === 'nocturna') return selectedArea.jornada_end_nocturna || '23:59';
-    if (selectedJornada === 'ambos') return selectedArea.jornada_end_nocturna || '23:59';
-    return '';
-  };
-
-  // Determinar la hora de fin según el tipo de precio
   const getEndTime = () => {
     if (!selectedArea || !selectedStartTime) return '';
-
-    if (selectedArea.pricing_type === 'fixed') {
-      const totalMinutes = getTotalServiceDurationMinutes();
-      const startDate = parseISO(`${selectedDate} ${selectedStartTime}:00`);
-      return format(new Date(startDate.getTime() + totalMinutes * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss");
-    }
-
-    if (selectedArea.pricing_type === 'jornada') {
-      const endTime = getJornadaEndTime();
-      return format(parseISO(`${selectedDate}T${endTime}:00`), "yyyy-MM-dd'T'HH:mm:ss");
-    }
-    return format(addHours(parseISO(`${selectedDate}T${selectedStartTime}:00`), duration), "yyyy-MM-dd'T'HH:mm:ss");
+    return format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), "yyyy-MM-dd'T'HH:mm:ss");
   };
 
-  // Obtener el texto del horario para mostrar
-  const getJornadaScheduleText = () => {
-    if (!selectedArea) return '';
-    if (selectedJornada === 'diurna') return `Diurna (${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_diurna || '18:00')})`;
-    if (selectedJornada === 'nocturna') return `Nocturna (${formatTime(selectedArea.jornada_start_nocturna || '18:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')})`;
-    if (selectedJornada === 'ambos') return `Completo (${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')})`;
-    return '';
-  };
-
-  // Verificar si la jornada está disponible para la fecha seleccionada
-  const checkJornadaAvailability = () => {
-    if (!selectedArea || !selectedJornada || !selectedDate) return { available: true };
-
-    const jornadaStart = selectedJornada === 'diurna'
-      ? selectedArea.jornada_start_diurna || '08:00'
-      : selectedJornada === 'nocturna'
-        ? selectedArea.jornada_start_nocturna || '18:00'
-        : selectedArea.jornada_start_diurna || '08:00';
-
-    const jornadaEnd = selectedJornada === 'diurna'
-      ? selectedArea.jornada_end_diurna || '18:00'
-      : selectedJornada === 'nocturna'
-        ? selectedArea.jornada_end_nocturna || '23:59'
-        : selectedArea.jornada_end_nocturna || '23:59';
-
-    const proposedStart = parseISO(`${selectedDate}T${jornadaStart}:00`);
-    const proposedEnd = parseISO(`${selectedDate}T${jornadaEnd}:00`);
-
-    // Verificar si hay conflicto con reservas existentes
-    const conflict = existingReservations.some(res => {
-      const resStart = parseISO(detoxTime(res.start_datetime));
-      const resEnd = parseISO(detoxTime(res.end_datetime));
-      return (proposedStart < resEnd && proposedEnd > resStart);
+  const toggleServiceSelection = (service: CustomService) => {
+    setSelectedServices(prev => {
+      const exists = prev.find(s => s.id === service.id);
+      if (exists) return prev.filter(s => s.id !== service.id);
+      return [...prev, service];
     });
-
-    if (conflict) {
-      return { available: false, message: `Ya existe una ${terminology.reservationLabel.toLowerCase()} para esta jornada en la fecha seleccionada` };
-    }
-
-    // Verificar si hay conflicto con mantenimiento
-    const maintenanceConflict = activeMaintenances.find(maint => {
-      const maintStart = parseISO(detoxTime(maint.starts_at));
-      const maintEnd = parseISO(detoxTime(maint.ends_at));
-      return (proposedStart < maintEnd && proposedEnd > maintStart);
-    });
-
-    if (maintenanceConflict) {
-      return { available: false, message: `El área tiene un aviso: ${maintenanceConflict.title}` };
-    }
-
-    return { available: true };
   };
-
-  const [jornadaError, setJornadaError] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(initialDate ? parseISO(initialDate) : new Date());
-  const [daysWithReservations, setDaysWithReservations] = useState<Set<string>>(new Set());
-
-  // Fetch reservations for the current month to show availability on calendar
-  useEffect(() => {
-    if (selectedArea) {
-      fetchMonthReservations();
-    }
-  }, [selectedArea, currentMonth]);
-
-  // Close promo modal on Escape
-  useEffect(() => {
-    if (!showPromoModal) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowPromoModal(false);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [showPromoModal]);
-
-  const fetchMonthReservations = async () => {
-    if (!selectedArea) return;
-
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-
-    const { data } = await supabase
-      .from('reservations')
-      .select('start_datetime, end_datetime')
-      .eq('resource_id', selectedArea.id)
-      .eq('organization_id', profile?.organization_id)
-      .in('status', ['approved', 'pending_validation', 'pending_payment'])
-      .lt('start_datetime', monthEnd.toISOString())
-      .gt('end_datetime', monthStart.toISOString());
-
-    if (data) {
-      const days = new Set<string>();
-      data.forEach(res => {
-        const start = parseISO(detoxTime(res.start_datetime));
-        const end = parseISO(detoxTime(res.end_datetime));
-        const daySlots = eachDayOfInterval({ start, end });
-        daySlots.forEach(day => {
-          days.add(format(day, 'yyyy-MM-dd'));
-        });
-      });
-      setDaysWithReservations(days);
-    }
-  };
-
-  const getDaysInMonth = () => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start: monthStart, end: monthEnd });
-  };
-
-  const firstDayOfMonth = startOfMonth(currentMonth).getDay();
 
   const handleReserve = async () => {
-    if (!profile || !selectedArea || !selectedStartTime) return;
+    if (!profile || !selectedArea || !selectedStartTime || selectedServices.length === 0) return;
 
-    // Para áreas por jornada, validar selección
-    if (selectedArea.pricing_type === 'jornada' && !selectedJornada) {
-      setErrorMessage('Por favor selecciona una jornada (diurna, nocturna o completo)');
-      setIsErrorAlertOpen(true);
-      return;
-    }
-
-    // Validar datos de contacto para invitados
     if (isGuestUser && (!guestName || !guestPhone)) {
       setErrorMessage('Por favor ingresa tu nombre y teléfono de contacto');
       setIsErrorAlertOpen(true);
       return;
     }
 
-    // Validar si el invitado ya tiene una reserva pendiente por su teléfono
     if (isGuestUser && guestPhone) {
       const { count } = await supabase
         .from('reservations')
@@ -872,46 +591,41 @@ export default function NewReservationPage() {
         .in('status', ['pending_payment', 'pending_validation']);
 
       if (count && count > 0) {
-        setErrorMessage(`Ya existe una ${terminology.reservationLabel.toLowerCase()} pendiente de validación asociada al teléfono ${guestPhone}. Por favor, espera a que sea procesada por la administración.`);
+        setErrorMessage(`Ya existe una reserva pendiente de validación asociada a tu teléfono. Espera a que sea procesada.`);
         setIsErrorAlertOpen(true);
         return;
       }
     }
 
-    // Limpiar errores anteriores
     setErrorMessage('');
 
-    // Verificación final de disponibilidad (doble check local antes de enviar)
-    if (selectedStartTime && selectedArea.pricing_type !== 'jornada') {
-      const info = getSlotStatus(selectedStartTime);
-      if (info.status !== 'available' && !(isAdmin && info.status === 'reserved')) {
-        setErrorMessage(`El horario seleccionado ya no está disponible${info.reason ? `: ${info.reason}` : ''}. Por favor selecciona otro.`);
-        setIsErrorAlertOpen(true);
-        return;
-      }
+    const info = getSlotStatus(selectedStartTime);
+    if (info.status !== 'available' && !(isAdmin && info.status === 'reserved')) {
+      setErrorMessage(`El horario seleccionado ya no está disponible.`);
+      setIsErrorAlertOpen(true);
+      return;
     }
 
     const start = `${selectedDate}T${selectedStartTime}:00`;
     const end = getEndTime();
     const totalCost = calculateTotalCost();
 
-    if (isAdmin && (!selectedUserId || selectedUserId.length === 0)) {
-      setErrorMessage(`Por favor selecciona un ${terminology.userLabel.toLowerCase()} para la ${terminology.reservationLabel.toLowerCase()}`);
+    if (isAdmin && !selectedUserId) {
+      setErrorMessage(`Por favor selecciona un usuario para registrar la reserva.`);
       setIsErrorAlertOpen(true);
       return;
     }
 
-    const reservationUserId = (isAdmin && selectedUserId && selectedUserId.length > 0) ? selectedUserId : profile.id;
-    const reservationStatus = 'pending_validation';
+    const reservationUserId = (isAdmin && selectedUserId) ? selectedUserId : profile.id;
 
-    const reservationData: Partial<reservationService.Reservation> = {
+    const reservationData: any = {
       user_id: reservationUserId,
       resource_id: selectedArea.id,
       start_datetime: start,
       end_datetime: end,
       total_cost: totalCost,
       organization_id: profile?.organization_id,
-      status: reservationStatus,
+      status: 'pending_validation',
       guest_name: isGuestUser ? guestName : null,
       guest_phone: isGuestUser ? guestPhone : null
     };
@@ -919,52 +633,46 @@ export default function NewReservationPage() {
     try {
       if (isEditing) {
         await updateMutation.mutateAsync({ id: id!, data: reservationData });
-
         await supabase.from('reservation_services').delete().eq('reservation_id', id);
-        if (selectedAddons.length > 0) {
-          const addonInserts = selectedAddons.map((addon: any) => ({
-            reservation_id: id,
-            service_id: addon.id,
-            charged_price: addon.additional_cost || 0,
-          }));
-          await supabase.from('reservation_services').insert(addonInserts);
-        }
+        
+        const serviceInserts = selectedServices.map(service => ({
+          reservation_id: id,
+          service_id: service.id,
+          charged_price: service.cost
+        }));
+        await supabase.from('reservation_services').insert(serviceInserts);
       } else {
         const result = await createMutation.mutateAsync(reservationData);
-
-        if (selectedAddons.length > 0 && result?.id) {
-          try {
-            const addonInserts = selectedAddons.map((addon: any) => ({
-              reservation_id: result.id,
-              service_id: addon.id,
-              charged_price: addon.additional_cost || 0,
-            }));
-            await supabase.from('reservation_services').insert(addonInserts);
-          } catch (addonError) {
-            console.error('Error saving reservation add-ons:', addonError);
-          }
+        if (result?.id) {
+          const serviceInserts = selectedServices.map(service => ({
+            reservation_id: result.id,
+            service_id: service.id,
+            charged_price: service.cost
+          }));
+          await supabase.from('reservation_services').insert(serviceInserts);
         }
-
-        // Ya no se requiere redirección a Wompi para reservas
-        /*
-        if (!isFree && result?.id) {
-          navigate(`/payment/${result.id}`);
-          return;
-        }
-        */
       }
 
-      // Si el área es gratuita o no devolvió ID de pago, ir al inicio
       const targetPath = isGuestUser
         ? `/${profile?.organization_slug}`
         : (isAdmin ? '/admin/reservations' : '/reservations/my');
 
       navigate(targetPath);
+      toast.success(isEditing ? 'Reserva actualizada con éxito' : 'Reserva creada con éxito');
     } catch (error: any) {
-      setErrorMessage(error.message || `Error al procesar la ${terminology.reservationLabel.toLowerCase()}`);
+      setErrorMessage(error.message || `Error al procesar la reserva`);
       setIsErrorAlertOpen(true);
     }
   };
+
+  const getDaysInMonth = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    return eachDayOfInterval({ start: monthStart, end: monthEnd });
+  };
+
+  const [currentMonth, setCurrentMonth] = useState(initialDate ? parseISO(initialDate) : new Date());
+  const firstDayOfMonth = startOfMonth(currentMonth).getDay();
 
   if (blockingError) {
     return (
@@ -975,13 +683,9 @@ export default function NewReservationPage() {
               <HelpCircle className="w-12 h-12" />
             </div>
           </div>
-          <CardTitle className="text-xl mb-4">¡Oops! Servicio temporalmente inhabilitado</CardTitle>
-          <CardDescription className="text-base mb-6">
-            {blockingError}
-          </CardDescription>
-          <Button onClick={() => navigate('/reservations/my')}>
-            Ver mis {terminology.reservationLabel.toLowerCase()}s
-          </Button>
+          <CardTitle className="text-xl mb-4">Servicio temporalmente inhabilitado</CardTitle>
+          <CardDescription className="text-base mb-6">{blockingError}</CardDescription>
+          <Button onClick={() => navigate('/reservations/my')}>Ver mis reservas</Button>
         </Card>
       </div>
     );
@@ -992,97 +696,43 @@ export default function NewReservationPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {isEditing ? `Editar ${terminology.reservationLabel}` : `Nueva ${terminology.reservationLabel}`}
+            {isEditing ? 'Editar Cita' : 'Nueva Reserva'}
           </h1>
-
-          <p className="text-gray-500 text-sm">Sigue los pasos para asegurar tu espacio.</p>
-          
-          {organization && (organization.address || organization.phone) && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 animate-in fade-in slide-in-from-left-4 duration-700 delay-200">
-              {organization.address && (
-                <a 
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(organization.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-primary transition-all duration-300 group"
-                  title="Ver en Google Maps"
-                >
-                  <div className="p-1 bg-gray-100 rounded-md group-hover:bg-primary/10 transition-colors">
-                    <MapPin className="w-3 h-3 text-gray-400 group-hover:text-primary" />
-                  </div>
-                  <span className="truncate max-w-[200px] sm:max-w-none">{organization.address}</span>
-                </a>
-              )}
-              {organization.phone && (
-                <a 
-                  href={`tel:${organization.phone.replace(/[^0-9+]/g, '')}`}
-                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-primary transition-all duration-300 group"
-                  title="Llamar ahora"
-                >
-                  <div className="p-1 bg-gray-100 rounded-md group-hover:bg-primary/10 transition-colors">
-                    <Phone className="w-3 h-3 text-gray-400 group-hover:text-primary" />
-                  </div>
-                  <span>{organization.phone}</span>
-                </a>
-              )}
-            </div>
-          )}
+          <p className="text-gray-500 text-sm">Agenda tu sesión con nuestro personal profesional.</p>
         </div>
-        <div className="w-full">
-          {/* Barra de progreso */}
-          <div className="flex items-center gap-2 mb-4">
-            {/* Paso 1 */}
+        
+        {/* Progress Bar steps */}
+        <div className="w-full max-w-xl">
+          <div className="flex items-center gap-2">
             <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300",
-                step === 1 ? "bg-primary text-white" : step > 1 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"
-              )}>
+              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 1 ? "bg-primary text-white" : step > 1 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
                 {step > 1 ? "✓" : "1"}
               </div>
-              <span className={cn(
-                "text-sm font-medium transition-colors duration-300",
-                step >= 1 ? "text-gray-900" : "text-gray-400"
-              )}>Seleccionar {terminology.areaLabel.toLowerCase()}</span>
+              <span className="text-xs font-medium text-gray-700">Profesional</span>
             </div>
-
-            {/* Línea conectora */}
-            <div className={cn(
-              "flex-1 h-0.5 mx-2 transition-colors duration-300",
-              step > 1 ? "bg-emerald-500" : "bg-gray-200"
-            )} />
-
-            {/* Paso 2 */}
+            <div className={cn("flex-1 h-0.5 mx-1", step > 1 ? "bg-emerald-500" : "bg-gray-200")} />
+            
             <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300",
-                step === 2 ? "bg-primary text-white" : step > 2 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"
-              )}>
+              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 2 ? "bg-primary text-white" : step > 2 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
                 {step > 2 ? "✓" : "2"}
               </div>
-              <span className={cn(
-                "text-sm font-medium transition-colors duration-300",
-                step >= 2 ? "text-gray-900" : "text-gray-400"
-              )}>Configurar</span>
+              <span className="text-xs font-medium text-gray-700">Servicios</span>
             </div>
+            <div className={cn("flex-1 h-0.5 mx-1", step > 2 ? "bg-emerald-500" : "bg-gray-200")} />
 
-            {/* Línea conectora */}
-            <div className={cn(
-              "flex-1 h-0.5 mx-2 transition-colors duration-300",
-              step > 2 ? "bg-emerald-500" : "bg-gray-200"
-            )} />
-
-            {/* Paso 3 */}
             <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300",
-                step === 3 ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
-              )}>
-                3
+              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 3 ? "bg-primary text-white" : step > 3 ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500")}>
+                {step > 3 ? "✓" : "3"}
               </div>
-              <span className={cn(
-                "text-sm font-medium transition-colors duration-300",
-                step >= 3 ? "text-gray-900" : "text-gray-400"
-              )}>Pagar</span>
+              <span className="text-xs font-medium text-gray-700">Horario</span>
+            </div>
+            <div className={cn("flex-1 h-0.5 mx-1", step > 3 ? "bg-emerald-500" : "bg-gray-200")} />
+
+            <div className="flex items-center gap-2">
+              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", step === 4 ? "bg-primary text-white" : "bg-gray-200 text-gray-500")}>
+                4
+              </div>
+              <span className="text-xs font-medium text-gray-700">Confirmar</span>
             </div>
           </div>
         </div>
@@ -1090,1134 +740,303 @@ export default function NewReservationPage() {
 
       {step === 1 && (
         <>
-          {/* Selector de usuario para admin */}
           {isAdmin && (
-            usersLoading ? (
-              <div className="mb-6 p-8 bg-white border border-gray-100 rounded-xl flex flex-col items-center justify-center gap-3 animate-pulse">
-                <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                <p className="text-sm font-medium text-gray-500">Cargando {terminology.userLabel.toLowerCase()}s...</p>
-              </div>
-            ) : users.length > 0 ? (
-              <Card className="mb-4 border-primary/20 bg-primary/5">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-primary" />
-                    <CardTitle className="text-lg font-bold text-gray-900">Reservar para {terminology.userLabel}</CardTitle>
-                  </div>
-                  <CardDescription>Selecciona el {terminology.userLabel.toLowerCase()} que hará uso del {terminology.areaLabel.toLowerCase()}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {users.length > 5 && (
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        placeholder={`Buscar por nombre, email o ${terminology.unitLabel.toLowerCase()}...`}
-                        value={userSearchTerm}
-                        onChange={(e) => setUserSearchTerm(e.target.value)}
-                        className="pl-10 h-10"
-                      />
-                    </div>
-                  )}
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => {
-                      setSelectedUserId(e.target.value);
-                      setUserError(null); // Clear error when selecting
-                    }}
-                    className={cn(
-                      "w-full p-3 border rounded-lg bg-white text-gray-900 transition-colors",
-                      selectedUserId ? "border-green-200 bg-green-50/50" : "border-gray-200"
-                    )}
-                  >
-                    <option value="">Seleccionar {terminology.userLabel.toLowerCase()}</option>
-                    {filteredUsers.map((user: any) => (
-                      <option key={user.id} value={user.id}>
-                        {user.full_name || user.email} {user.apartment ? `- ${terminology.unitLabel} ${user.apartment}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {userError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-                      <AlertCircle className="w-4 h-4" />
-                      {userError}
-                    </div>
-                  )}
-                  {selectedUserId && (
-                    <div className="space-y-2">
-                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center gap-2 text-green-700">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span className="text-sm font-medium">
-                            Usuario seleccionado: {(users as any[]).find(u => u.id === selectedUserId)?.full_name || (users as any[]).find(u => u.id === selectedUserId)?.email}
-                            {(users as any[]).find(u => u.id === selectedUserId)?.apartment && ` - Apt ${(users as any[]).find(u => u.id === selectedUserId)?.apartment}`}
-                          </span>
-                        </div>
-                      </div>
-                      {hasPendingReservation && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-amber-700 text-xs">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-bold">¡Atención! Este {terminology.userLabel.toLowerCase()} ya tiene una {terminology.reservationLabel.toLowerCase()} pendiente.</p>
-                            <p>Debe completar el pago o esperar validación antes de crear una nueva.</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
-                <div className="p-2 bg-amber-100 rounded-lg shrink-0">
-                  <Users className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-amber-900 tracking-tight">Esta organización no tiene {terminology.userLabel.toLowerCase()}s para crear {terminology.reservationLabel.toLowerCase()}s</h3>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Debe registrar {terminology.userLabel.toLowerCase()}s en el módulo de {terminology.userLabel.toLowerCase()}s antes de poder realizar {terminology.reservationLabel.toLowerCase()}s administrativas.
-                  </p>
-                </div>
-              </div>
-            )
+            <Card className="mb-4 border-primary/20 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold text-gray-900">Reservar para Usuario</CardTitle>
+                <CardDescription>Selecciona el cliente para esta cita</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => {
+                    setSelectedUserId(e.target.value);
+                    setUserError(null);
+                  }}
+                  className={cn("w-full p-2.5 border rounded-lg bg-white text-gray-900 text-sm", selectedUserId ? "border-green-200 bg-green-50/50" : "border-gray-200")}
+                >
+                  <option value="">Seleccionar cliente...</option>
+                  {filteredUsers.map((user: any) => (
+                    <option key={user.id} value={user.id}>
+                      {user.full_name || user.email} {user.apartment ? `- Apto ${user.apartment}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {userError && (
+                  <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />{userError}</p>
+                )}
+              </CardContent>
+            </Card>
           )}
 
-          <div className={cn("grid gap-3 md:gap-5", businessType !== 'residential' ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" : "grid-cols-2 md:grid-cols-2 lg:grid-cols-3")}>
-            {areasData.map((area: any) => (
-              businessType !== 'residential' ? (
-                <Card
-                  key={area.id}
-                  className={cn(
-                    "border-none apple-shadow bg-white rounded-2xl transition-all duration-300 overflow-hidden group flex flex-col items-center p-4 text-center",
-                    (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:apple-shadow-hover hover:-translate-y-1 cursor-pointer active:scale-[0.98]"
-                  )}
-                  onClick={() => (isAdmin && !usersLoading && users.length === 0) ? null : handleAreaSelect(area)}
-                >
-                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-4 border-gray-50 shadow-sm relative group-hover:border-primary/20 transition-colors">
-                    {area.image_url ? (
-                      <img src={area.image_url} alt={area.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
-                        <User className="w-8 h-8 text-primary/40" />
-                      </div>
-                    )}
-                  </div>
-                  <h3 className="text-sm md:text-base font-bold text-gray-900 leading-tight mb-1 truncate w-full">{area.name}</h3>
-                  <p className="text-[10px] md:text-xs text-gray-500 line-clamp-2 leading-relaxed mb-3 flex-1">
-                    {area.description || 'Sin especialidad'}
-                  </p>
-                  <Button
-                    className="w-full h-8 md:h-9 bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold text-[11px] md:text-xs rounded-xl transition-all duration-300 border-none shadow-none active:scale-95 mt-auto"
-                    disabled={isAdmin && users.length === 0}
-                  >
-                    Seleccionar
-                  </Button>
-                </Card>
-              ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {areasData.map((employee: any) => (
               <Card
-                key={area.id}
-                className={cn(
-                  "border-none apple-shadow bg-white rounded-2xl transition-all duration-300 overflow-hidden group",
-                  (isAdmin && !usersLoading && users.length === 0) ? "opacity-75 cursor-not-allowed" : "hover:apple-shadow-hover hover:-translate-y-1 cursor-pointer active:scale-[0.98]"
-                )}
-                onClick={() => (isAdmin && !usersLoading && users.length === 0) ? null : handleAreaSelect(area)}
+                key={employee.id}
+                className="border-none apple-shadow bg-white rounded-2xl p-4 text-center cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col justify-between"
+                onClick={() => handleEmployeeSelect(employee)}
               >
-                <div className="relative h-32 md:h-44 overflow-hidden">
-                  {area.image_url ? (
-                    <img src={area.image_url} alt={area.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3 border-2 border-gray-100 shadow-sm">
+                  {employee.employee_photo_url ? (
+                    <img src={employee.employee_photo_url} alt={employee.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
-                      <Building2 className="w-10 h-10 md:w-12 md:h-12 text-primary/20" />
+                      <User className="w-8 h-8 text-primary/40" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                  <div className="absolute bottom-2 left-2.5 right-2.5">
-                    <h3 className="text-white text-sm md:text-base font-bold drop-shadow-lg leading-tight truncate">{area.name}</h3>
-                  </div>
-                  <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-black shadow-lg">
-                    {area.is_free
-                      ? <span className="text-emerald-600">Gratuito</span>
-                      : area.pricing_type === 'fixed'
-                        ? <span className="text-gray-900">{formatCurrency(area.fixed_cost)}</span>
-                        : area.pricing_type === 'jornada'
-                          ? <span className="text-primary">Jornada</span>
-                          : <span className="text-gray-900">{formatCurrency(area.cost_per_hour)}<span className="text-[9px] text-gray-400 font-medium">/h</span></span>}
-                  </div>
                 </div>
-                <div className="p-2.5 md:p-4 space-y-2">
-                  {area.description && (
-                    <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1 leading-relaxed">
-                      {area.description}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] text-gray-400 font-medium">
-                    {area.pricing_type === 'fixed' ? (
-                      <>
-                        <Clock className="w-3 h-3 text-primary/60" />
-                        <span>{area.estimated_duration_minutes || 60} min</span>
-                      </>
-                    ) : area.pricing_type === 'jornada' ? (
-                      <>
-                        <Calendar className="w-3 h-3 text-primary/60" />
-                        <span>Jornada Completa</span>
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-3 h-3 text-primary/60" />
-                        <span>Máx {area.max_hours_per_reservation}h por {terminology.reservationLabel.toLowerCase()}</span>
-                      </>
-                    )}
-                  </div>
-                  <Button
-                    className="w-full h-8 md:h-10 bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold text-[11px] md:text-xs rounded-xl transition-all duration-300 border-none shadow-none active:scale-95"
-                    disabled={isAdmin && users.length === 0}
-                  >
-                    Seleccionar
-                  </Button>
-                </div>
+                <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1 truncate">{employee.name}</h3>
+                <p className="text-[11px] text-gray-500 mb-3 truncate">{employee.specialty || 'Profesional de servicios'}</p>
+                <Button className="w-full h-8 bg-primary/10 text-primary font-bold text-xs rounded-xl hover:bg-primary hover:text-white border-none shadow-none mt-auto">
+                  Seleccionar
+                </Button>
               </Card>
-              )
             ))}
           </div>
         </>
       )}
 
       {step === 2 && selectedArea && (
-        <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
+        <Card className="border-none apple-shadow bg-white rounded-2xl max-w-xl mx-auto overflow-hidden">
           <CardHeader className="flex flex-row items-center gap-4 p-4 border-b border-gray-50">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100" onClick={() => setStep(1)}>
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setStep(1)}><ChevronLeft className="w-5 h-5" /></Button>
             <div>
-              <CardTitle className="text-xl font-bold">{selectedArea.name}</CardTitle>
-              <CardDescription>
-                Configura tu horario
-              </CardDescription>
+              <CardTitle className="text-lg font-bold">Servicios de {selectedArea.name}</CardTitle>
+              <CardDescription>Selecciona los servicios que deseas para tu cita</CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            {/* Action Block Component to avoid duplication of logic */}
-            {(() => {
-              const actionBlock = (
-                <div className="space-y-4">
-                  {!isFree && (
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 relative overflow-hidden">
-                      {appliedDiscount > 0 && (
-                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg animate-pulse z-10">
-                          {appliedDiscount}% BONIF.
-                        </div>
+          <CardContent className="p-5 space-y-4">
+            {availableServices.length > 0 ? (
+              <div className="space-y-2">
+                {availableServices.map((service) => {
+                  const isChecked = selectedServices.some(s => s.id === service.id);
+                  return (
+                    <button
+                      key={service.id}
+                      onClick={() => toggleServiceSelection(service)}
+                      className={cn(
+                        "w-full p-4 rounded-xl border text-left flex items-center gap-3 transition-all",
+                        isChecked ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-white border-gray-100 hover:border-gray-200"
                       )}
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          {selectedArea.pricing_type === 'fixed' || selectedArea.pricing_type === 'jornada' ? (
-                            <Calendar className="w-4 h-4 text-primary" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-[#FF3B30]" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">Inversión total</p>
-                          <div className="flex items-baseline gap-2">
-                            {appliedDiscount > 0 && (
-                              <span className="text-xs text-gray-400 line-through">
-                                {formatCurrency(calculateTotalCost() / (1 - appliedDiscount / 100))}
-                              </span>
-                            )}
-                            <p className="text-2xl font-black text-gray-900 tracking-tight">
-                              {formatCurrency(calculateTotalCost())}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      {selectedAddons.length > 0 && (
-                        <div className="mb-3 pt-2 border-t border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Desglose:</p>
-                          <p className="text-[10px] text-gray-600">
-                            {selectedArea.pricing_type === 'fixed'
-                              ? `${terminology.areaLabel}: ${formatCurrency(selectedArea.fixed_cost || 0)}`
-                              : selectedArea.pricing_type === 'jornada'
-                                ? `${terminology.areaLabel}: ${formatCurrency(selectedJornada === 'diurna' ? selectedArea.cost_jornada_diurna : selectedJornada === 'nocturna' ? selectedArea.cost_jornada_nocturna : selectedArea.cost_jornada_ambos)}`
-                                : `${duration}h × ${formatCurrency(selectedArea.cost_per_hour)} = ${formatCurrency(selectedArea.cost_per_hour * duration)}`
-                          }
-                          </p>
-                          {selectedAddons.map((addon: any) => {
-                            const aHours = Math.floor(addon.additional_duration_minutes / 60);
-                            const aMins = addon.additional_duration_minutes % 60;
-                            const aDurLabel = aHours > 0 ? (aMins > 0 ? `${aHours}h ${aMins}min` : `${aHours}h`) : `${aMins} min`;
-                            return (
-                              <p key={addon.id} className="text-[10px] text-gray-500">
-                                + {addon.name}: {formatCurrency(addon.additional_cost)} ({aDurLabel})
-                              </p>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {bonusConfig && appliedDiscount === 0 && (
-                        <div className="mb-3 text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-1.5">
-                          <Gift className="w-3 h-3" />
-                          {userReservationCount % (bonusConfig.reservations_required + 1)}/{bonusConfig.reservations_required} reservas para bonif.
-                        </div>
-                      )}
-                      <Button
-                        size="lg"
-                        className="w-full !bg-[#1e293b] text-white rounded-xl apple-shadow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none h-12 text-sm font-bold"
-                        style={{ backgroundColor: '#1e293b' }}
-                        disabled={
-                          !selectedDate ||
-                          !selectedStartTime ||
-                          (selectedArea.pricing_type === 'jornada' && !selectedJornada)
-                        }
-                        onClick={() => {
-                          if (selectedArea.pricing_type === 'jornada') {
-                            const availability = checkJornadaAvailability();
-                            if (!availability.available) {
-                              setJornadaError(availability.message || 'Horario no disponible');
-                              return;
-                            }
-                            setJornadaError(null);
-                          }
-                          setStep(3);
-                        }}
-                      >
-                        Continuar {terminology.reservationLabel.toLowerCase()} <ArrowRight className="w-4 h-4 ml-1" />
-                      </Button>
-                    </div>
-                  )}
-
-                  {isFree && (
-                    <Button
-                      size="lg"
-                      className="w-full !bg-[#1e293b] text-white rounded-xl apple-shadow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none h-12 text-sm font-bold"
-                      style={{ backgroundColor: '#1e293b' }}
-                      disabled={!selectedDate || !selectedStartTime}
-                      onClick={() => {
-                        setStep(3);
-                      }}
                     >
-                      Continuar {terminology.reservationLabel.toLowerCase()} <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  )}
-                </div>
-              );
-
-              return (
-                <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Columna Izquierda: Calendario, Duración e Inversión (Desktop) */}
-                  <div className="flex flex-col space-y-4">
-                    <div className="space-y-2">
-                  {/* Mini Calendar */}
-                  <div className="mt-4 p-3 bg-white border border-gray-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <button
-                        onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                        className="p-1 hover:bg-gray-100 rounded"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <span className="text-sm font-medium">
-                        {format(currentMonth, 'MMMM yyyy', { locale: es })}
-                      </span>
-                      <button
-                        onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                        className="p-1 hover:bg-gray-100 rounded"
-                      >
-                        <ChevronLeft className="w-4 h-4 rotate-180" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center">
-                      {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((day, i) => (
-                        <div key={i} className="text-[10px] font-medium text-gray-400 uppercase">
-                          {day}
-                        </div>
-                      ))}
-                      {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                        <div key={`empty-${i}`} />
-                      ))}
-                      {getDaysInMonth().map(day => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const hasReservation = daysWithReservations.has(dateStr);
-                        const isSelected = dateStr === selectedDate;
-                        const isPast = day < new Date() && !isToday(day);
-                        const notInSchedule = !isDateWithinOperationSchedule(dateStr);
-                        const isBeyondLimit = maxReservationDays
-                          ? day > new Date(new Date().getTime() + maxReservationDays * 24 * 60 * 60 * 1000)
-                          : false;
-
-                        return (
-                          <button
-                            key={dateStr}
-                            disabled={isPast || notInSchedule || isBeyondLimit}
-                            onClick={() => handleDateChange(dateStr)}
-                            className={cn(
-                              "w-7 h-7 text-xs rounded-full flex items-center justify-center transition-colors",
-                              isSelected && "bg-primary text-white shadow-md shadow-primary/20",
-                              !isSelected && !isPast && !notInSchedule && !isBeyondLimit && "hover:bg-gray-100",
-                              (isPast || notInSchedule || isBeyondLimit) && "text-gray-300 cursor-not-allowed",
-                              hasReservation && !isSelected && !isPast && "bg-amber-100 text-amber-700",
-                              isToday(day) && !isSelected && "ring-1 ring-primary ring-inset text-primary"
-                            )}
-                          >
-                            {format(day, 'd')}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="mt-3 flex gap-3 text-[10px] text-gray-500 justify-center">
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-amber-100 rounded" />
-                        <span>Con reservas</span>
+                      <div className={cn("w-5 h-5 rounded-md flex items-center justify-center border transition-colors", isChecked ? "bg-primary border-primary text-white" : "border-gray-300")}>
+                        {isChecked && <span className="text-[10px] font-bold">✓</span>}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-gray-100 rounded" />
-                        <span>Disponible</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-gray-900 truncate">{service.name}</span>
+                          <span className="text-sm font-bold text-primary">{formatCurrency(service.cost)}</span>
+                        </div>
+                        {service.description && (
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{service.description}</p>
+                        )}
+                        <span className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{service.duration} min</span>
                       </div>
-                    </div>
-                  </div>
-                </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-6">Este empleado no tiene servicios vinculados actualmente.</p>
+            )}
 
-                {/* For fixed-price (commercial): no duration/jornada selector needed */}
-                {selectedArea.pricing_type !== 'fixed' && (
-                  <div className="space-y-2">
-                    {selectedArea.pricing_type === 'jornada' ? (
-                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex items-center gap-3">
-                          <Calendar className="w-5 h-5 text-primary" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-700">
-                              {selectedJornada
-                                ? `Jornada seleccionada: ${selectedJornada === 'diurna' ? 'Diurna' : selectedJornada === 'nocturna' ? 'Nocturna' : 'Completo'}`
-                                : 'Selecciona una jornada disponible'
-                              }
-                            </p>
-                            {selectedJornada && (
-                              <p className="text-lg font-bold text-primary">
-                                {selectedJornada === 'diurna' && `${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_diurna || '18:00')}`}
-                                {selectedJornada === 'nocturna' && `${formatTime(selectedArea.jornada_start_nocturna || '18:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')}`}
-                                {selectedJornada === 'ambos' && `${formatTime(selectedArea.jornada_start_diurna || '08:00')} - ${formatTime(selectedArea.jornada_end_nocturna || '23:59')}`}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <Label className="text-sm font-semibold text-gray-700">Duración (horas)</Label>
-                        <div className="flex gap-2">
-                          {[1, 2, 3, 4].filter(h => {
-                            const maxByArea = selectedArea.max_hours_per_reservation;
-                            if (h > maxByArea) return false;
-                            if (selectedStartTime) {
-                              const startHour = parseInt(selectedStartTime.split(':')[0]);
-                              if (startHour + h > 24) return false;
-
-                              const nextBlock = getNextBlockStart(selectedStartTime) as Date | null;
-                              if (nextBlock) {
-                                const start = parseISO(`${selectedDate}T${selectedStartTime}:00`);
-                                const diffHours = (nextBlock.getTime() - start.getTime()) / (1000 * 60 * 60);
-                                return h <= diffHours;
-                              }
-                            }
-                            return true;
-                          }).map(h => (
-                            <Button
-                              key={h}
-                              variant={duration === h ? "default" : "outline"}
-                              className={cn(
-                                "flex-1 h-11 transition-all duration-300 rounded-xl",
-                                duration === h ? "bg-primary text-white shadow-md shadow-primary/20 scale-105" : "border-gray-200"
-                              )}
-                              onClick={() => setDuration(h)}
-                            >
-                              {h}h
-                            </Button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {selectedArea.pricing_type === 'fixed' && (
-                  <div className="p-4 bg-primary/5 border border-primary/10 rounded-lg">
-                    <div className="flex items-center gap-2 text-primary font-medium text-sm">
-                      <Clock className="w-4 h-4 text-[#FF3B30]" />
-                      <span>Duración del servicio: {getTotalServiceDurationMinutes()} minutos</span>
-                    </div>
-                    {(() => {
-                      const hours = getOperationHoursForDate(selectedDate);
-                      return hours ? (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Horario de atención: {formatTime(hours.start)} - {formatTime(hours.end)}
-                        </div>
-                      ) : null;
-                    })()}
-                    {selectedStartTime && (
-                      <div className="text-xs text-primary font-medium mt-1">
-                        Hora de entrada: {formatTime(selectedStartTime)} — Hora de salida: {formatTime(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + getTotalServiceDurationMinutes() * 60 * 1000))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                   </div>
-                   {/* Columna Derecha: Add-ons y Horas */}
-                  <div className="flex flex-col space-y-4">
-                    <div className="space-y-4">
-                {/* Add-ons Selection */}
-                {availableAddons.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <Package className="w-4 h-4 text-primary" />
-                      Servicios adicionales (opcionales)
-                    </Label>
-                    <div className="space-y-2">
-                      {availableAddons.map((addon: any) => {
-                        const isSelected = selectedAddons.some((a: any) => a.id === addon.id);
-                        
-                        // Check if adding this addon causes overlap with existing reservations
-                        const causesOverlap = !isSelected && !!selectedStartTime && (() => {
-                          const start = parseISO(`${selectedDate} ${selectedStartTime}:00`);
-                          const totalDuration = selectedArea.pricing_type === 'fixed'
-                            ? (selectedArea.estimated_duration_minutes || 60)
-                            : (duration * 60);
-                          
-                          const currentAddonDuration = getTotalAddonDuration();
-                          const newTotalDuration = totalDuration + currentAddonDuration + (addon.additional_duration_minutes || 0);
-                          const newEnd = new Date(start.getTime() + newTotalDuration * 60 * 1000);
-                          
-                          const nextBlock = getNextBlockStart(selectedStartTime);
-                          return Boolean(nextBlock && newEnd > nextBlock);
-                        })();
-
-                        return (
-                          <button
-                            key={addon.id}
-                            onClick={() => toggleAddon(addon)}
-                            disabled={causesOverlap}
-                            className={cn(
-                              "w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all",
-                              isSelected
-                                ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10"
-                                : causesOverlap
-                                  ? "bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed"
-                                  : "bg-white border-gray-100 hover:border-gray-200"
-                            )}
-                          >
-                            <div className={cn(
-                              "w-6 h-6 rounded-md flex items-center justify-center border-2 transition-colors",
-                              isSelected ? "bg-primary border-primary" : "border-gray-300"
-                            )}>
-                              {isSelected && <span className="text-white text-xs font-bold">✓</span>}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-900">{addon.name}</span>
-                                <span className="text-sm font-bold text-primary">
-                                  {addon.additional_cost > 0 ? `+${formatCurrency(addon.additional_cost)}` : 'Gratis'}
-                                </span>
-                              </div>
-                              {addon.description && (
-                                <p className="text-[10px] text-gray-400 truncate">{addon.description}</p>
-                              )}
-                              {addon.additional_duration_minutes > 0 && (
-                                <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                                  <Clock className="w-3 h-3 text-[#FF3B30]" />+{addon.additional_duration_minutes} min
-                                </span>
-                              )}
-                              {causesOverlap && (
-                                <p className="text-[9px] text-amber-600 font-bold mt-1 bg-amber-50 p-1 rounded border border-amber-100 animate-in fade-in slide-in-from-top-1 duration-300">
-                                  ⚠️ Selecciona otro horario para poder agregar este servicio
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                </div>
-
-                <div className="space-y-4 order-4">
-                  <Label className="text-sm font-medium text-gray-700">
-                  {selectedArea.pricing_type === 'jornada'
-                    ? 'Jornadas disponibles'
-                    : 'Horas disponibles'
-                  }
-                </Label>
-                {selectedArea.pricing_type === 'jornada' ? (
-                  <div className="space-y-3">
-                    {/* Jornada Diurna */}
-                    {(() => {
-                      const startTime = selectedArea.jornada_start_diurna || '08:00';
-                      const endTime = selectedArea.jornada_end_diurna || '18:00';
-                      const slotStart = parseISO(`${selectedDate} ${startTime}:00`);
-                      const slotEnd = parseISO(`${selectedDate} ${endTime}:00`);
-
-                      const isReserved = existingReservations.some(res => {
-                        const resStart = parseISO(detoxTime(res.start_datetime));
-                        const resEnd = parseISO(detoxTime(res.end_datetime));
-                        return (slotStart < resEnd && slotEnd > resStart);
-                      });
-
-                      const maintenance = activeMaintenances.find(maint => {
-                        const maintStart = parseISO(detoxTime(maint.starts_at));
-                        const maintEnd = parseISO(detoxTime(maint.ends_at));
-                        return (slotStart < maintEnd && slotEnd > maintStart);
-                      });
-
-                      const isPast = slotStart < new Date();
-                      const isDisabled = isReserved || !!maintenance || isPast;
-
-                      return (
-                        <div className="relative group">
-                          <Button
-                            variant={selectedJornada === 'diurna' ? "default" : "outline"}
-                            disabled={isDisabled}
-                            onClick={() => {
-                              setSelectedJornada('diurna');
-                              setSelectedStartTime(startTime);
-                              setJornadaError(null);
-                            }}
-                            className={cn(
-                              "w-full h-16 justify-start gap-4 transition-all duration-300 rounded-2xl",
-                              selectedJornada === 'diurna' ? "bg-primary text-white apple-shadow hover:scale-[1.01] border-none hover:bg-primary/90" : "border-gray-200 apple-shadow bg-white hover:bg-gray-50",
-                              isDisabled && "opacity-50 cursor-not-allowed grayscale"
-                            )}
-                          >
-                            <div className={cn(
-                              "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-                              selectedJornada === 'diurna' ? "bg-white/20" : "bg-primary/10"
-                            )}>
-                              <Sun className={cn("w-6 h-6", selectedJornada === 'diurna' ? "text-white" : "text-primary")} />
-                            </div>
-                            <div className="text-left flex-1">
-                              <div className="font-bold text-base">Diurna</div>
-                              <div className="text-xs opacity-80 font-medium">{formatTime(startTime)} - {formatTime(endTime)}</div>
-                            </div>
-                            <div className="ml-auto font-black text-lg">
-                              {isFree ? 'Gratis' : formatCurrency(selectedArea.cost_jornada_diurna || 0)}
-                            </div>
-                          </Button>
-
-                          {isDisabled && (
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {isPast ? 'Horario pasado' : maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Jornada Nocturna */}
-                    {(() => {
-                      const startTime = selectedArea.jornada_start_nocturna || '18:00';
-                      const endTime = selectedArea.jornada_end_nocturna || '23:59';
-                      const slotStart = parseISO(`${selectedDate} ${startTime}:00`);
-                      const slotEnd = parseISO(`${selectedDate} ${endTime}:00`);
-
-                      const isReserved = existingReservations.some(res => {
-                        const resStart = parseISO(detoxTime(res.start_datetime));
-                        const resEnd = parseISO(detoxTime(res.end_datetime));
-                        return (slotStart < resEnd && slotEnd > resStart);
-                      });
-
-                      const maintenance = activeMaintenances.find(maint => {
-                        const maintStart = parseISO(detoxTime(maint.starts_at));
-                        const maintEnd = parseISO(detoxTime(maint.ends_at));
-                        return (slotStart < maintEnd && slotEnd > maintStart);
-                      });
-
-                      const isPast = slotStart < new Date();
-                      const isDisabled = isReserved || !!maintenance || isPast;
-
-                      return (
-                        <div className="relative group">
-                          <Button
-                            variant={selectedJornada === 'nocturna' ? "default" : "outline"}
-                            disabled={isDisabled}
-                            onClick={() => {
-                              setSelectedJornada('nocturna');
-                              setSelectedStartTime(startTime);
-                              setJornadaError(null);
-                            }}
-                            className={cn(
-                              "w-full h-14 justify-start gap-3",
-                              selectedJornada === 'nocturna' ? "bg-primary border-primary text-white hover:bg-primary/90" : "border-gray-200",
-                              isDisabled && "opacity-50 cursor-not-allowed"
-                            )}
-                          >
-                            <Moon className="w-5 h-5" />
-                            <div className="text-left flex-1">
-                              <div className="font-medium">Nocturna</div>
-                              <div className="text-xs opacity-80">{formatTime(startTime)} - {formatTime(endTime)}</div>
-                            </div>
-                            <div className="ml-auto font-bold">
-                              {isFree ? 'Gratis' : formatCurrency(selectedArea.cost_jornada_nocturna || 0)}
-                            </div>
-                          </Button>
-
-                          {isDisabled && (
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {isPast ? 'Horario pasado' : maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Día Completo */}
-                    {(() => {
-                      const startTime = selectedArea.jornada_start_diurna || '08:00';
-                      const endTime = selectedArea.jornada_end_nocturna || '23:59';
-                      const slotStart = parseISO(`${selectedDate} ${startTime}:00`);
-                      const slotEnd = parseISO(`${selectedDate} ${endTime}:00`);
-
-                      const isReserved = existingReservations.some(res => {
-                        const resStart = parseISO(detoxTime(res.start_datetime));
-                        const resEnd = parseISO(detoxTime(res.end_datetime));
-                        return (slotStart < resEnd && slotEnd > resStart);
-                      });
-
-                      const maintenance = activeMaintenances.find(maint => {
-                        const maintStart = parseISO(detoxTime(maint.starts_at));
-                        const maintEnd = parseISO(detoxTime(maint.ends_at));
-                        return (slotStart < maintEnd && slotEnd > maintStart);
-                      });
-
-                      const isPast = slotStart < new Date();
-                      const isDisabled = isReserved || !!maintenance || isPast;
-
-                      return (
-                        <div className="relative group">
-                          <Button
-                            variant={selectedJornada === 'ambos' ? "default" : "outline"}
-                            disabled={isDisabled}
-                            onClick={() => {
-                              setSelectedJornada('ambos');
-                              setSelectedStartTime(startTime);
-                              setJornadaError(null);
-                            }}
-                            className={cn(
-                              "w-full h-14 justify-start gap-3",
-                              selectedJornada === 'ambos' ? "bg-primary border-primary text-white hover:bg-primary/90" : "border-gray-200",
-                              isDisabled && "opacity-50 cursor-not-allowed"
-                            )}
-                          >
-                            <Calendar className="w-5 h-5" />
-                            <div className="text-left flex-1">
-                              <div className="font-medium">Completo</div>
-                              <div className="text-xs opacity-80">{formatTime(startTime)} - {formatTime(endTime)}</div>
-                            </div>
-                            <div className="ml-auto font-bold">
-                              {isFree ? 'Gratis' : formatCurrency(selectedArea.cost_jornada_ambos || 0)}
-                            </div>
-                          </Button>
-
-                          {isDisabled && (
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                              {isPast ? 'Horario pasado' : maintenance ? `Aviso: ${maintenance.title}` : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {(() => {
-                      const totalMinutes = selectedArea?.pricing_type === 'fixed'
-                        ? getTotalServiceDurationMinutes()
-                        : (duration * 60 + getTotalAddonDuration());
-                      const endTimeStr = selectedStartTime
-                        ? format(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + totalMinutes * 60 * 1000), 'HH:mm')
-                        : '';
-                      const hours = Math.floor(totalMinutes / 60);
-                      const mins = totalMinutes % 60;
-                      const durationLabel = hours > 0
-                        ? `${hours}h${mins > 0 ? ` ${mins}min` : ''}`
-                        : `${mins} min`;
-                      return selectedStartTime ? (
-                        <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                          <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                            <Clock className="w-4 h-4 text-[#FF3B30]" />
-                            <span>
-                              {terminology.reservationLabel} de {formatTime(selectedStartTime)} a {formatTime(endTimeStr)} ({durationLabel})
-                            </span>
-                          </div>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    <div className="grid grid-cols-5 sm:grid-cols-4 gap-2.5">
-                      {(selectedArea?.pricing_type === 'fixed' ? getFixedTimeSlots() : baseTimeSlots).map((time: string) => {
-                        const info = getSlotStatus(time);
-
-                        const isOccupied = info.status !== 'available' && !(isAdmin && info.status === 'reserved');
-
-                        const isInRange = selectedStartTime && (() => {
-                          const totalMinutes = selectedArea?.pricing_type === 'fixed'
-                            ? getTotalServiceDurationMinutes()
-                            : (duration * 60 + getTotalAddonDuration());
-                          const selectedHour = parseInt(selectedStartTime.split(':')[0]);
-                          const selectedMin = parseInt(selectedStartTime.split(':')[1]) || 0;
-                          const currentHour = parseInt(time.split(':')[0]);
-                          const currentMin = parseInt(time.split(':')[1]) || 0;
-                          const selectedTotalMin = selectedHour * 60 + selectedMin;
-                          const currentTotalMin = currentHour * 60 + currentMin;
-                          const endTotalMin = selectedTotalMin + totalMinutes;
-                          return currentTotalMin >= selectedTotalMin && currentTotalMin < endTotalMin;
-                        })();
-
-                        return (
-                          <div key={time} className="relative group">
-                            <Button
-                              variant="outline"
-                              disabled={isOccupied}
-                              onClick={() => setSelectedStartTime(time)}
-                              className={cn(
-                                "w-full h-10 sm:h-14 font-semibold rounded-lg sm:rounded-xl transition-all duration-300 text-[11px] leading-tight sm:text-sm sm:leading-normal whitespace-nowrap px-1.5 sm:px-3",
-                                selectedStartTime === time
-                                  ? "bg-primary text-white border-none scale-105 apple-shadow z-10 hover:bg-primary/90"
-                                  : isInRange && !isOccupied
-                                    ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-                                    : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300",
-                                info.status === 'reserved' && !isAdmin && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
-                                info.status === 'reserved' && isAdmin && "bg-amber-50 text-amber-600 border-amber-200 cursor-pointer hover:bg-amber-100",
-                                info.status === 'past' && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60",
-                                info.status === 'maintenance' && "bg-rose-50 text-rose-400 border-rose-100 cursor-not-allowed",
-                                info.status === 'break' && "bg-amber-50 text-amber-400 border-amber-100 cursor-not-allowed"
-                              )}
-                            >
-                              {formatTime(time)}
-                              {info.status === 'maintenance' && (
-                                <Hammer className="w-3 h-3 ml-1" />
-                              )}
-                              {info.status === 'break' && (
-                                <span className="text-[8px] ml-0.5">🍽</span>
-                              )}
-                            </Button>
-
-                            {isOccupied && !(isAdmin && info.status === 'reserved') && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 whitespace-nowrap">
-                                {info.status === 'maintenance' ? `Aviso: ${info.reason}` : info.status === 'break' ? 'Hora de almuerzo' : info.status === 'past' ? 'Horario pasado' : `Horario con ${terminology.reservationLabel.toLowerCase()}`}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                              </div>
-                            )}
-                            {isAdmin && info.status === 'reserved' && info.conflicts && info.conflicts.length > 0 && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-amber-900 text-white text-xs rounded-lg shadow-lg opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 z-50 min-w-[200px]">
-                                <div className="font-bold mb-1">⚠️ Ocupado por:</div>
-                                {info.conflicts.map((c: any, ci: number) => (
-                                  <div key={ci} className="border-t border-amber-700/50 pt-1 mt-1">
-                                    <div className="font-medium">{c.userName}</div>
-                                    <div className="text-[10px] text-amber-200">{c.areaName} · {formatTime(detoxTime(c.start))} - {formatTime(detoxTime(c.end))}</div>
-                                    {c.userPhone && (
-                                      <a href={`tel:${c.userPhone.replace(/[^0-9+]/g, '')}`} className="text-[10px] text-blue-300 hover:text-blue-200 underline" onClick={e => e.stopPropagation()}>
-                                        📞 {c.userPhone}
-                                      </a>
-                                    )}
-                                  </div>
-                                ))}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-900" />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-4 pt-2 text-xs text-gray-500 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-white border border-gray-200" />
-                    <span>Disponible</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-gray-50 border border-gray-100" />
-                    <span>Ocupado</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" />
-                    <span>Almuerzo</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-red-50 border border-red-200" />
-                    <span>Aviso</span>
-                  </div>
-                  </div>
-                   </div>
-                </div>
-                 </div>
-
-                <div className="mt-6">
-                  {actionBlock}
-                </div>
-              </>
-              );
-            })()}
-
-             {jornadaError && (
-               <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-                 <AlertCircle className="w-4 h-4" />
-                 {jornadaError}
-               </div>
-             )}
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400">Total seleccionado</p>
+                <p className="text-lg font-black text-gray-900">{formatCurrency(totalSelectedCost)} ({totalSelectedDuration} min)</p>
+              </div>
+              <Button
+                disabled={selectedServices.length === 0}
+                onClick={() => setStep(3)}
+                className="bg-primary text-white font-bold h-11 px-5 rounded-xl border-none shadow-none"
+              >
+                Continuar Horario <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
 
       {step === 3 && selectedArea && (
-        <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden max-w-2xl mx-auto">
-          <CardHeader className="pb-6 text-center border-b border-gray-50 pt-8">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <ClipboardCheck className="w-8 h-8 text-primary shadow-sm" />
+        <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
+          <CardHeader className="flex flex-row items-center gap-4 p-4 border-b border-gray-50">
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setStep(2)}><ChevronLeft className="w-5 h-5" /></Button>
+            <div>
+              <CardTitle className="text-lg font-bold">Seleccionar Horario</CardTitle>
+              <CardDescription>Para {selectedServices.map(s => s.name).join(', ')} ({totalSelectedDuration} min)</CardDescription>
             </div>
-            <CardTitle className="text-2xl font-black text-gray-900 tracking-tight">Confirmación Final</CardTitle>
-            <CardDescription className="text-gray-500 font-medium">Revisa los detalles antes de finalizar</CardDescription>
           </CardHeader>
-          <CardContent className="py-6 space-y-6">
-            <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
-                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{terminology.areaLabel}</span>
-                <span className="font-bold text-gray-900">{selectedArea.name}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
-                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Fecha</span>
-                <span className="font-bold text-gray-900">{selectedDate}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
-                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Horario</span>
-                <span className="font-bold text-gray-900 text-right">
-                  {selectedArea.pricing_type === 'jornada'
-                    ? getJornadaScheduleText()
-                    : (() => {
-                        const totalMinutes = selectedArea.pricing_type === 'fixed'
-                          ? getTotalServiceDurationMinutes()
-                          : (duration * 60 + getTotalAddonDuration());
-                        const endTime = selectedStartTime && selectedDate
-                          ? format(new Date(parseISO(`${selectedDate}T${selectedStartTime}:00`).getTime() + totalMinutes * 60 * 1000), 'HH:mm')
-                          : '--:--';
-                        return (
-                          <span className="flex flex-col items-end">
-                            <span>{formatTime(selectedStartTime)} - {formatTime(endTime)}</span>
-                            {selectedArea.pricing_type === 'fixed' && (
-                              <span className="text-[10px] text-primary font-medium">
-                                Duración: {totalMinutes} min
-                              </span>
-                            )}
-                            {selectedArea.pricing_type !== 'fixed' && getTotalAddonDuration() > 0 && (
-                              <span className="text-[10px] text-primary font-medium">
-                                Incluye +{getTotalAddonDuration()} min por add-ons
-                              </span>
-                            )}
-                          </span>
-                        );
-                      })()
-                  }
-                </span>
-              </div>
-              {selectedArea.pricing_type !== 'jornada' && (
-              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
-                <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Hora de entrada</span>
-                <span className="font-bold text-gray-900">{formatTime(selectedStartTime)}</span>
-              </div>
-              )}
-              {selectedAddons.length > 0 && (
-                <div className="py-2 border-b border-gray-200/50">
-                  <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Servicios adicionales</span>
-                  <div className="mt-1 space-y-1">
-                    {selectedAddons.map((addon: any) => {
-                      const dHours = Math.floor(addon.additional_duration_minutes / 60);
-                      const dMins = addon.additional_duration_minutes % 60;
-                      const durLabel = dHours > 0 ? `${dHours}h${dMins > 0 ? ` ${dMins}min` : ''}` : dMins > 0 ? `${dMins} min` : '';
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Calendario */}
+              <div className="space-y-4">
+                <div className="p-4 bg-white border border-gray-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+                    <span className="text-sm font-semibold">{format(currentMonth, 'MMMM yyyy', { locale: es })}</span>
+                    <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft className="w-4 h-4 rotate-180" /></button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500">
+                    {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, idx) => <div key={idx}>{day}</div>)}
+                    {Array.from({ length: firstDayOfMonth }).map((_, idx) => <div key={idx} />)}
+                    {getDaysInMonth().map(day => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const isSelected = dateStr === selectedDate;
+                      const isPast = day < new Date() && !isToday(day);
+                      const notInSchedule = !isDateWithinOperationSchedule(dateStr);
+                      const isBeyondLimit = maxReservationDays ? day > new Date(new Date().getTime() + maxReservationDays * 24 * 60 * 60 * 1000) : false;
+
                       return (
-                        <div key={addon.id} className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">
-                            {addon.name}
-                            {durLabel && <span className="text-[10px] text-gray-400 ml-1">(+{durLabel})</span>}
-                          </span>
-                          <span className="font-bold text-gray-900">{formatCurrency(addon.additional_cost)}</span>
-                        </div>
+                        <button
+                          key={dateStr}
+                          disabled={isPast || notInSchedule || isBeyondLimit}
+                          onClick={() => handleDateChange(dateStr)}
+                          className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center text-xs transition-colors mx-auto",
+                            isSelected && "bg-primary text-white shadow-md shadow-primary/20",
+                            !isSelected && !isPast && !notInSchedule && !isBeyondLimit && "hover:bg-gray-100",
+                            (isPast || notInSchedule || isBeyondLimit) && "text-gray-300 cursor-not-allowed",
+                            isToday(day) && !isSelected && "ring-1 ring-primary text-primary"
+                          )}
+                        >
+                          {format(day, 'd')}
+                        </button>
                       );
                     })}
                   </div>
                 </div>
-              )}
-              {isEditing ? (
-                <>
-                  <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
-                    <span className="text-sm text-amber-600 font-bold uppercase tracking-wider">Abono previo</span>
-                    <span className="font-black text-amber-600">{formatCurrency(reservationToEdit?.total_cost || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-4">
-                    <span className="text-base font-black text-gray-900 uppercase tracking-tighter italic">Total extra a pagar</span>
-                    <span className="text-3xl font-black text-primary drop-shadow-sm">
-                      {(calculateTotalCost() - (reservationToEdit?.total_cost || 0)) > 0
-                        ? formatCurrency(calculateTotalCost() - (reservationToEdit?.total_cost || 0))
-                        : formatCurrency(0)}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex justify-between items-center pt-4">
-                  <span className="text-base font-black text-gray-900 uppercase tracking-tighter italic">{isFree ? 'Costo' : 'Total a pagar'}</span>
-                  <span className="text-3xl font-black text-primary drop-shadow-sm">
-                    {isFree ? 'Gratis' : formatCurrency(calculateTotalCost())}
-                  </span>
+              </div>
+
+              {/* Horas */}
+              <div className="space-y-4">
+                <Label className="text-sm font-semibold text-gray-700">Horas Disponibles ({selectedDate})</Label>
+                <div className="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
+                  {getFixedTimeSlots().map((time) => {
+                    const info = getSlotStatus(time);
+                    const isOccupied = info.status !== 'available' && !(isAdmin && info.status === 'reserved');
+
+                    return (
+                      <Button
+                        key={time}
+                        variant="outline"
+                        disabled={isOccupied}
+                        onClick={() => setSelectedStartTime(time)}
+                        className={cn(
+                          "h-10 text-xs font-semibold rounded-xl",
+                          selectedStartTime === time ? "bg-primary text-white border-none scale-105" : "border-gray-200 text-gray-700 bg-white hover:bg-gray-50",
+                          isOccupied && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50"
+                        )}
+                      >
+                        {formatTime(time)}
+                      </Button>
+                    );
+                  })}
                 </div>
-              )}
+
+                <div className="pt-4 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs text-gray-400">Inicio de cita</span>
+                    <p className="text-sm font-bold text-gray-800">{selectedStartTime ? formatTime(selectedStartTime) : 'No seleccionada'}</p>
+                  </div>
+                  <Button
+                    disabled={!selectedStartTime}
+                    onClick={() => setStep(4)}
+                    className="bg-primary text-white font-bold h-11 px-6 rounded-xl border-none shadow-none"
+                  >
+                    Confirmar Reserva
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 4 && selectedArea && (
+        <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden max-w-md mx-auto">
+          <CardHeader className="text-center pt-8 border-b border-gray-50">
+            <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Package className="w-7 h-7 text-primary" />
+            </div>
+            <CardTitle className="text-xl font-black">Resumen de tu Cita</CardTitle>
+            <CardDescription>Revisa los detalles finales antes de agendar</CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
+                <span className="text-xs font-bold text-gray-500 uppercase">Profesional</span>
+                <span className="text-sm font-bold text-gray-800">{selectedArea.name}</span>
+              </div>
+              <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
+                <span className="text-xs font-bold text-gray-500 uppercase">Fecha</span>
+                <span className="text-sm font-bold text-gray-800">{selectedDate}</span>
+              </div>
+              <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
+                <span className="text-xs font-bold text-gray-500 uppercase">Horario</span>
+                <span className="text-sm font-bold text-gray-800">
+                  {formatTime(selectedStartTime)} - {formatTime(format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), 'HH:mm'))}
+                </span>
+              </div>
+              <div className="py-2 border-b border-gray-200/50">
+                <span className="text-xs font-bold text-gray-500 uppercase">Servicios</span>
+                <div className="mt-1 space-y-1.5">
+                  {selectedServices.map(service => (
+                    <div key={service.id} className="flex justify-between items-center text-xs">
+                      <span className="text-gray-600">{service.name} ({service.duration} min)</span>
+                      <span className="font-bold text-gray-800">{formatCurrency(service.cost)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-sm font-black text-gray-900 uppercase">Total</span>
+                <span className="text-2xl font-black text-primary">{formatCurrency(calculateTotalCost())}</span>
+              </div>
             </div>
 
-            <div className={cn(
-              "border rounded-2xl p-4 flex gap-4 transition-all duration-300",
-              isFree
-                ? "bg-indigo-50 border-indigo-100 text-indigo-800"
-                : "bg-amber-50 border-amber-100 text-amber-800"
-            )}>
-              <AlertCircle className={cn(
-                "w-6 h-6 shrink-0 mt-0.5",
-                isFree ? "text-indigo-500" : "text-amber-500"
-              )} />
-              <p className="text-sm font-medium leading-relaxed opacity-90">
-                {isEditing
-                  ? `Al confirmar edición, la ${terminology.reservationLabel.toLowerCase()} quedará pendiente de aprobación. Si hay un excedente de cobro, un administrador validará los pagos.`
-                  : isFree
-                    ? `Al confirmar, se generará la ${terminology.reservationLabel.toLowerCase()} pendiente de validación sin costo adicional.`
-                    : "Al confirmar, se generará una solicitud pendiente de validación por parte de la administración."
-                }
-              </p>
-            </div>
-
-            {/* Datos de contacto para invitados */}
             {isGuestUser && (
-              <div className="space-y-4 p-5 bg-primary/5 rounded-2xl border border-primary/10 animate-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center gap-2 text-primary font-black text-base mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <Users className="w-4 h-4" />
-                  </div>
-                  Datos de contacto
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="guestName" className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Nombre Completo</Label>
-                    <Input
-                      id="guestName"
-                      placeholder="Tu nombre completo"
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                      className="h-12 rounded-xl bg-white border-gray-200 focus:ring-primary/20 focus:border-primary apple-shadow-sm transition-all text-gray-900 font-medium"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="guestPhone" className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Teléfono / WhatsApp</Label>
-                    <Input
-                      id="guestPhone"
-                      placeholder="300 123 4567"
-                      value={guestPhone}
-                      onChange={(e) => setGuestPhone(e.target.value)}
-                      className="h-12 rounded-xl bg-white border-gray-200 focus:ring-primary/20 focus:border-primary apple-shadow-sm transition-all text-gray-900 font-medium"
-                    />
-                  </div>
-                </div>
-                <p className="text-[11px] text-gray-400 font-medium px-1 leading-tight">
-                  Usaremos estos datos para validar tu comprobante de pago y confirmar tu reserva de forma segura.
-                </p>
+              <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                <Label className="text-xs font-bold text-primary uppercase">Datos de Contacto</Label>
+                <Input
+                  placeholder="Nombre completo"
+                  value={guestName}
+                  onChange={e => setGuestName(e.target.value)}
+                  className="h-10 text-sm bg-white"
+                />
+                <Input
+                  placeholder="Teléfono / WhatsApp"
+                  value={guestPhone}
+                  onChange={e => setGuestPhone(e.target.value)}
+                  className="h-10 text-sm bg-white"
+                />
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col gap-4 p-8 pt-2">
+          <CardFooter className="flex flex-col gap-3 p-6 pt-0 border-t border-gray-50">
             <Button
-              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-black text-lg h-14 rounded-2xl apple-shadow hover:apple-shadow-hover transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
+              className="w-full bg-primary text-white font-black text-lg h-12 rounded-xl border-none shadow-none"
               onClick={handleReserve}
-              disabled={createMutation.isPending || updateMutation.isPending || (hasPendingReservation && !isGuestUser)}
+              disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending || updateMutation.isPending
-                ? "Procesando solicitud..."
-                : isFree ? `Confirmar ${terminology.reservationLabel} Gratis` : `Confirmar ${terminology.reservationLabel}`}
+              Confirmar Cita
             </Button>
-            <Button variant="ghost" className="w-full text-gray-500 font-bold hover:bg-gray-50 h-10 rounded-xl" onClick={() => setStep(2)}>
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Modificar detalles
+            <Button variant="ghost" className="w-full text-gray-500 font-bold h-9 text-xs" onClick={() => setStep(3)}>
+              Modificar horario
             </Button>
           </CardFooter>
         </Card>
       )}
+
       <AlertDialog
         open={isErrorAlertOpen}
         onOpenChange={setIsErrorAlertOpen}
-        title={`Error en la ${terminology.reservationLabel}`}
+        title="Error al agendar cita"
         description={errorMessage}
-        confirmText="Entendido"
+        confirmText="Aceptar"
         showCancel={false}
         onConfirm={() => setIsErrorAlertOpen(false)}
         variant="destructive"
       />
-      {/* Modal Promocional para Invitados - Aparece al SELECCIONAR área */}
-      {showPromoModal && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowPromoModal(false); }}
-        >
-          <Card className="max-w-md w-full border-none shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 relative">
-            {/* Close button */}
-            <button
-              onClick={() => setShowPromoModal(false)}
-              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-              aria-label="Cerrar"
-            >
-              <X className="w-4 h-4 text-gray-500" />
-            </button>
-            <div className="h-3 bg-primary" />
-            <CardHeader className="text-center pt-8 pb-4">
-              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <Users className="w-8 h-8 text-blue-600" />
-              </div>
-              <CardTitle className="text-2xl font-bold text-gray-900">¡Reserva como invitado!</CardTitle>
-              <CardDescription className="text-base mt-2">
-                Para continuar con tu {terminology.reservationLabel.toLowerCase()} tienes dos opciones:
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-8 pb-8 space-y-6">
-              <div className="space-y-4">
-                <Button
-                  onClick={() => openAuthModal('register')}
-                  className="w-full h-12 font-bold shadow-lg shadow-indigo-200/50 bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  <Gift className="w-4 h-4 mr-2" />
-                  Registrarme y obtener beneficios
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-gray-200" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-gray-400 font-bold">O también</span>
-                  </div>
-                </div>
-
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowPromoModal(false);
-                    setStep(2);
-                  }}
-                  className="w-full h-12 font-medium border-gray-200 text-gray-600 hover:bg-gray-50"
-                >
-                  Continuar sin registro
-                </Button>
-              </div>
-
-              <p className="text-[10px] text-gray-400 text-center leading-relaxed">
-                * El registro te permite ver tu historial, recibir recordatorios y acumular beneficios en el sistema de bonificaciones.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }

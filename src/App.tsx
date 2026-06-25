@@ -12,6 +12,7 @@ import NewReservationPage from './pages/NewReservation';
 import MyReservationsPage from './pages/MyReservations';
 import AdminReservationsPage from './pages/admin/AdminReservations';
 import AdminResourcesPage from './pages/admin/AdminResources';
+import AdminServicesPage from './pages/admin/AdminServices';
 import AdminUsersPage from './pages/admin/AdminUsers';
 import AdminSubscriptionPage from './pages/admin/AdminSubscription';
 import SuperAdminOrganizations from './pages/super-admin/Organizations';
@@ -263,6 +264,16 @@ function App() {
               <PrivateRoute adminOnly>
                 <DashboardLayout>
                   <AdminResourcesPage />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/services"
+            element={
+              <PrivateRoute adminOnly>
+                <DashboardLayout>
+                  <AdminServicesPage />
                 </DashboardLayout>
               </PrivateRoute>
             }

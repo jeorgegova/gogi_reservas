@@ -1,180 +1,289 @@
--- ==============================================================================
--- MIGRACIÓN: ESQUEMA AGNÓSTICO POR INDUSTRIA
--- ==============================================================================
--- Convierte los nombres residenciales a nombres genéricos para que el sistema
--- funcione correctamente con Barberías, Salones, Talleres, Oficinas, etc.
---
--- Ejecutar en Supabase: Dashboard → SQL Editor → New Query → Pegar y Run.
--- IMPORTANTE: Hacer backup antes de ejecutar.
--- ==============================================================================
+-- ==========================================================
+-- MIGRACIÓN SEGURA – RE‑ESTRUCTURACIÓN DE SERVICIOS
+-- ----------------------------------------------------------
+-- Objetivo:
+--   1️⃣ Renombrar tablas y columnas para usar el modelo:
+--        resources (empleados)  ←  tabla ya existente
+--        services               ←  antes common_areas
+--        resource_services      ←  antes common_area_addons
+--   2️⃣ Actualizar todas las FK, índices y políticas RLS.
+--   3️⃣ No crear nuevas tablas de empleados.
+-- ==========================================================
 
+BEGIN;
 
--- =======================================================
--- PASO 1: RENOMBRAR TABLAS
--- =======================================================
+--------------------------------------------------------------------------------
+-- 1️⃣ RENOMBRAR TABLA DE SERVICIOS
+--------------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM pg_tables 
+        WHERE schemaname = 'public' 
+          AND tablename = 'common_areas'
+    ) THEN
+        ALTER TABLE public.common_areas RENAME TO services;
+    END IF;
+END $$;
 
--- "Áreas Comunes" pasa a ser "Recursos" (empleados, canchas, puestos, etc.)
-ALTER TABLE IF EXISTS public.common_areas RENAME TO resources;
+-- Ajustar PK y FK de la tabla renombrada
+ALTER TABLE public.services DROP CONSTRAINT IF EXISTS common_areas_pkey;
+ALTER TABLE public.services ADD CONSTRAINT services_pkey PRIMARY KEY (id);
 
--- "Servicios Adicionales" pasa a ser "Servicios" (catálogo de servicios)
-ALTER TABLE IF EXISTS public.service_addons RENAME TO services;
-
--- Tabla junction recurso <-> servicio
-ALTER TABLE IF EXISTS public.common_area_addons RENAME TO resource_services;
-
--- Tabla junction reserva <-> servicio seleccionado
-ALTER TABLE IF EXISTS public.reservation_addons RENAME TO reservation_services;
-
-
--- =======================================================
--- PASO 2: RENOMBRAR COLUMNAS
--- =======================================================
-
--- En reservaciones
-ALTER TABLE IF EXISTS public.reservations
-  RENAME COLUMN common_area_id TO resource_id;
-
--- En avisos de mantenimiento
-ALTER TABLE IF EXISTS public.maintenance_notices
-  RENAME COLUMN common_area_id TO resource_id;
-
--- En resource_services (junction recursos <-> servicios)
-ALTER TABLE IF EXISTS public.resource_services
-  RENAME COLUMN common_area_id TO resource_id;
-
-ALTER TABLE IF EXISTS public.resource_services
-  RENAME COLUMN addon_id TO service_id;
-
--- En services (catálogo de servicios ligados a un recurso)
-ALTER TABLE IF EXISTS public.services
-  RENAME COLUMN common_area_id TO resource_id;
-
--- En reservation_services (servicios seleccionados por reserva)
-ALTER TABLE IF EXISTS public.reservation_services
-  RENAME COLUMN addon_id TO service_id;
-
--- En configuración de bonificaciones
-ALTER TABLE IF EXISTS public.bonus_configs
-  RENAME COLUMN common_area_id TO resource_id;
-
-
--- =======================================================
--- PASO 3: ACTUALIZAR ÍNDICES (recomendado)
--- =======================================================
-
-ALTER INDEX IF EXISTS idx_common_areas_organization_id
-  RENAME TO idx_resources_organization_id;
-
-ALTER INDEX IF EXISTS idx_common_areas_is_active
-  RENAME TO idx_resources_is_active;
-
-ALTER INDEX IF EXISTS idx_reservations_common_area_id
-  RENAME TO idx_reservations_resource_id;
-
-ALTER INDEX IF EXISTS idx_maintenance_common_area_id
-  RENAME TO idx_maintenance_resource_id;
-
-
--- =======================================================
--- PASO 4: RENOMBRAR CONSTRAINTS PRINCIPALES
--- =======================================================
-
-ALTER TABLE public.resources
-  RENAME CONSTRAINT common_areas_pkey TO resources_pkey;
-
-ALTER TABLE public.resources
-  RENAME CONSTRAINT common_areas_organization_id_fkey TO resources_organization_id_fkey;
-
+ALTER TABLE public.services DROP CONSTRAINT IF EXISTS common_areas_organization_id_fkey;
 ALTER TABLE public.services
-  RENAME CONSTRAINT service_addons_pkey TO services_pkey;
+    ADD CONSTRAINT services_organization_id_fkey
+        FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
 
+--------------------------------------------------------------------------------
+-- 2️⃣ RENOMBRAR TABLA DE RELACIÓN DE SERVICIOS ADICIONALES
+--------------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM pg_tables 
+        WHERE schemaname = 'public' 
+          AND tablename = 'common_area_addons'
+    ) THEN
+        ALTER TABLE public.common_area_addons RENAME TO resource_services;
+    END IF;
+END $$;
+
+-- Renombrar columnas dentro de resource_services
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema='public' 
+          AND table_name='resource_services' 
+          AND column_name='common_area_id'
+    ) THEN
+        ALTER TABLE public.resource_services RENAME COLUMN common_area_id TO resource_id;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema='public' 
+          AND table_name='resource_services' 
+          AND column_name='addon_id'
+    ) THEN
+        ALTER TABLE public.resource_services RENAME COLUMN addon_id TO service_id;
+    END IF;
+END $$;
+
+-- Ajustar PK / UNIQUE y FK de la tabla renombrada
+ALTER TABLE public.resource_services DROP CONSTRAINT IF EXISTS common_area_addons_pkey;
+ALTER TABLE public.resource_services ADD CONSTRAINT resource_services_pkey PRIMARY KEY (id);
+
+ALTER TABLE public.resource_services DROP CONSTRAINT IF EXISTS resource_services_unique;
+ALTER TABLE public.resource_services ADD CONSTRAINT resource_services_unique UNIQUE (resource_id, service_id);
+
+-- FK hacia services (antes common_areas)
+ALTER TABLE public.resource_services DROP CONSTRAINT IF EXISTS common_area_addons_common_area_id_fkey;
+ALTER TABLE public.resource_services
+    ADD CONSTRAINT resource_services_resource_id_fkey
+        FOREIGN KEY (resource_id) REFERENCES public.services(id) ON DELETE CASCADE;
+
+-- FK hacia service_addons (mantiene su nombre)
+ALTER TABLE public.resource_services DROP CONSTRAINT IF EXISTS common_area_addons_addon_id_fkey;
+ALTER TABLE public.resource_services
+    ADD CONSTRAINT resource_services_service_id_fkey
+        FOREIGN KEY (service_id) REFERENCES public.service_addons(id) ON DELETE CASCADE;
+
+--------------------------------------------------------------------------------
+-- 3️⃣ ACTUALIZAR COLUMNA DE SERVICIO EN RESERVATIONS
+--------------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema='public' 
+          AND table_name='reservations' 
+          AND column_name='common_area_id'
+    ) THEN
+        ALTER TABLE public.reservations RENAME COLUMN common_area_id TO service_id;
+    END IF;
+END $$;
+
+-- FK a services
+ALTER TABLE public.reservations DROP CONSTRAINT IF EXISTS reservations_common_area_id_fkey;
+ALTER TABLE public.reservations
+    ADD CONSTRAINT reservations_service_id_fkey
+        FOREIGN KEY (service_id) REFERENCES public.services(id);
+
+--------------------------------------------------------------------------------
+-- 4️⃣ ACTUALIZAR COLUMNA EN MAINTENANCE_NOTICES
+--------------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema='public' 
+          AND table_name='maintenance_notices' 
+          AND column_name='common_area_id'
+    ) THEN
+        ALTER TABLE public.maintenance_notices RENAME COLUMN common_area_id TO service_id;
+    END IF;
+END $$;
+
+ALTER TABLE public.maintenance_notices DROP CONSTRAINT IF EXISTS maintenance_notices_common_area_id_fkey;
+ALTER TABLE public.maintenance_notices
+    ADD CONSTRAINT maintenance_notices_service_id_fkey
+        FOREIGN KEY (service_id) REFERENCES public.services(id);
+
+--------------------------------------------------------------------------------
+-- 5️⃣ ACTUALIZAR TABLA DE ADICIONALES DE SERVICIOS (service_addons)
+--------------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema='public' 
+          AND table_name='service_addons' 
+          AND column_name='common_area_id'
+    ) THEN
+        ALTER TABLE public.service_addons RENAME COLUMN common_area_id TO service_id;
+    END IF;
+END $$;
+
+ALTER TABLE public.service_addons DROP CONSTRAINT IF EXISTS service_addons_common_area_id_fkey;
+ALTER TABLE public.service_addons
+    ADD CONSTRAINT service_addons_service_id_fkey
+        FOREIGN KEY (service_id) REFERENCES public.services(id) ON DELETE CASCADE;
+
+--------------------------------------------------------------------------------
+-- 6️⃣ RENOMBRAR Y AJUSTAR TABLA DE ADDONS EN RESERVAS
+--------------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM pg_tables 
+        WHERE schemaname='public' 
+          AND tablename='reservation_addons'
+    ) THEN
+        ALTER TABLE public.reservation_addons RENAME TO reservation_services;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema='public' 
+          AND table_name='reservation_services' 
+          AND column_name='addon_id'
+    ) THEN
+        ALTER TABLE public.reservation_services RENAME COLUMN addon_id TO service_id;
+    END IF;
+END $$;
+
+-- PK / UNIQUE de reservation_services
+ALTER TABLE public.reservation_services DROP CONSTRAINT IF EXISTS reservation_addons_pkey;
+ALTER TABLE public.reservation_services ADD CONSTRAINT reservation_services_pkey PRIMARY KEY (id);
+
+ALTER TABLE public.reservation_services DROP CONSTRAINT IF EXISTS reservation_addons_unique;
+ALTER TABLE public.reservation_services ADD CONSTRAINT reservation_services_unique UNIQUE (reservation_id, service_id);
+
+-- FK a reservations (ya exista)
+ALTER TABLE public.reservation_services DROP CONSTRAINT IF EXISTS reservation_addons_reservation_id_fkey;
 ALTER TABLE public.reservation_services
-  RENAME CONSTRAINT reservation_addons_pkey TO reservation_services_pkey;
+    ADD CONSTRAINT reservation_services_reservation_id_fkey
+        FOREIGN KEY (reservation_id) REFERENCES public.reservations(id) ON DELETE CASCADE;
 
+-- FK a service_addons (ahora apunta a service_id en service_addons)
+ALTER TABLE public.reservation_services DROP CONSTRAINT IF EXISTS reservation_addons_addon_id_fkey;
 ALTER TABLE public.reservation_services
-  RENAME CONSTRAINT reservation_addons_unique TO reservation_services_unique;
+    ADD CONSTRAINT reservation_services_service_id_fkey
+        FOREIGN KEY (service_id) REFERENCES public.service_addons(id) ON DELETE CASCADE;
 
+--------------------------------------------------------------------------------
+-- 7️⃣ RENOMBRAR ÍNDICES RELACIONADOS CON COMMON_AREAS
+--------------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_common_areas_organization_id') THEN
+        ALTER INDEX public.idx_common_areas_organization_id RENAME TO idx_services_organization_id;
+    END IF;
+END $$;
 
--- =======================================================
--- PASO 5: ACTUALIZAR POLÍTICAS RLS
--- =======================================================
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_common_areas_is_active') THEN
+        ALTER INDEX public.idx_common_areas_is_active RENAME TO idx_services_is_active;
+    END IF;
+END $$;
 
--- Política pública para recursos (reemplaza la de "common areas")
-DROP POLICY IF EXISTS "Public can view common areas" ON public.resources;
-CREATE POLICY "Public can view resources"
-  ON public.resources FOR SELECT TO anon
-  USING (is_active = true);
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_reservations_common_area_id') THEN
+        ALTER INDEX public.idx_reservations_common_area_id RENAME TO idx_reservations_service_id;
+    END IF;
+END $$;
 
--- Política de administrador para recursos
-DROP POLICY IF EXISTS "Admins manage common areas" ON public.resources;
-CREATE POLICY "Admins manage resources"
-  ON public.resources FOR ALL TO authenticated
-  USING (
-    (is_admin() AND belongs_to_org(organization_id))
-    OR is_super_admin()
-  )
-  WITH CHECK (
-    (is_admin() AND belongs_to_org(organization_id))
-    OR is_super_admin()
-  );
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_maintenance_common_area_id') THEN
+        ALTER INDEX public.idx_maintenance_common_area_id RENAME TO idx_maintenance_service_id;
+    END IF;
+END $$;
 
--- Habilitar RLS en las nuevas tablas (por si no estaba habilitado)
-ALTER TABLE public.resource_services ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reservation_services ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+--------------------------------------------------------------------------------
+-- 8️⃣ ACTUALIZAR POLÍTICAS RLS PARA LA NUEVA TABLA services
+--------------------------------------------------------------------------------
+-- Public (anon) view services
+DROP POLICY IF EXISTS "Public can view services" ON public.services;
+CREATE POLICY "Public can view services"
+    ON public.services
+    FOR SELECT
+    TO anon
+    USING (is_active = true);
 
--- Política para services
-CREATE POLICY IF NOT EXISTS "Admins manage services"
-  ON public.services FOR ALL TO authenticated
-  USING (
-    (is_admin() AND belongs_to_org(organization_id))
-    OR is_super_admin()
-  )
-  WITH CHECK (
-    (is_admin() AND belongs_to_org(organization_id))
-    OR is_super_admin()
-  );
-
-CREATE POLICY IF NOT EXISTS "Authenticated users view active services"
-  ON public.services FOR SELECT TO authenticated
-  USING (is_active = true);
-
-CREATE POLICY IF NOT EXISTS "Anon can view active services"
-  ON public.services FOR SELECT TO anon
-  USING (is_active = true);
-
--- Política para reservation_services
-CREATE POLICY IF NOT EXISTS "Users manage own reservation services"
-  ON public.reservation_services FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.reservations r
-      WHERE r.id = reservation_id AND r.user_id = auth.uid()
+-- Admins manage services
+DROP POLICY IF EXISTS "Admins manage services" ON public.services;
+CREATE POLICY "Admins manage services"
+    ON public.services
+    FOR ALL
+    TO authenticated
+    USING (
+        (is_admin() AND belongs_to_org(organization_id))
+        OR is_super_admin()
     )
-    OR is_admin()
-    OR is_super_admin()
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.reservations r
-      WHERE r.id = reservation_id AND r.user_id = auth.uid()
-    )
-    OR is_admin()
-    OR is_super_admin()
-  );
+    WITH CHECK (
+        (is_admin() AND belongs_to_org(organization_id))
+        OR is_super_admin()
+    );
 
--- Política para resource_services (visible a todos)
-CREATE POLICY IF NOT EXISTS "Anyone can view resource services"
-  ON public.resource_services FOR SELECT TO anon, authenticated
-  USING (true);
+--------------------------------------------------------------------------------
+-- 9️⃣ LIMPIAR OBJETOS DE EMPLEADOS INNECESARIOS
+--------------------------------------------------------------------------------
+-- Si existieran tablas employees o employee_services creadas previamente, eliminarlas porque la arquitectura usa la tabla resources.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='employees') THEN
+        DROP TABLE public.employees CASCADE;
+    END IF;
+END $$;
 
-CREATE POLICY IF NOT EXISTS "Admins manage resource services"
-  ON public.resource_services FOR ALL TO authenticated
-  USING (is_admin() OR is_super_admin())
-  WITH CHECK (is_admin() OR is_super_admin());
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='employee_services') THEN
+        DROP TABLE public.employee_services CASCADE;
+    END IF;
+END $$;
 
-
--- ==============================================================================
--- FIN DE MIGRACIÓN
--- Después de ejecutar: en Supabase, ir a Settings > API > Reload schema cache.
--- ==============================================================================
+COMMIT;
+-- ==========================================================
+-- FIN DE MIGRACIÓN SEGURA
+-- ==========================================================

@@ -1,36 +1,37 @@
 import { supabase } from '@/lib/supabase';
 
-export const getResources = async (orgId: string) => {
+export const getServices = async (orgId: string) => {
   const { data, error } = await supabase
-    .from('resources')
+    .from('services')
     .select('*')
     .eq('organization_id', orgId)
-    .eq('is_active', true);
+    .order('display_order', { ascending: true })
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 };
 
-export const createResource = async (orgId: string, payload: any) => {
+export const createService = async (orgId: string, payload: any) => {
   const { data, error } = await supabase
-    .from('resources')
+    .from('services')
     .insert({ organization_id: orgId, ...payload })
     .single();
   if (error) throw error;
   return data;
 };
 
-export const updateResource = async (orgId: string, id: string, payload: any) => {
+export const updateService = async (orgId: string, id: string, payload: any) => {
   const { error } = await supabase
-    .from('resources')
+    .from('services')
     .update(payload)
     .eq('id', id)
     .eq('organization_id', orgId);
   if (error) throw error;
 };
 
-export const deleteResource = async (orgId: string, id: string) => {
+export const deleteService = async (orgId: string, id: string) => {
   const { error } = await supabase
-    .from('resources')
+    .from('services')
     .delete()
     .eq('id', id)
     .eq('organization_id', orgId);

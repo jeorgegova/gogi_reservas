@@ -10,9 +10,6 @@ import {
   Plus,
   Building2,
   Edit2,
-  Sun,
-  Moon,
-  Calendar,
   Settings,
   X,
   Clock,
@@ -60,18 +57,7 @@ function DurationSelector({ value, onChange }: { value: number; onChange: (min: 
     { label: '1 hora', value: 60 },
     { label: '1h 30min', value: 90 },
     { label: '2 horas', value: 120 },
-    { label: '2h 30min', value: 150 },
     { label: '3 horas', value: 180 },
-    { label: '3h 30min', value: 210 },
-    { label: '4 horas', value: 240 },
-    { label: '4h 30min', value: 270 },
-    { label: '5 horas', value: 300 },
-    { label: '5h 30min', value: 330 },
-    { label: '6 horas', value: 360 },
-    { label: '6h 30min', value: 390 },
-    { label: '7 horas', value: 420 },
-    { label: '7h 30min', value: 450 },
-    { label: '8 horas', value: 480 },
   ];
 
   return (
@@ -98,34 +84,23 @@ interface LinkedAddon {
 
 export default function AdminResourcesPage() {
   const { profile, terminology, businessType } = useAuth();
-  const isResidential = businessType === 'residential';
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [currentArea, setCurrentArea] = useState<any>({
     name: '',
     description: '',
-    max_hours_per_reservation: 4,
-    cost_per_hour: 0,
-    fixed_cost: 0,
-    estimated_duration_minutes: 60,
-    pricing_type: isResidential ? 'hourly' : 'fixed',
-    cost_jornada_diurna: 0,
-    cost_jornada_nocturna: 0,
-    cost_jornada_ambos: 0,
-    jornada_hours_diurna: 10,
-    jornada_hours_nocturna: 6,
-    image_url: '',
+    specialty: '',
+    employee_photo_url: '',
+    resource_type: 'employee',
+    display_order: 0,
     is_active: true,
-    is_free: false
+    image_url: '',
   });
 
   const [linkedAddons, setLinkedAddons] = useState<LinkedAddon[]>([]);
   const [orgAddons, setOrgAddons] = useState<any[]>([]);
   const [showAddonSelector, setShowAddonSelector] = useState(false);
-  const [showNewAddonForm, setShowNewAddonForm] = useState(false);
-  const [newAddon, setNewAddon] = useState({ name: '', description: '', base_cost: 0, duration_minutes: 0 });
-  const [savingAddon, setSavingAddon] = useState(false);
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -137,41 +112,58 @@ export default function AdminResourcesPage() {
   const fetchAreas = async () => {
     if (!profile?.organization_id) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('resources')
-      .select('*')
-      .eq('organization_id', profile.organization_id)
-      .order('created_at', { ascending: false });
-    setAreas(data || []);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .order('display_order', { ascending: true })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setAreas(data || []);
+    } catch (e: any) {
+      toast.error('Error al cargar empleados: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchOrgAddons = async () => {
     if (!profile?.organization_id) return;
-    const { data } = await supabase
-      .from('services')
-      .select('*')
-      .eq('organization_id', profile.organization_id)
-      .eq('is_active', true)
-      .order('name');
-    setOrgAddons(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      setOrgAddons(data || []);
+    } catch (e: any) {
+      toast.error('Error al cargar servicios disponibles: ' + e.message);
+    }
   };
 
   const fetchLinkedAddons = async (areaId: string) => {
-    const { data } = await supabase
-      .from('resource_services')
-      .select('*, services(*)')
-      .eq('resource_id', areaId);
-    if (data) {
-      const mapped: LinkedAddon[] = data.map((row: any) => ({
-        service_id: row.service_id,
-        name: row.services?.name || '',
-        description: row.services?.description || '',
-        base_cost: row.services?.base_cost || 0,
-        duration_minutes: row.services?.duration_minutes || 0,
-        custom_price: row.custom_price ?? row.services?.base_cost ?? 0,
-      }));
-      setLinkedAddons(mapped);
+    try {
+      const { data, error } = await supabase
+        .from('resource_services')
+        .select('*, services(*)')
+        .eq('resource_id', areaId);
+      if (error) throw error;
+      if (data) {
+        const mapped: LinkedAddon[] = data.map((row: any) => ({
+          service_id: row.service_id,
+          name: row.services?.name || '',
+          description: row.services?.description || '',
+          base_cost: row.services?.base_cost || 0,
+          duration_minutes: row.services?.duration_minutes || 0,
+          custom_price: row.custom_price ?? row.services?.base_cost ?? 0,
+        }));
+        setLinkedAddons(mapped);
+      }
+    } catch (e: any) {
+      toast.error('Error al cargar servicios vinculados: ' + e.message);
     }
   };
 
@@ -180,37 +172,44 @@ export default function AdminResourcesPage() {
     setLinkedAddons([]);
     setIsEditing(true);
     setShowAddonSelector(false);
-    setShowNewAddonForm(false);
     await fetchLinkedAddons(area.id);
   };
 
   const handleStartNew = () => {
     setCurrentArea({
-      name: '', description: '', max_hours_per_reservation: 4, cost_per_hour: 0,
-      fixed_cost: 0, estimated_duration_minutes: 60,
-      pricing_type: isResidential ? 'hourly' : 'fixed', cost_jornada_diurna: 0, cost_jornada_nocturna: 0,
-      cost_jornada_ambos: 0, jornada_hours_diurna: 10, jornada_hours_nocturna: 6,
-      image_url: '', is_active: true, is_free: false
+      name: '',
+      description: '',
+      specialty: '',
+      employee_photo_url: '',
+      resource_type: 'employee',
+      display_order: 0,
+      is_active: true,
+      image_url: '',
     });
     setLinkedAddons([]);
     setShowAddonSelector(false);
-    setShowNewAddonForm(false);
     setIsEditing(true);
   };
 
   const handleToggleActive = async (area: any) => {
-    await supabase
-      .from('resources')
-      .update({ is_active: !area.is_active })
-      .eq('id', area.id)
-      .eq('organization_id', profile?.organization_id);
-    fetchAreas();
+    try {
+      const { error } = await supabase
+        .from('resources')
+        .update({ is_active: !area.is_active })
+        .eq('id', area.id)
+        .eq('organization_id', profile?.organization_id);
+      if (error) throw error;
+      fetchAreas();
+      toast.success('Estado del empleado actualizado');
+    } catch (e: any) {
+      toast.error('Error: ' + e.message);
+    }
   };
 
   const handleAddExistingAddon = (addon: any) => {
     const alreadyLinked = linkedAddons.find(la => la.service_id === addon.id);
     if (alreadyLinked) {
-      toast.error('Este servicio adicional ya está agregado');
+      toast.error('Este servicio ya está asignado a este empleado');
       return;
     }
     setLinkedAddons(prev => [...prev, {
@@ -232,80 +231,25 @@ export default function AdminResourcesPage() {
     setLinkedAddons(prev => prev.map(la => la.service_id === addonId ? { ...la, custom_price: price } : la));
   };
 
-  const handleCreateAndAddAddon = async () => {
-    if (!profile?.organization_id || !newAddon.name.trim()) return;
-    setSavingAddon(true);
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .insert({
-          organization_id: profile.organization_id,
-          name: newAddon.name.trim(),
-          description: newAddon.description || null,
-          base_cost: newAddon.base_cost || 0,
-          duration_minutes: newAddon.duration_minutes || 0,
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      if (data) {
-        setLinkedAddons(prev => [...prev, {
-          service_id: data.id,
-          name: data.name,
-          description: data.description || '',
-          base_cost: data.base_cost || 0,
-          duration_minutes: data.duration_minutes || 0,
-          custom_price: data.base_cost || 0,
-        }]);
-        await fetchOrgAddons();
-        setNewAddon({ name: '', description: '', base_cost: 0, duration_minutes: 0 });
-        setShowNewAddonForm(false);
-        toast.success('Servicio adicional creado y agregado');
-      }
-    } catch (error: any) {
-      toast.error('Error: ' + error.message);
-    } finally {
-      setSavingAddon(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const orgId = profile?.organization_id;
-    const isFree = currentArea.is_free || false;
-
-    if (currentArea.pricing_type === 'fixed' && (currentArea.estimated_duration_minutes || 0) === 0) {
-      toast.error('La duración del servicio no puede ser 0 horas y 0 minutos');
-      return;
-    }
-
-    if (currentArea.pricing_type === 'hourly' && (currentArea.max_hours_per_reservation || 0) === 0) {
-      toast.error('El máximo de horas no puede ser 0');
-      return;
-    }
+    if (!orgId) return;
 
     if (!currentArea.name?.trim()) {
-      toast.error('El nombre del servicio es obligatorio');
+      toast.error('El nombre del empleado es obligatorio');
       return;
     }
 
     const areaData = {
-      name: currentArea.name,
+      name: currentArea.name.trim(),
       description: currentArea.description || null,
-      max_hours_per_reservation: currentArea.max_hours_per_reservation || 4,
-      cost_per_hour: isFree ? 0 : (currentArea.cost_per_hour || 0),
-      fixed_cost: isFree ? 0 : (currentArea.fixed_cost || 0),
-      estimated_duration_minutes: currentArea.estimated_duration_minutes || 60,
-      pricing_type: currentArea.pricing_type || (isResidential ? 'hourly' : 'fixed'),
-      cost_jornada_diurna: isFree ? 0 : (currentArea.cost_jornada_diurna || 0),
-      cost_jornada_nocturna: isFree ? 0 : (currentArea.cost_jornada_nocturna || 0),
-      cost_jornada_ambos: isFree ? 0 : (currentArea.cost_jornada_ambos || 0),
-      jornada_hours_diurna: currentArea.jornada_hours_diurna || 10,
-      jornada_hours_nocturna: currentArea.jornada_hours_nocturna || 6,
-      image_url: currentArea.image_url || null,
+      specialty: currentArea.specialty || null,
+      employee_photo_url: currentArea.employee_photo_url || null,
+      resource_type: currentArea.resource_type || 'employee',
+      display_order: parseInt(currentArea.display_order as any) || 0,
       is_active: currentArea.is_active !== false,
-      is_free: isFree,
+      image_url: currentArea.image_url || null,
       organization_id: orgId
     };
 
@@ -329,11 +273,12 @@ export default function AdminResourcesPage() {
         areaId = data.id;
       }
 
-      // Sync linked addons
-      await supabase
+      // Sincronizar servicios en la tabla puente resource_services
+      const { error: deleteError } = await supabase
         .from('resource_services')
         .delete()
         .eq('resource_id', areaId);
+      if (deleteError) throw deleteError;
 
       if (linkedAddons.length > 0) {
         const inserts = linkedAddons.map(la => ({
@@ -344,15 +289,15 @@ export default function AdminResourcesPage() {
         const { error: junctionError } = await supabase
           .from('resource_services')
           .insert(inserts);
-        if (junctionError) console.error('Error saving area addons:', junctionError);
+        if (junctionError) throw junctionError;
       }
 
       setIsEditing(false);
       fetchAreas();
-      toast.success(currentArea.id ? 'Servicio actualizado' : 'Servicio creado');
+      toast.success(currentArea.id ? 'Empleado actualizado con éxito' : 'Empleado creado con éxito');
     } catch (error: any) {
       console.error('Error saving area:', error);
-      toast.error('Error: ' + error.message);
+      toast.error('Error al guardar: ' + error.message);
     }
   };
 
@@ -373,214 +318,130 @@ export default function AdminResourcesPage() {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
-            <Settings className="h-5 w-5 text-primary-foreground" />
+            <User className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight">Gestión de {terminology.areaLabel}s</h1>
-            <p className="text-gray-500 text-xs md:text-sm">Configura los espacios disponibles para {terminology.reservationLabel.toLowerCase()}s.</p>
+            <h1 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight">Gestión de Empleados</h1>
+            <p className="text-gray-500 text-xs md:text-sm">Configura los estilistas, barberos y técnicos disponibles.</p>
           </div>
         </div>
         <Button
           onClick={handleStartNew}
           className="bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 font-bold h-10 md:h-12 px-4 md:px-6 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none text-xs md:text-sm shrink-0"
         >
-          <Plus className="w-4 h-4 mr-1.5" /> <span className="hidden md:inline">Nueva {terminology.areaLabel}</span><span className="md:hidden">Nueva</span>
+          <Plus className="w-4 h-4 mr-1.5" /> Nuevo Empleado
         </Button>
       </div>
 
       {isEditing && (
         <Card className="border-none apple-shadow rounded-2xl overflow-hidden mt-6">
           <div className="bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-5 border-b border-gray-50">
-            <h2 className="text-xl font-black text-gray-900 tracking-tight">{currentArea.id ? `Editar ${terminology.areaLabel}` : `Crear Nueva ${terminology.areaLabel}`}</h2>
-            <p className="text-sm font-medium text-gray-500 mt-1">Completa los detalles del espacio</p>
+            <h2 className="text-xl font-black text-gray-900 tracking-tight">{currentArea.id ? 'Editar Empleado' : 'Crear Nuevo Empleado'}</h2>
+            <p className="text-sm font-medium text-gray-500 mt-1">Completa los detalles del perfil laboral</p>
           </div>
           <CardContent className="p-8 space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-gray-400">Nombre</Label>
+                    <Label className="text-[10px] uppercase font-bold text-gray-400">Nombre Completo</Label>
                     <Input
                       value={currentArea.name}
                       onChange={e => setCurrentArea({ ...currentArea, name: e.target.value })}
-                      placeholder={`Ej: ${terminology.areaLabel === 'Servicio' ? 'Corte de Cabello' : 'Salón Comunal'}`}
+                      placeholder="Ej: Juan Pérez"
                       required
                       className="h-10 rounded-lg text-sm"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-gray-400">Descripción</Label>
+                    <Label className="text-[10px] uppercase font-bold text-gray-400">Descripción / Biografía</Label>
                     <Input
-                      value={currentArea.description}
+                      value={currentArea.description || ''}
                       onChange={e => setCurrentArea({ ...currentArea, description: e.target.value })}
-                      placeholder="Breve descripción"
+                      placeholder="Ej: Especialista en cortes modernos y barbería clásica"
                       className="h-10 rounded-lg text-sm"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-gray-400">URL Imagen</Label>
+                    <Label className="text-[10px] uppercase font-bold text-gray-400">Especialidad (Etiqueta rápida)</Label>
                     <Input
-                      value={currentArea.image_url}
-                      onChange={e => setCurrentArea({ ...currentArea, image_url: e.target.value })}
-                      placeholder="https://..."
+                      value={currentArea.specialty || ''}
+                      onChange={e => setCurrentArea({ ...currentArea, specialty: e.target.value })}
+                      placeholder="Ej: Colorista, Barbero, Técnico..."
                       className="h-10 rounded-lg text-sm"
                     />
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-gray-400">Tipo de Precio</Label>
-                    <select
-                      value={currentArea.pricing_type}
-                      onChange={e => setCurrentArea({ ...currentArea, pricing_type: e.target.value })}
-                      className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3"
-                    >
-                      <option value="fixed">Costo Fijo por Servicio</option>
-                      <option value="hourly">Costo por Hora</option>
-                      <option value="jornada">Por Jornada (Día/Noche)</option>
-                    </select>
+                    <Label className="text-[10px] uppercase font-bold text-gray-400">URL Foto de Empleado</Label>
+                    <Input
+                      value={currentArea.employee_photo_url || ''}
+                      onChange={e => setCurrentArea({ ...currentArea, employee_photo_url: e.target.value })}
+                      placeholder="https://..."
+                      className="h-10 rounded-lg text-sm"
+                    />
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-gray-400">URL Imagen de Fondo (Opcional)</Label>
+                    <Input
+                      value={currentArea.image_url || ''}
+                      onChange={e => setCurrentArea({ ...currentArea, image_url: e.target.value })}
+                      placeholder="https://..."
+                      className="h-10 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-gray-400">Tipo de Recurso</Label>
+                      <select
+                        value={currentArea.resource_type || 'employee'}
+                        onChange={e => setCurrentArea({ ...currentArea, resource_type: e.target.value })}
+                        className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3"
+                      >
+                        <option value="employee">Empleado / Personal</option>
+                        <option value="facility">Instalación</option>
+                        <option value="room">Sala</option>
+                        <option value="court">Cancha</option>
+                        <option value="equipment">Equipamiento</option>
+                        <option value="general">General</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-gray-400">Orden Visualización</Label>
+                      <Input
+                        type="number"
+                        value={currentArea.display_order || 0}
+                        onChange={e => setCurrentArea({ ...currentArea, display_order: parseInt(e.target.value) || 0 })}
+                        className="h-10 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 pt-2">
                     <Switch
-                      checked={currentArea.is_free}
-                      onCheckedChange={(checked) => setCurrentArea({ ...currentArea, is_free: checked })}
-                    />
-                    <Label className="text-sm text-gray-600 cursor-pointer">{terminology.reservationLabel} sin costo</Label>
-                  </div>
-
-                  {currentArea.pricing_type === 'fixed' ? (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-gray-400">Costo Total Fijo</Label>
-                        <CurrencyInput
-                          value={currentArea.fixed_cost}
-                          onChange={(val) => setCurrentArea({ ...currentArea, fixed_cost: val })}
-                          className="h-10 rounded-lg text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-gray-400">Duración Estimada</Label>
-                        <DurationSelector
-                          value={currentArea.estimated_duration_minutes || 60}
-                          onChange={val => setCurrentArea({ ...currentArea, estimated_duration_minutes: val })}
-                        />
-                      </div>
-                    </>
-                  ) : currentArea.pricing_type === 'hourly' ? (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase font-bold text-gray-400">Máx. Horas</Label>
-                        <Input
-                          type="number"
-                          value={currentArea.max_hours_per_reservation}
-                          onChange={e => setCurrentArea({ ...currentArea, max_hours_per_reservation: parseInt(e.target.value) })}
-                          required
-                          className="h-10 rounded-lg text-sm"
-                        />
-                      </div>
-                      {!currentArea.is_free && (
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase font-bold text-gray-400">Costo Hora</Label>
-                          <CurrencyInput
-                            value={currentArea.cost_per_hour}
-                            onChange={(val) => setCurrentArea({ ...currentArea, cost_per_hour: val })}
-                            className="h-10 rounded-lg text-sm"
-                          />
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="p-3 bg-white border border-gray-200 rounded-lg space-y-2">
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <Sun className="w-3.5 h-3.5" />
-                            <span className="text-xs font-bold uppercase">Diurna</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <Label className="text-[9px] uppercase font-bold text-gray-400">Desde</Label>
-                              <Input type="time" value={currentArea.jornada_start_diurna || '08:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_diurna: e.target.value })} className="h-8 rounded-lg text-xs" />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[9px] uppercase font-bold text-gray-400">Hasta</Label>
-                              <Input type="time" value={currentArea.jornada_end_diurna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_diurna: e.target.value })} className="h-8 rounded-lg text-xs" />
-                            </div>
-                          </div>
-                          {!currentArea.is_free && (
-                            <div className="space-y-1">
-                              <Label className="text-[9px] uppercase font-bold text-gray-400">Costo</Label>
-                              <CurrencyInput value={currentArea.cost_jornada_diurna} onChange={(val) => setCurrentArea({ ...currentArea, cost_jornada_diurna: val })} className="h-8 rounded-lg text-xs" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-3 bg-white border border-gray-200 rounded-lg space-y-2">
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <Moon className="w-3.5 h-3.5" />
-                            <span className="text-xs font-bold uppercase">Nocturna</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <Label className="text-[9px] uppercase font-bold text-gray-400">Desde</Label>
-                              <Input type="time" value={currentArea.jornada_start_nocturna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_nocturna: e.target.value })} className="h-8 rounded-lg text-xs" />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[9px] uppercase font-bold text-gray-400">Hasta</Label>
-                              <Input type="time" value={currentArea.jornada_end_nocturna || '23:59'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_nocturna: e.target.value })} className="h-8 rounded-lg text-xs" />
-                            </div>
-                          </div>
-                          {!currentArea.is_free && (
-                            <div className="space-y-1">
-                              <Label className="text-[9px] uppercase font-bold text-gray-400">Costo</Label>
-                              <CurrencyInput value={currentArea.cost_jornada_nocturna} onChange={(val) => setCurrentArea({ ...currentArea, cost_jornada_nocturna: val })} className="h-8 rounded-lg text-xs" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-3 bg-white border border-gray-200 rounded-lg space-y-2">
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span className="text-xs font-bold uppercase">Completo</span>
-                          </div>
-                          <div className="h-[62px]"></div>
-                          {!currentArea.is_free && (
-                            <div className="space-y-1">
-                              <Label className="text-[9px] uppercase font-bold text-gray-400">Costo</Label>
-                              <CurrencyInput value={currentArea.cost_jornada_ambos} onChange={(val) => setCurrentArea({ ...currentArea, cost_jornada_ambos: val })} className="h-8 rounded-lg text-xs" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex items-center gap-3 pt-4">
-                    <input
-                      type="checkbox"
-                      id="active"
                       checked={currentArea.is_active}
-                      onChange={e => setCurrentArea({ ...currentArea, is_active: e.target.checked })}
-                      className="w-4 h-4 text-primary rounded border-gray-300"
+                      onCheckedChange={checked => setCurrentArea({ ...currentArea, is_active: checked })}
                     />
-                    <Label htmlFor="active" className="text-sm text-gray-600 cursor-pointer">Espacio activo</Label>
+                    <Label className="text-sm text-gray-600 cursor-pointer">Empleado disponible y activo</Label>
                   </div>
                 </div>
               </div>
 
-              {/* INLINE SERVICES MANAGER */}
+              {/* SERVICES MANAGEMENT */}
               <div className="border-t border-gray-100 pt-6 mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Package className="w-4 h-4 text-primary" />
-                    <Label className="text-sm font-bold text-gray-900">Servicios adicionales</Label>
+                    <Label className="text-sm font-bold text-gray-900">Servicios que puede realizar este empleado</Label>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => { setShowAddonSelector(!showAddonSelector); setShowNewAddonForm(false); }}
+                    onClick={() => { setShowAddonSelector(!showAddonSelector); }}
                     className="h-8 text-xs"
                   >
-                    <Plus className="w-3 h-3 mr-1" /> Agregar
+                    <Plus className="w-3 h-3 mr-1" /> Asignar Servicio
                   </Button>
                 </div>
 
@@ -596,10 +457,10 @@ export default function AdminResourcesPage() {
                             </span>
                           </div>
                           {la.description && <p className="text-[10px] text-gray-400 truncate">{la.description}</p>}
-                          <span className="text-[10px] text-gray-400">Base: {formatCurrency(la.base_cost)}</span>
+                          <span className="text-[10px] text-gray-400">Precio base global: {formatCurrency(la.base_cost)}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Label className="text-[9px] uppercase font-bold text-gray-400 whitespace-nowrap">Precio:</Label>
+                          <Label className="text-[9px] uppercase font-bold text-gray-400 whitespace-nowrap">Precio personalizado:</Label>
                           <CurrencyInput
                             value={la.custom_price}
                             onChange={(val) => handleUpdateLinkedAddonPrice(la.service_id, val)}
@@ -615,13 +476,12 @@ export default function AdminResourcesPage() {
                 )}
 
                 {linkedAddons.length === 0 && !showAddonSelector && (
-                  <p className="text-xs text-gray-400 text-center py-3">Sin servicios adicionales vinculados. Haz clic en "Agregar" para añadir servicios adicionales.</p>
+                  <p className="text-xs text-gray-400 text-center py-3">Sin servicios asignados. Haz clic en "Asignar Servicio" para vincular los servicios que puede realizar este empleado.</p>
                 )}
 
-                {/* Services selector dropdown */}
                 {showAddonSelector && (
                   <div className="border border-gray-200 rounded-xl p-4 bg-white space-y-3">
-                    <Label className="text-[10px] uppercase font-bold text-gray-400">Seleccionar servicio adicional existente</Label>
+                    <Label className="text-[10px] uppercase font-bold text-gray-400">Seleccionar servicio existente para el empleado</Label>
                     {availableToAdd.length > 0 ? (
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {availableToAdd.map((addon: any) => (
@@ -640,52 +500,9 @@ export default function AdminResourcesPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-400 text-center py-2">No hay servicios adicionales disponibles en la organización</p>
+                      <p className="text-xs text-gray-400 text-center py-2">Todos los servicios disponibles ya han sido asignados</p>
                     )}
-
-                    <div className="relative py-2">
-                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200" /></div>
-                      <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-gray-400 font-bold">o crear uno nuevo</span></div>
-                    </div>
-
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowNewAddonForm(!showNewAddonForm)} className="w-full h-8 text-xs">
-                      <Plus className="w-3 h-3 mr-1" /> Crear nuevo servicio adicional
-                    </Button>
-
-                    {showNewAddonForm && (
-                      <div className="border border-dashed border-primary/20 rounded-lg p-4 bg-primary/5 space-y-3 mt-2">
-                        <Input
-                          value={newAddon.name}
-                          onChange={e => setNewAddon({ ...newAddon, name: e.target.value })}
-                          placeholder="Nombre del servicio adicional (ej: Acondicionador)"
-                          className="h-9 text-sm"
-                        />
-                        <Input
-                          value={newAddon.description}
-                          onChange={e => setNewAddon({ ...newAddon, description: e.target.value })}
-                          placeholder="Descripción (opcional)"
-                          className="h-9 text-sm"
-                        />
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-[9px] uppercase font-bold text-gray-400">Costo Base</Label>
-                            <CurrencyInput value={newAddon.base_cost} onChange={(val) => setNewAddon({ ...newAddon, base_cost: val })} className="h-9 text-sm" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[9px] uppercase font-bold text-gray-400">Duración Extra</Label>
-                            <DurationSelector value={newAddon.duration_minutes} onChange={(val) => setNewAddon({ ...newAddon, duration_minutes: val })} />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button type="button" variant="outline" size="sm" onClick={() => setShowNewAddonForm(false)} className="flex-1 h-8 text-xs">Cancelar</Button>
-                          <Button type="button" size="sm" onClick={handleCreateAndAddAddon} disabled={savingAddon || !newAddon.name.trim()} className="flex-1 h-8 text-xs bg-primary text-white border-none">
-                            {savingAddon ? 'Creando...' : 'Crear y Agregar'}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddonSelector(false); setShowNewAddonForm(false); }} className="w-full text-xs text-gray-500">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddonSelector(false); }} className="w-full text-xs text-gray-500">
                       Cerrar
                     </Button>
                   </div>
@@ -708,87 +525,59 @@ export default function AdminResourcesPage() {
           areas.filter(area => !(isEditing && currentArea.id && area.id === currentArea.id)).map((area) => (
             <Card key={area.id}
               className={cn(
-                "border-none apple-shadow rounded-2xl bg-white transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1",
+                "border-none apple-shadow rounded-2xl bg-white transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1 flex flex-col justify-between",
                 !area.is_active && "opacity-50 grayscale"
               )}
             >
-              <div className={cn("relative overflow-hidden", isResidential ? "h-28 md:h-36" : "h-36 md:h-44 flex flex-col items-center justify-center bg-gray-50 pt-6 pb-4")}>
-                {!isResidential ? (
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-4 border-white shadow-sm relative z-10 mb-2">
-                    {area.image_url ? (
-                      <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
-                        <User className="w-8 h-8 text-primary/40" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {area.image_url ? (
-                      <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
-                        <Building2 className="w-10 h-10 md:w-12 md:h-12 text-primary/20" />
-                      </div>
-                    )}
-                  </>
-                )}
-                <div className={cn("absolute inset-0 bg-gradient-to-t via-transparent", isResidential ? "from-black/50 to-transparent" : "from-black/10 to-transparent")} />
-                <div className={cn("absolute", isResidential ? "bottom-1.5 left-2 right-2" : "bottom-1.5 w-full text-center")}>
-                  <h3 className={cn("font-bold leading-tight truncate", isResidential ? "text-white text-xs md:text-sm drop-shadow-lg" : "text-gray-900 text-sm md:text-base")}>{area.name}</h3>
-                </div>
-                <div className={cn(
-                  "absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] font-black uppercase border backdrop-blur-sm",
-                  area.is_active
-                    ? "bg-emerald-500/90 text-white border-emerald-400/50"
-                    : "bg-gray-500/80 text-white border-gray-400/50"
-                )}>
-                  {area.is_active ? 'Activo' : 'Off'}
-                </div>
-                <div className="absolute top-1.5 left-1.5 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] font-bold shadow-sm">
-                  {area.is_free
-                    ? <span className="text-emerald-600">Gratis</span>
-                    : area.pricing_type === 'fixed'
-                      ? <span className="text-gray-900">{formatCurrency(area.fixed_cost)}</span>
-                      : area.pricing_type === 'jornada'
-                        ? <span className="text-primary">Jornada</span>
-                        : <span className="text-gray-900">{formatCurrency(area.cost_per_hour)}/h</span>}
-                </div>
-              </div>
-              <div className="p-2.5 md:p-3.5 space-y-1.5 md:space-y-2">
-                {area.description && (
-                  <p className="text-[9px] md:text-[10px] text-gray-400 line-clamp-1">{area.description}</p>
-                )}
-                <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] text-gray-400 font-medium">
-                  {area.pricing_type === 'fixed' ? (
-                    <>
-                      <Clock className="w-2.5 h-2.5 text-primary/60" />
-                      <span>{formatDuration(area.estimated_duration_minutes || 60)}</span>
-                    </>
-                  ) : area.pricing_type === 'jornada' ? (
-                    <>
-                      <Calendar className="w-2.5 h-2.5 text-primary/60" />
-                      <span>Jornada</span>
-                    </>
+              <div>
+                <div className="relative overflow-hidden h-36 md:h-44 flex flex-col items-center justify-center bg-gray-50 pt-6 pb-4 rounded-t-2xl">
+                  {area.employee_photo_url || area.image_url ? (
+                    <img src={area.employee_photo_url || area.image_url} alt={area.name} className="w-full h-full object-cover" />
                   ) : (
-                    <>
-                      <Clock className="w-2.5 h-2.5 text-primary/60" />
-                      <span>Máx {area.max_hours_per_reservation}h</span>
-                    </>
+                    <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
+                      <User className="w-10 h-10 md:w-12 md:h-12 text-primary/20" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t via-transparent from-black/50 to-transparent" />
+                  <div className="absolute bottom-1.5 left-2 right-2">
+                    <h3 className="font-bold text-white text-xs md:text-sm drop-shadow-lg truncate">{area.name}</h3>
+                  </div>
+                  <div className={cn(
+                    "absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] font-black uppercase border backdrop-blur-sm",
+                    area.is_active
+                      ? "bg-emerald-500/90 text-white border-emerald-400/50"
+                      : "bg-gray-500/80 text-white border-gray-400/50"
+                  )}>
+                    {area.is_active ? 'Activo' : 'Inactivo'}
+                  </div>
+                  {area.specialty && (
+                    <div className="absolute top-1.5 left-1.5 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] font-bold shadow-sm">
+                      <span className="text-primary">{area.specialty}</span>
+                    </div>
                   )}
                 </div>
-                <div className="flex gap-1.5 pt-1.5 border-t border-gray-50">
+                <div className="p-2.5 md:p-3.5 space-y-1.5 md:space-y-2">
+                  {area.description && (
+                    <p className="text-[9px] md:text-[10px] text-gray-400 line-clamp-2 leading-relaxed">{area.description}</p>
+                  )}
+                  <div className="text-[9px] md:text-[10px] text-gray-500 font-medium bg-gray-50 p-2 rounded-lg border border-gray-100 flex items-center justify-between">
+                    <span>Tipo: {area.resource_type}</span>
+                    <span>Orden: {area.display_order}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-2.5 md:p-3.5 pt-0">
+                <div className="flex gap-1.5 border-t border-gray-50 pt-2">
                   <button
                     onClick={() => handleEdit(area)}
-                    className="flex-1 h-7.5 md:h-9 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[9px] md:text-xs font-bold rounded-lg transition-all duration-300 active:scale-95 flex items-center justify-center gap-0.5 md:gap-1"
+                    className="flex-1 h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[9px] md:text-xs font-bold rounded-lg transition-all duration-300 active:scale-95 flex items-center justify-center gap-0.5 md:gap-1"
                   >
                     <Edit2 className="w-3 h-3" /> Editar
                   </button>
                   <button
                     onClick={() => handleToggleActive(area)}
                     className={cn(
-                      "flex-1 h-7.5 md:h-9 text-[9px] md:text-xs font-bold rounded-lg transition-all duration-300 active:scale-95 flex items-center justify-center",
+                      "flex-1 h-8 text-[9px] md:text-xs font-bold rounded-lg transition-all duration-300 active:scale-95 flex items-center justify-center",
                       area.is_active
                         ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200"
                         : "bg-emerald-500 text-white hover:bg-emerald-600 border border-transparent"
