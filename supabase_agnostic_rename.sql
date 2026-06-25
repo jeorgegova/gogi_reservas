@@ -26,7 +26,6 @@ BEGIN
         ALTER TABLE public.common_areas RENAME TO services;
     END IF;
 END $$;
-
 -- Ajustar PK y FK de la tabla renombrada
 ALTER TABLE public.services DROP CONSTRAINT IF EXISTS common_areas_pkey;
 ALTER TABLE public.services ADD CONSTRAINT services_pkey PRIMARY KEY (id);
