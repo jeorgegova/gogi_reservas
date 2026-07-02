@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Building2, Plus, Search, Edit2, Trash2, ExternalLink, Loader2, XCircle, ShieldPlus, Calendar, AlertCircle, CheckCircle2, Clock, MapPin, TrendingUp, PieChart, BarChart3, Map as MapIcon, Download } from 'lucide-react';
+import { Building2, Plus, Search, Edit2, Trash2, ExternalLink, Loader2, XCircle, ShieldPlus, Calendar, AlertCircle, CheckCircle2, Clock, MapPin, TrendingUp, PieChart, BarChart3, Map as MapIcon, Download, MoreVertical } from 'lucide-react';
 import { cn, formatDate, formatCurrency } from '@/lib/utils';
 import { differenceInDays, parseISO, isPast } from 'date-fns';
 import { AlertDialog } from '@/components/ui/alert-dialog';
@@ -67,6 +67,7 @@ export default function SuperAdminOrganizations() {
     business_type: 'residential'
   });
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [selectedOrgForSubscription, setSelectedOrgForSubscription] = useState<any>(null);
   const [subscriptionFormData, setSubscriptionFormData] = useState({
@@ -366,6 +367,26 @@ export default function SuperAdminOrganizations() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Detectar teclado virtual en móvil comparando window.innerHeight con screen.height
+  useEffect(() => {
+    const handleResize = () => {
+      const screenHeight = window.screen.height;
+      const windowHeight = window.innerHeight;
+      // Si la ventana es mucho más pequeña que la pantalla, el keyboard está abierto
+      const diff = screenHeight - windowHeight;
+      if (diff > 100) {
+        setKeyboardHeight(diff);
+      } else {
+        setKeyboardHeight(0);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleOpenSubscriptionModal = async (org: any) => {
@@ -998,7 +1019,7 @@ export default function SuperAdminOrganizations() {
                   const isWarning = daysUntilRenewal !== null && daysUntilRenewal <= 7 && daysUntilRenewal > 0;
 
                   return (
-                    <div key={org.id} className="p-4 bg-white hover:bg-gray-50 flex flex-col gap-4">
+                    <div key={org.id} className="p-4 bg-white hover:bg-gray-50 flex flex-col gap-4 overflow-visible">
                       {/* Name & Actions */}
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex items-center gap-3 min-w-0 pr-2">
@@ -1026,6 +1047,15 @@ export default function SuperAdminOrganizations() {
                           >
                             <ShieldPlus className="w-4 h-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg shrink-0"
+                            onClick={() => handleOpenModal(org)}
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
                           <div className="relative">
                             <Button
                               variant="ghost"
@@ -1039,7 +1069,7 @@ export default function SuperAdminOrganizations() {
                                 setOpenDropdownId(openDropdownId === org.id ? null : org.id);
                               }}
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              <MoreVertical className="w-4 h-4" />
                             </Button>
                             {openDropdownId === org.id && (
                               <div
@@ -1262,9 +1292,12 @@ export default function SuperAdminOrganizations() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="px-4 md:px-8 pt-4 md:pt-8 pb-4 flex items-center justify-between border-b border-gray-100">
+        <div 
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-3 md:p-4 pt-0 md:pt-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+          style={{ paddingBottom: 'max(100px, env(safe-area-inset-bottom))' }}
+        >
+          <div className="bg-white rounded-t-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[85vh] md:max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-300">
+            <div className="px-4 md:px-8 pt-4 md:pt-8 pb-4 flex items-center shrink-0 justify-between border-b border-gray-100">
               <div>
                 <h2 className="text-lg md:text-xl font-bold text-gray-900">{editingOrg ? 'Editar Organización' : 'Nueva Organización'}</h2>
                 <p className="text-gray-500 text-xs">Tipo de negocio y datos de configuración.</p>
@@ -1274,7 +1307,7 @@ export default function SuperAdminOrganizations() {
               </Button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-5 md:space-y-6 overflow-y-auto flex-1">
+            <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-5 md:space-y-6 overflow-y-auto flex-1 min-h-0">
               {/* Tipo de Negocio - campo principal al inicio */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Tipo de Negocio</Label>
@@ -1383,7 +1416,7 @@ export default function SuperAdminOrganizations() {
                 </p>
               </div>
 
-              <div className="pt-4 flex justify-end gap-3">
+              <div className="pt-4 md:pb-0 flex justify-end gap-3" style={{ paddingBottom: `max(100px, ${keyboardHeight + 16}px)` }}>
                 <Button variant="ghost" type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl font-bold">
                   Cancelar
                 </Button>

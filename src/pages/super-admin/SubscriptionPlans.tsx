@@ -407,9 +407,12 @@ export default function SuperAdminSubscriptionPlans() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-gray-100">
+        <div 
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-3 md:p-4 pt-0 md:pt-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+          style={{ paddingBottom: 'max(100px, env(safe-area-inset-bottom))' }}
+        >
+          <div className="bg-white rounded-t-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[85vh] md:max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-300 overflow-y-auto">
+            <div className="px-4 md:px-8 pt-4 md:pt-8 pb-4 flex items-center shrink-0 justify-between border-b border-gray-100">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{editingPlan ? 'Editar Plan' : 'Nuevo Plan'}</h2>
                 <p className="text-gray-500 text-xs">Configura los detalles del plan de suscripción.</p>
@@ -419,7 +422,7 @@ export default function SuperAdminSubscriptionPlans() {
               </Button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-5 md:space-y-6 overflow-y-auto flex-1 min-h-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Nombre del Plan</Label>
@@ -489,7 +492,7 @@ export default function SuperAdminSubscriptionPlans() {
                 />
               </div>
 
-              <div className="pt-4 flex justify-end gap-3">
+              <div className="pt-4 md:pb-0 flex justify-end gap-3" style={{ paddingBottom: 'max(100px, env(safe-area-inset-bottom))' }}>
                 <Button variant="ghost" type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl font-bold">
                   Cancelar
                 </Button>
