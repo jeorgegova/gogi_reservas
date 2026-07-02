@@ -385,7 +385,6 @@ function App() {
 
           {/* Catch-all to root */}
           <Route path="*" element={<Navigate to="/" />} />
-
         </Routes>
       </AuthProvider>
     </BrowserRouter>
