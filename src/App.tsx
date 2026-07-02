@@ -48,10 +48,10 @@ const OrganizationHome = () => {
       fetchOrgSettings(slug).then(async (settings) => {
         if (settings && !settings.requires_auth && settings.guest_user_id) {
           if (profile && profile.organization_slug !== slug) {
-            try { await signOut(); } catch {}
-            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch {} finally { setSettingsLoading(false); }
+            try { await signOut(); } catch { }
+            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch { } finally { setSettingsLoading(false); }
           } else {
-            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch {} finally { setSettingsLoading(false); }
+            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch { } finally { setSettingsLoading(false); }
           }
         } else {
           setSettingsLoading(false);
@@ -385,6 +385,7 @@ function App() {
 
           {/* Catch-all to root */}
           <Route path="*" element={<Navigate to="/" />} />
+
         </Routes>
       </AuthProvider>
     </BrowserRouter>
