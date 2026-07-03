@@ -26,6 +26,7 @@ import AdminBonificaciones from './pages/admin/Bonificaciones';
 import VerifyEmail from './pages/VerifyEmail';
 import AdminSettingsPage from '@/pages/admin/AdminSettings';
 import AdminStatisticsPage from '@/pages/admin/AdminStatistics';
+import LandingPage from '@/pages/LandingPage';
 
 const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reservations', 'login', 'register', 'maintenance', 'payment', 'bonificaciones', 'forgot-password', 'verify-email'];
 
@@ -113,11 +114,10 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Componente que redirige al último slug usado o a super-admin
+// Componente que redirige a usuarios autenticados y muestra landing a visitantes
 const RootLoader = () => {
   const navigate = useNavigate();
   const { profile, loading } = useAuth();
-  const [shouldShowLogin, setShouldShowLogin] = useState(false);
   const hasProcessed = useRef(false);
 
   useEffect(() => {
@@ -139,28 +139,20 @@ const RootLoader = () => {
             navigate('/dashboard', { replace: true });
           }
         }
-      } else {
-        // Usuario no autenticado - ir a login
-        const lastSlug = localStorage.getItem('lastOrganizationSlug');
-        if (lastSlug) {
-          navigate(`/${lastSlug}/login`, { replace: true });
-        } else {
-          // Si no hay slug previo, mostramos el login central aquí mismo
-          setShouldShowLogin(true);
-        }
       }
+      // Usuarios no autenticados permanecen en / para ver la landing page
     }
   }, [profile, loading, navigate]);
 
-  if (shouldShowLogin) {
-    return <LoginPage />;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-    </div>
-  );
+  return <LandingPage />;
 };
 
 function App() {

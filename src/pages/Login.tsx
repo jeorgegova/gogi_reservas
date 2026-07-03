@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, Building2, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Building2, Eye, EyeOff, Home } from 'lucide-react';
 import { cn, translateAuthError } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -109,6 +109,11 @@ export default function LoginPage() {
     }
   };
 
+  const handleBackToHome = () => {
+    localStorage.removeItem('lastOrganizationSlug');
+    localStorage.removeItem('guestSession');
+  };
+
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background Image with Overlay */}
@@ -127,6 +132,21 @@ export default function LoginPage() {
       {/* Decorative elements */}
       <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
       <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+
+      {/* Back to home */}
+      <Link
+        to="/"
+        onClick={handleBackToHome}
+        className={cn(
+          "fixed top-5 left-5 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg",
+          !slug
+            ? "bg-white/80 text-slate-700 hover:bg-white border border-slate-200 shadow-slate-200/50"
+            : "bg-white/10 text-white hover:bg-white/20 border border-white/20"
+        )}
+      >
+        <Home className="h-4 w-4" />
+        <span className="hidden sm:inline">Volver al inicio</span>
+      </Link>
 
       <Card className={cn(
         "relative z-10 w-full max-w-md shadow-2xl rounded-[2.5rem] overflow-hidden animate-in fade-in zoom-in duration-500",
