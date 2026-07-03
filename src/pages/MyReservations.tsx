@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate, formatTime, cn } from '@/lib/utils';
@@ -35,14 +36,13 @@ export default function MyReservationsPage() {
   const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (profile?.organization_id) {
-      fetchReservations();
-      fetchAreas();
-    }
-  }, [profile?.organization_id]);
+  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
+  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
+  const previousMapRef = useRef<Map<string, string>>(new Map());
+  const highlightTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const approvedTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  const fetchAreas = async () => {
+  const fetchAreas = useCallback(async () => {
     if (!profile?.organization_id) return;
     const { data } = await supabase
       .from('resources')
@@ -50,23 +50,141 @@ export default function MyReservationsPage() {
       .eq('organization_id', profile.organization_id)
       .eq('is_active', true);
     setAreas(data || []);
-  };
+  }, [profile?.organization_id]);
 
-  const fetchReservations = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('reservations')
-      .select(`
-        *,
-        resources (name, image_url)
-      `)
-      .eq('user_id', profile?.id)
-      .eq('organization_id', profile?.organization_id)
-      .order('created_at', { ascending: false });
+  const fetchReservations = useCallback(async (silent = false) => {
+    if (!profile?.id || !profile?.organization_id) return;
+    if (!silent) setLoading(true);
 
-    setReservations(data || []);
-    setLoading(false);
-  };
+    try {
+      const { data } = await supabase
+        .from('reservations')
+        .select(`
+          *,
+          resources (name, image_url)
+        `)
+        .eq('user_id', profile.id)
+        .eq('organization_id', profile.organization_id)
+        .order('created_at', { ascending: false });
+
+      const newReservations = data || [];
+      const currentMap = new Map(newReservations.map(r => [r.id, r.status]));
+      const previousMap = previousMapRef.current;
+      const newlyArrived = newReservations.filter(r => !previousMap.has(r.id));
+      const newlyApproved = newReservations.filter(r => {
+        const prevStatus = previousMap.get(r.id);
+        return prevStatus && prevStatus !== 'approved' && r.status === 'approved';
+      });
+
+      if (previousMap.size > 0 && newlyArrived.length > 0) {
+        const newIds = newlyArrived.map(r => r.id);
+        setHighlightedIds(prev => {
+          const next = new Set(prev);
+          newIds.forEach(id => next.add(id));
+          return next;
+        });
+
+        newIds.forEach(id => {
+          if (highlightTimersRef.current.has(id)) return;
+          const timer = setTimeout(() => {
+            setHighlightedIds(prev => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+            highlightTimersRef.current.delete(id);
+          }, 6000);
+          highlightTimersRef.current.set(id, timer);
+        });
+
+        if (newlyArrived.length === 1) {
+          const r = newlyArrived[0];
+          toast.info(`Nueva ${terminology.reservationLabel.toLowerCase()}`, {
+            description: `${r.resources?.name || 'Recurso'} - ${formatDate(r.start_datetime)}`,
+            duration: 6000,
+          });
+        } else {
+          toast.info(`${newlyArrived.length} nuevas ${terminology.reservationLabel.toLowerCase()}s`, {
+            description: 'Se han agregado a tu lista.',
+            duration: 6000,
+          });
+        }
+      }
+
+      if (previousMap.size > 0 && newlyApproved.length > 0) {
+        const approvedIdList = newlyApproved.map(r => r.id);
+        setApprovedIds(prev => {
+          const next = new Set(prev);
+          approvedIdList.forEach(id => next.add(id));
+          return next;
+        });
+
+        approvedIdList.forEach(id => {
+          if (approvedTimersRef.current.has(id)) return;
+          const timer = setTimeout(() => {
+            setApprovedIds(prev => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+            approvedTimersRef.current.delete(id);
+          }, 6000);
+          approvedTimersRef.current.set(id, timer);
+        });
+
+        if (newlyApproved.length === 1) {
+          const r = newlyApproved[0];
+          toast.success(`${terminology.reservationLabel} aprobada`, {
+            description: `${r.resources?.name || 'Recurso'} - ${formatDate(r.start_datetime)}`,
+            duration: 6000,
+          });
+        } else {
+          toast.success(`${newlyApproved.length} ${terminology.reservationLabel.toLowerCase()}s aprobadas`, {
+            description: 'Se han aprobado tus solicitudes.',
+            duration: 6000,
+          });
+        }
+      }
+
+      previousMapRef.current = currentMap;
+      setReservations(newReservations);
+    } catch (err) {
+      console.error('Error fetching reservations:', err);
+      setReservations([]);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [profile?.id, profile?.organization_id, terminology.reservationLabel]);
+
+  const fetchReservationsRef = useRef(fetchReservations);
+  useEffect(() => {
+    fetchReservationsRef.current = fetchReservations;
+  }, [fetchReservations]);
+
+  useEffect(() => {
+    if (profile?.organization_id) {
+      fetchReservations();
+      fetchAreas();
+    }
+  }, [fetchReservations, fetchAreas, profile?.organization_id]);
+
+  useEffect(() => {
+    if (!profile?.organization_id) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      fetchReservationsRef.current(true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [profile?.organization_id]);
+
+  useEffect(() => {
+    const timersMap = highlightTimersRef.current;
+    const approvedTimersMap = approvedTimersRef.current;
+    return () => {
+      timersMap.forEach(timer => clearTimeout(timer));
+      approvedTimersMap.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   const handleCancelClick = (id: string) => {
     setReservationToCancel(id);
@@ -260,8 +378,24 @@ export default function MyReservationsPage() {
           filteredReservations.map((res) => (
             <div
               key={res.id}
-              className="group bg-white rounded-2xl border border-gray-100 apple-shadow hover:apple-shadow-hover hover:-translate-y-1 transition-all duration-300 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden relative"
+              className={cn(
+                "group bg-white rounded-2xl border border-gray-100 apple-shadow hover:apple-shadow-hover hover:-translate-y-1 transition-all duration-300 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden relative",
+                highlightedIds.has(res.id) && "animate-pulse bg-amber-100 ring-2 ring-amber-400 shadow-lg shadow-amber-200",
+                approvedIds.has(res.id) && "animate-pulse bg-green-100 ring-2 ring-green-400 shadow-lg shadow-green-200"
+              )}
             >
+              {highlightedIds.has(res.id) && (
+                <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full animate-bounce z-10">
+                  <span className="w-1 h-1 rounded-full bg-white" />
+                  Nuevo
+                </span>
+              )}
+              {approvedIds.has(res.id) && (
+                <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full animate-bounce z-10">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                  Aprobada
+                </span>
+              )}
               {/* Status indicator bar (left) */}
               <div className={cn(
                 "absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-300",

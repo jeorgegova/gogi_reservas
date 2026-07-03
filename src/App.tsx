@@ -108,7 +108,7 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { profile, loading } = useAuth();
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
-  if (!profile || profile.role !== 'super_admin') return <Navigate to="/" />; // Redirect to root if not super_admin
+  if (!profile || profile.role !== 'super_admin') return <Navigate to="/login" />; // Redirect to login if not super_admin
 
   return <>{children}</>;
 };
@@ -171,6 +171,9 @@ function App() {
         <Routes>
           {/* Root - muestra pantalla de carga o redirige */}
           <Route path="/" element={<RootLoader />} />
+
+          {/* Central login for superadmin access */}
+          <Route path="/login" element={<LoginPage />} />
 
           {/* Standard Routes (session based) */}
           <Route
@@ -315,6 +318,14 @@ function App() {
             }
           />
 
+          <Route
+            path="/super-admin"
+            element={
+              <SuperAdminRoute>
+                <Navigate to="/super-admin/organizations" replace />
+              </SuperAdminRoute>
+            }
+          />
           <Route
             path="/super-admin/organizations"
             element={

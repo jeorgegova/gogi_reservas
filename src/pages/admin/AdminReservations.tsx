@@ -14,6 +14,7 @@ import {
 } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 import {
   Search,
   Calendar,
@@ -43,7 +44,10 @@ export default function AdminReservationsPage() {
   const [blockingError, setBlockingError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousIdsRef = useRef<Set<string>>(new Set());
+  const highlightTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -63,9 +67,9 @@ export default function AdminReservationsPage() {
     }
   }, [subscriptionStatus, daysUntilExpiry, subscriptionLoading, previousSubscriptionExpiredBeyond20Days]);
 
-  const fetchReservations = useCallback(async () => {
+  const fetchReservations = useCallback(async (silent = false) => {
     if (!profile?.organization_id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
 
     try {
       const monthStart = startOfMonth(currentMonth).toISOString();
@@ -115,20 +119,80 @@ export default function AdminReservationsPage() {
         return new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime();
       });
 
+      const currentIds = new Set(merged.map(r => r.id));
+      const previousIds = previousIdsRef.current;
+      const newlyArrived = merged.filter(r => !previousIds.has(r.id));
+
+      if (previousIds.size > 0 && newlyArrived.length > 0) {
+        const newIds = newlyArrived.map(r => r.id);
+        setHighlightedIds(prev => {
+          const next = new Set(prev);
+          newIds.forEach(id => next.add(id));
+          return next;
+        });
+        newIds.forEach(id => {
+          if (highlightTimersRef.current.has(id)) return;
+          const timer = setTimeout(() => {
+            setHighlightedIds(prev => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+            highlightTimersRef.current.delete(id);
+          }, 6000);
+          highlightTimersRef.current.set(id, timer);
+        });
+
+        if (newlyArrived.length === 1) {
+          const r = newlyArrived[0];
+          toast.info(`Nueva ${terminology.reservationLabel.toLowerCase()}`, {
+            description: `${r.profiles?.full_name || r.guest_name || 'Invitado'} - ${r.resources?.name || 'Recurso'}`,
+            duration: 6000,
+          });
+        } else {
+          toast.info(`${newlyArrived.length} nuevas ${terminology.reservationLabel.toLowerCase()}s`, {
+            description: 'Se han agregado a la lista.',
+            duration: 6000,
+          });
+        }
+      }
+
+      previousIdsRef.current = currentIds;
       setReservations(merged);
     } catch (err) {
       console.error('Error fetching reservations:', err);
       setReservations([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, [profile?.organization_id, currentMonth]);
+  }, [profile?.organization_id, currentMonth, terminology.reservationLabel]);
 
   useEffect(() => {
     if (profile?.organization_id) {
       fetchReservations();
     }
   }, [fetchReservations, statusFilter]);
+
+  const fetchReservationsRef = useRef(fetchReservations);
+  useEffect(() => {
+    fetchReservationsRef.current = fetchReservations;
+  }, [fetchReservations]);
+
+  useEffect(() => {
+    if (!profile?.organization_id) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      fetchReservationsRef.current(true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [profile?.organization_id]);
+
+  useEffect(() => {
+    const timersMap = highlightTimersRef.current;
+    return () => {
+      timersMap.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     setUpdatingId(id);
@@ -353,7 +417,8 @@ export default function AdminReservationsPage() {
                   return (
                     <tr key={res.id} className={cn(
                       "hover:bg-gray-50/50 transition-colors",
-                      isPending(res.status) && "bg-amber-50/30"
+                      isPending(res.status) && "bg-amber-50/30",
+                      highlightedIds.has(res.id) && "animate-pulse bg-amber-100 ring-2 ring-amber-400 shadow-sm shadow-amber-200"
                     )}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
@@ -362,6 +427,12 @@ export default function AdminReservationsPage() {
                           </div>
                           {res.profiles?.role === 'guest' && (
                             <span className="bg-blue-50 text-blue-600 text-[9px] font-medium px-1.5 py-0.5 rounded border border-blue-100 shrink-0">Invitado</span>
+                          )}
+                          {highlightedIds.has(res.id) && (
+                            <span className="shrink-0 inline-flex items-center gap-1 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-bounce">
+                              <span className="w-1 h-1 rounded-full bg-white" />
+                              Nuevo
+                            </span>
                           )}
                         </div>
                         {businessType === 'residential' && res.profiles?.apartment && (
@@ -441,7 +512,8 @@ export default function AdminReservationsPage() {
                 key={res.id}
                 className={cn(
                   "bg-white rounded-xl border transition-all duration-300",
-                  pending ? "border-amber-200 shadow-md shadow-amber-100/50" : "border-gray-100 shadow-sm"
+                  pending ? "border-amber-200 shadow-md shadow-amber-100/50" : "border-gray-100 shadow-sm",
+                  highlightedIds.has(res.id) && "animate-pulse bg-amber-100 ring-2 ring-amber-400 shadow-lg shadow-amber-200"
                 )}
               >
                 <div className="px-3 py-2 space-y-1.5">
@@ -451,6 +523,12 @@ export default function AdminReservationsPage() {
                         <span className="font-bold text-gray-900 text-sm truncate">{userName}</span>
                         {res.profiles?.role === 'guest' && (
                           <span className="bg-blue-50 text-blue-600 text-[8px] font-medium px-1 py-0.5 rounded border border-blue-100 shrink-0">Invitado</span>
+                        )}
+                        {highlightedIds.has(res.id) && (
+                          <span className="shrink-0 inline-flex items-center gap-1 bg-amber-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full animate-bounce">
+                            <span className="w-1 h-1 rounded-full bg-white" />
+                            Nuevo
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
