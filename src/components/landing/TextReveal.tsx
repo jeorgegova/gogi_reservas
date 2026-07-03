@@ -1,12 +1,12 @@
 /**
  * TextReveal
  * Revela texto palabra por palabra sincronizado con scroll.
- * En móvil la animación es más rápida y sin rotación para mantener legibilidad.
+ * En móvil la animación es más rápida y directa para mantener legibilidad.
  */
 import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { cn } from '@/lib/utils';
 
 interface TextRevealProps {
@@ -31,62 +31,37 @@ export function TextReveal({
   const containerRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !containerRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !containerRef.current) return;
 
-      const elements = containerRef.current.querySelectorAll('[data-reveal-item]');
-      if (!elements || elements.length === 0) return;
+    const elements = containerRef.current.querySelectorAll('[data-reveal-item]');
+    if (!elements || elements.length === 0) return;
 
-      const mm = gsap.matchMedia({
-        // Desktop: reveal suave con ligero movimiento vertical
-        '(min-width: 768px)': function () {
-          gsap.fromTo(
-            elements,
-            {
-              opacity: 0.35,
-              y: 16,
-            },
-            {
-              opacity: 1,
-              y: 0,
-              stagger: 0.03,
-              scrollTrigger: {
-                trigger: containerRef.current,
-                start,
-                end,
-                scrub,
-              },
-            }
-          );
+    const isMobile = window.innerWidth < 768;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        elements,
+        {
+          opacity: isMobile ? 0.45 : 0.35,
+          y: isMobile ? 12 : 16,
         },
-        // Móvil: reveal más rápido y directo
-        '(max-width: 767px)': function () {
-          gsap.fromTo(
-            elements,
-            {
-              opacity: 0.45,
-              y: 12,
-            },
-            {
-              opacity: 1,
-              y: 0,
-              stagger: 0.02,
-              scrollTrigger: {
-                trigger: containerRef.current,
-                start,
-                end: 'top 50%',
-                scrub: 0.5,
-              },
-            }
-          );
-        },
-      });
+        {
+          opacity: 1,
+          y: 0,
+          stagger: isMobile ? 0.02 : 0.03,
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start,
+            end: isMobile ? 'top 50%' : end,
+            scrub: isMobile ? 0.5 : scrub,
+          },
+        }
+      );
+    }, containerRef);
 
-      return () => mm.revert();
-    },
-    { scope: containerRef, dependencies: [reducedMotion] }
-  );
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   const items = splitBy === 'word' ? children.split(' ') : [children];
 

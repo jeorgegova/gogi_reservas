@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { createSubscriptionPayment } from '@/lib/paymentService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle2, Loader2, XCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Subscription {
   id: string;
@@ -194,12 +194,22 @@ export default function AdminSubscription() {
         }
       }
 
-      const result = await createSubscriptionPayment(subscriptionId!);
+      // Crear el pago en estado pendiente (sin pasar por Wompi)
+      const { error: paymentError } = await supabase
+        .from('subscription_payments')
+        .insert({
+          subscription_id: subscriptionId,
+          amount: selectedPlan.price,
+          status: 'pending',
+          payment_method: 'pending_transfer',
+        });
 
-      if (result.checkout_url) {
-        window.location.href = result.checkout_url;
-        return;
+      if (paymentError) {
+        throw paymentError;
       }
+
+      await fetchPendingPayments();
+      await fetchSubscription();
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error managing subscription:', error);
@@ -269,6 +279,26 @@ export default function AdminSubscription() {
           <p className="text-gray-600">Gestiona tu suscripción y planes disponibles</p>
         </div>
       </div>
+
+      {/* Pending payment message */}
+      {pendingPayments.length > 0 && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg shrink-0">
+              <Clock className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-900">Renovación en estado pendiente</h3>
+              <p className="text-sm text-amber-700 mt-1 leading-relaxed">
+                Tu solicitud de renovación fue recibida correctamente. Estamos a la espera de la validación del pago por parte del administrador. Una vez confirmado, tu suscripción se activará automáticamente.
+              </p>
+              <p className="text-xs text-amber-600 mt-2">
+                Si ya realizaste el pago, por favor ten paciencia. Si tienes dudas, contacta al administrador.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Current Subscription */}
       <Card>
@@ -391,7 +421,7 @@ export default function AdminSubscription() {
                     ) : (
                       <>
                         <CreditCard className="w-4 h-4 mr-2" />
-                        {subscription ? 'Renovar' : 'Activar'} Plan
+                        {subscription ? 'Solicitar Renovación' : 'Activar Plan'}
                       </>
                     )}
                   </Button>
@@ -428,13 +458,18 @@ export default function AdminSubscription() {
                 Confirmar Renovación
               </h3>
             </div>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-2">
               {isSubscriptionActive() ? (
-                "Tienes una subscripcion activa, si adquieres este plan se perderan los dias restantes de tu plan actual. La nueva subscripcion iniciara a partir de que se valide el pago."
+                "Tienes una suscripción activa. Si adquieres este plan se perderán los días restantes de tu plan actual. La nueva suscripción iniciará una vez que el administrador valide el pago."
               ) : (
-                "El plan se renovara a partir de la fecha que se valide el pago."
+                "El plan se renovará una vez que el administrador valide el pago."
               )}
             </p>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-6">
+              <p className="text-sm text-amber-800">
+                <strong>Importante:</strong> No se realizará ningún cobro automático. Tu solicitud quedará en estado pendiente y el administrador se pondrá en contacto contigo para coordinar el pago.
+              </p>
+            </div>
             <div className="flex gap-3 justify-end">
               <Button
                 variant="outline"
@@ -450,6 +485,10 @@ export default function AdminSubscription() {
                   setShowConfirmModal(false);
                   if (selectedPlanId) {
                     handleRenewSubscription(selectedPlanId);
+                    toast.success('Renovación solicitada', {
+                      description: 'Tu solicitud quedó en estado pendiente. El administrador validará el pago y activará tu suscripción pronto.',
+                      duration: 6000,
+                    });
                   }
                   setSelectedPlanId(null);
                 }}
@@ -461,7 +500,7 @@ export default function AdminSubscription() {
                     Procesando...
                   </>
                 ) : (
-                  "Renovar Plan"
+                  "Solicitar Renovación"
                 )}
               </Button>
             </div>

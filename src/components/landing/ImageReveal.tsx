@@ -4,9 +4,9 @@
  * En móvil simplifica el efecto para mejorar rendimiento.
  */
 import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { cn } from '@/lib/utils';
 
 interface ImageRevealProps {
@@ -54,88 +54,85 @@ export function ImageReveal({
     },
   };
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !containerRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !containerRef.current) return;
 
-      const target = imageRef.current || contentRef.current;
-      if (!target) return;
+    const target = imageRef.current || contentRef.current;
+    if (!target) return;
 
-      const mm = gsap.matchMedia({
+    const isMobile = window.innerWidth < 768;
+    const clip = clipPaths[direction];
+
+    const ctx = gsap.context(() => {
+      if (isMobile) {
+        // Móvil: fade y scale simples
+        gsap.fromTo(
+          containerRef.current,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: containerRef.current,
+              start: 'top 90%',
+              end: 'top 60%',
+              scrub: 0.5,
+            },
+          }
+        );
+
+        gsap.fromTo(
+          target,
+          { scale: 1.05 },
+          {
+            scale: 1,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: containerRef.current,
+              start,
+              end,
+              scrub: 0.6,
+            },
+          }
+        );
+      } else {
         // Desktop: clip-path + escala + opacidad
-        '(min-width: 768px)': function () {
-          const clip = clipPaths[direction];
+        gsap.fromTo(
+          containerRef.current,
+          { clipPath: clip.from },
+          {
+            clipPath: clip.to,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: containerRef.current,
+              start,
+              end,
+              scrub: 0.6,
+            },
+          }
+        );
 
-          gsap.fromTo(
-            containerRef.current,
-            { clipPath: clip.from },
-            {
-              clipPath: clip.to,
-              ease: 'none',
-              scrollTrigger: {
-                trigger: containerRef.current,
-                start,
-                end,
-                scrub: 0.6,
-              },
-            }
-          );
+        gsap.fromTo(
+          target,
+          { scale: 1.2, opacity: 0.8 },
+          {
+            scale: 1,
+            opacity: 1,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: containerRef.current,
+              start,
+              end,
+              scrub: 0.6,
+            },
+          }
+        );
+      }
+    }, containerRef);
 
-          gsap.fromTo(
-            target,
-            { scale: 1.2, opacity: 0.8 },
-            {
-              scale: 1,
-              opacity: 1,
-              ease: 'none',
-              scrollTrigger: {
-                trigger: containerRef.current,
-                start,
-                end,
-                scrub: 0.6,
-              },
-            }
-          );
-        },
-        // Móvil: fade y scale simples, sin clip-path
-        '(max-width: 767px)': function () {
-          gsap.fromTo(
-            containerRef.current,
-            { opacity: 0, y: 30 },
-            {
-              opacity: 1,
-              y: 0,
-              ease: 'power2.out',
-              scrollTrigger: {
-                trigger: containerRef.current,
-                start: 'top 90%',
-                end: 'top 60%',
-                scrub: 0.5,
-              },
-            }
-          );
-
-          gsap.fromTo(
-            target,
-            { scale: 1.05 },
-            {
-              scale: 1,
-              ease: 'none',
-              scrollTrigger: {
-                trigger: containerRef.current,
-                start,
-                end,
-                scrub: 0.6,
-              },
-            }
-          );
-        },
-      });
-
-      return () => mm.revert();
-    },
-    { scope: containerRef, dependencies: [reducedMotion, direction, start, end] }
-  );
+    return () => ctx.revert();
+  }, [reducedMotion, direction, start, end]);
 
   return (
     <div

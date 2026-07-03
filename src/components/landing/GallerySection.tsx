@@ -5,9 +5,9 @@
  * con animaciones reveal escalonadas y efectos hover en cada tarjeta.
  */
 import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
-import { gsap, ScrollTrigger } from '@/lib/gsap';
+import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { Building2, Scissors, Sparkles, Wrench, Laptop, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -68,104 +68,95 @@ export function GallerySection() {
   const trackRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !sectionRef.current || !trackRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !sectionRef.current || !trackRef.current) return;
 
-      const track = trackRef.current;
-      const totalWidth = track.scrollWidth - window.innerWidth;
-      const cards = track.querySelectorAll('[data-gallery-card]');
+    const track = trackRef.current;
+    const totalWidth = track.scrollWidth - window.innerWidth;
+    const cards = track.querySelectorAll('[data-gallery-card]');
+    const isDesktop = window.innerWidth >= 768;
 
-      const mm = gsap.matchMedia({
-        // Desktop: scroll vertical convertido en horizontal con reveal de tarjetas
-        '(min-width: 768px)': function () {
-          const tl = gsap.timeline({
-            scrollTrigger: {
-              trigger: sectionRef.current,
-              start: 'top top',
-              end: () => `+=${totalWidth}`,
-              pin: true,
-              scrub: 0.8,
-              anticipatePin: 1,
+    const ctx = gsap.context(() => {
+      if (isDesktop) {
+        // Desktop: timeline que combina scroll horizontal y reveal de tarjetas
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: 'top top',
+            end: () => `+=${totalWidth}`,
+            pin: true,
+            scrub: 0.8,
+            anticipatePin: 1,
+          },
+        });
+
+        // Movimiento horizontal del track durante todo el recorrido
+        tl.to(track, {
+          x: -totalWidth,
+          ease: 'none',
+          duration: 1,
+        }, 0);
+
+        // Reveal escalonado de tarjetas dentro del mismo timeline
+        cards.forEach((card, index) => {
+          const start = index * 0.12;
+          const end = start + 0.2;
+
+          tl.fromTo(
+            card,
+            {
+              opacity: 0.4,
+              y: 40,
+              scale: 0.92,
             },
-          });
-
-          // Movimiento horizontal del track
-          tl.to(track, {
-            x: -totalWidth,
-            ease: 'none',
-            duration: 1,
-          }, 0);
-
-          // Reveal escalonado de cada tarjeta durante el recorrido
-          cards.forEach((card, index) => {
-            const startProgress = index / (cards.length + 1);
-            const endProgress = startProgress + 0.15;
-
-            tl.fromTo(
-              card,
-              {
-                opacity: 0.5,
-                y: 40,
-                scale: 0.92,
-                filter: 'blur(6px)',
-              },
-              {
-                opacity: 1,
-                y: 0,
-                scale: 1,
-                filter: 'blur(0px)',
-                duration: 0.15,
-                ease: 'power2.out',
-              },
-              startProgress
-            );
-
-            // Ligera atenuación cuando la tarjeta se aleja
-            tl.to(
-              card,
-              {
-                opacity: 0.6,
-                scale: 0.96,
-                duration: 0.1,
-                ease: 'power2.in',
-              },
-              endProgress
-            );
-          });
-
-          return () => {
-            ScrollTrigger.getAll()
-              .filter((st) => st.trigger === sectionRef.current)
-              .forEach((st) => st.kill());
-          };
-        },
-        // Móvil: scroll horizontal nativo con reveal simple
-        '(max-width: 767px)': function () {
-          gsap.fromTo(
-            cards,
-            { opacity: 0, y: 30, scale: 0.95 },
             {
               opacity: 1,
               y: 0,
               scale: 1,
-              stagger: 0.08,
+              duration: 0.2,
               ease: 'power2.out',
-              scrollTrigger: {
-                trigger: sectionRef.current,
-                start: 'top 80%',
-                end: 'top 50%',
-                scrub: 0.5,
-              },
-            }
+            },
+            start
           );
-        },
-      });
 
-      return () => mm.revert();
-    },
-    { scope: sectionRef, dependencies: [reducedMotion] }
-  );
+          // Suave atenuación cuando la tarjeta se aleja
+          if (index < cards.length - 1) {
+            tl.to(
+              card,
+              {
+                opacity: 0.7,
+                scale: 0.96,
+                duration: 0.1,
+                ease: 'power2.in',
+              },
+              end
+            );
+          }
+        });
+      } else {
+        // Móvil: reveal simple
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 30, scale: 0.95 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            stagger: 0.08,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 80%',
+              end: 'top 50%',
+              scrub: 0.5,
+            },
+          }
+        );
+      }
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   const renderCard = (item: typeof GALLERY_ITEMS[0], index: number, isGrid = false) => {
     const Icon = item.icon;

@@ -5,9 +5,9 @@
  * En móvil: se utiliza un layout apilado más compacto con animaciones simplificadas.
  */
 import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { Calendar, Shield, Zap, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,6 @@ const FEATURES = [
     description:
       'Visualiza la disponibilidad al instante. Sin esperas, sin confusiones. Solo un flujo natural hacia tu próxima reserva.',
     color: 'from-indigo-500 to-blue-600',
-    lightColor: 'bg-indigo-50',
   },
   {
     id: 'control',
@@ -28,7 +27,6 @@ const FEATURES = [
     description:
       'Gestiona usuarios, recursos, horarios y pagos desde un panel centralizado diseñado para la claridad absoluta.',
     color: 'from-emerald-500 to-teal-600',
-    lightColor: 'bg-emerald-50',
   },
   {
     id: 'automation',
@@ -37,7 +35,6 @@ const FEATURES = [
     description:
       'Validaciones, recordatorios y confirmaciones que suceden en el momento exacto, reduciendo la carga administrativa.',
     color: 'from-amber-500 to-orange-600',
-    lightColor: 'bg-amber-50',
   },
   {
     id: 'experience',
@@ -46,7 +43,6 @@ const FEATURES = [
     description:
       'Desde conjuntos residenciales hasta barberías, salones y talleres. La plataforma se adapta a tu lenguaje y ritmo.',
     color: 'from-rose-500 to-pink-600',
-    lightColor: 'bg-rose-50',
   },
 ];
 
@@ -57,115 +53,104 @@ export function FeaturesSection() {
   const visualRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !sectionRef.current || !pinRef.current || !cardsRef.current || !visualRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !sectionRef.current || !pinRef.current || !cardsRef.current || !visualRef.current) return;
 
-      const cards = cardsRef.current.querySelectorAll('[data-feature-card]');
-      const icons = visualRef.current.querySelectorAll('[data-feature-icon]');
+    const isDesktop = window.innerWidth >= 1024;
+    const cards = cardsRef.current.querySelectorAll('[data-feature-card]');
+    const icons = visualRef.current.querySelectorAll('[data-feature-icon]');
 
-      const mm = gsap.matchMedia({
+    const ctx = gsap.context(() => {
+      if (isDesktop) {
         // Desktop: experiencia pinned con scrollytelling
-        '(min-width: 1024px)': function () {
-          const ctx = gsap.context(() => {
-            const tl = gsap.timeline({
-              scrollTrigger: {
-                trigger: sectionRef.current,
-                start: 'top top',
-                end: '+=300%',
-                pin: pinRef.current,
-                scrub: 0.6,
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: 'top top',
+            end: '+=300%',
+            pin: pinRef.current,
+            scrub: 0.6,
+          },
+        });
+
+        cards.forEach((card, index) => {
+          const isFirst = index === 0;
+          const prevCard = cards[index - 1];
+
+          if (!isFirst && prevCard) {
+            tl.to(
+              prevCard,
+              {
+                opacity: 0,
+                y: -60,
+                filter: 'blur(8px)',
+                duration: 0.25,
+                ease: 'power2.inOut',
               },
-            });
+              index - 0.75
+            );
+          }
 
-            cards.forEach((card, index) => {
-              const isFirst = index === 0;
-              const prevCard = cards[index - 1];
+          tl.fromTo(
+            card,
+            {
+              opacity: isFirst ? 1 : 0,
+              y: isFirst ? 0 : 80,
+              filter: isFirst ? 'blur(0px)' : 'blur(12px)',
+            },
+            {
+              opacity: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: 0.25,
+              ease: 'power2.out',
+            },
+            index
+          );
 
-              if (!isFirst && prevCard) {
-                tl.to(
-                  prevCard,
-                  {
-                    opacity: 0,
-                    y: -60,
-                    filter: 'blur(8px)',
-                    duration: 0.25,
-                    ease: 'power2.inOut',
-                  },
-                  index - 0.75
-                );
-              }
+          icons.forEach((icon, iconIndex) => {
+            tl.to(
+              icon,
+              {
+                scale: iconIndex === index ? 1 : 0.6,
+                opacity: iconIndex === index ? 1 : 0.2,
+                y: iconIndex === index ? 0 : 20,
+                duration: 0.25,
+                ease: 'power2.inOut',
+              },
+              index
+            );
+          });
+        });
+      } else {
+        // Móvil/Tablet: reveal simple por tarjeta
+        cards.forEach((card) => {
+          gsap.fromTo(
+            card,
+            { opacity: 0, y: 50 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.8,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: card,
+                start: 'top 85%',
+                end: 'top 55%',
+                scrub: 0.5,
+              },
+            }
+          );
+        });
 
-              tl.fromTo(
-                card,
-                {
-                  opacity: isFirst ? 1 : 0,
-                  y: isFirst ? 0 : 80,
-                  filter: isFirst ? 'blur(0px)' : 'blur(12px)',
-                },
-                {
-                  opacity: 1,
-                  y: 0,
-                  filter: 'blur(0px)',
-                  duration: 0.25,
-                  ease: 'power2.out',
-                },
-                index
-              );
+        icons.forEach((icon) => {
+          gsap.set(icon, { opacity: 1, scale: 1, y: 0 });
+        });
+      }
+    }, sectionRef);
 
-              icons.forEach((icon, iconIndex) => {
-                tl.to(
-                  icon,
-                  {
-                    scale: iconIndex === index ? 1 : 0.6,
-                    opacity: iconIndex === index ? 1 : 0.2,
-                    y: iconIndex === index ? 0 : 20,
-                    duration: 0.25,
-                    ease: 'power2.inOut',
-                  },
-                  index
-                );
-              });
-            });
-          }, sectionRef);
-
-          return () => ctx.revert();
-        },
-        // Tablet y móvil: animaciones simplificadas sin pin
-        '(max-width: 1023px)': function () {
-          const ctx = gsap.context(() => {
-            cards.forEach((card) => {
-              gsap.fromTo(
-                card,
-                { opacity: 0, y: 50 },
-                {
-                  opacity: 1,
-                  y: 0,
-                  duration: 0.8,
-                  ease: 'power2.out',
-                  scrollTrigger: {
-                    trigger: card,
-                    start: 'top 85%',
-                    end: 'top 55%',
-                    scrub: 0.5,
-                  },
-                }
-              );
-            });
-
-            icons.forEach((icon) => {
-              gsap.set(icon, { opacity: 1, scale: 1, y: 0 });
-            });
-          }, sectionRef);
-
-          return () => ctx.revert();
-        },
-      });
-
-      return () => mm.revert();
-    },
-    { scope: sectionRef, dependencies: [reducedMotion] }
-  );
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section

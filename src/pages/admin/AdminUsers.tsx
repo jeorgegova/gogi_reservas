@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import {
   Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getTerminology, type BusinessTerminology } from '@/lib/terminology';
 
 interface UserProfile {
   id: string;
@@ -34,7 +36,25 @@ interface UserProfile {
 }
 
 export default function AdminUsersPage() {
-  const { profile, terminology, businessType, orgSettings } = useAuth();
+  const { profile, orgSettings } = useAuth();
+
+  // Fetch organization business type directly to ensure correct terminology
+  const { data: organization } = useQuery({
+    queryKey: ['organization_users', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('id, business_type')
+        .eq('id', profile!.organization_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.organization_id,
+  });
+
+  const businessType = organization?.business_type || 'residential';
+  const terminology: BusinessTerminology = getTerminology(businessType);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

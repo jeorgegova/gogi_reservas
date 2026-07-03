@@ -306,31 +306,33 @@ export default function AdminResourcesPage() {
                   return (
                     <div key={la.service_id} className="mb-3 rounded-xl border border-gray-200 bg-white overflow-hidden">
                       {/* Service header */}
-                      <div className="flex items-center gap-4 p-4 bg-gray-50/50">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50/50">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-900">{la.name}</span>
-                            <span className="px-2 py-0.5 bg-gray-200 rounded-full text-[10px] text-gray-500 font-medium">{fd(la.duration_minutes)}</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-gray-900 text-sm break-words">{la.name}</span>
+                            <span className="px-2 py-0.5 bg-gray-200 rounded-full text-[10px] text-gray-500 font-medium shrink-0">{fd(la.duration_minutes)}</span>
                           </div>
-                          {la.description && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{la.description}</p>}
+                          {la.description && <p className="text-[11px] text-gray-400 mt-0.5 break-words">{la.description}</p>}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] uppercase font-bold text-gray-400">Precio:</span>
-                          <CurrencyInput value={la.custom_price} onChange={(v) => handleUpdatePrice(la.service_id, v)} className="h-8 rounded-lg text-xs w-28" placeholder="Precio" />
+                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-bold text-gray-400">Precio:</span>
+                            <CurrencyInput value={la.custom_price} onChange={(v) => handleUpdatePrice(la.service_id, v)} className="h-8 rounded-lg text-xs w-28" placeholder="Precio" />
+                          </div>
+                          <button type="button" onClick={() => handleRemoveService(la.service_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
                         </div>
-                        <button type="button" onClick={() => handleRemoveService(la.service_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
 
                       {/* Addons for this service */}
-                      <div className="border-t border-gray-100 p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-[10px] uppercase font-bold text-gray-400">Adicionales que ofrece en este servicio:</span>
-                          <span style={{ color: '#4f46e5' }} className="text-[10px] font-bold">{enabledIds.length} de {addons.length} activos</span>
+                      <div className="border-t border-gray-100 p-3 sm:p-4">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <span className="text-[10px] uppercase font-bold text-gray-400">Adicionales disponibles:</span>
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{enabledIds.length} de {addons.length} activos</span>
                         </div>
                         {addons.length === 0 ? (
-                          <p className="text-[11px] text-gray-300 italic">Este servicio no tiene adicionales configurados. Creá adicionales globales y vinculalos al servicio en "Catálogo de Servicios".</p>
+                          <p className="text-[11px] text-gray-400 italic leading-relaxed">Este servicio no tiene adicionales configurados. Creá adicionales globales y vinculalos al servicio en "Catálogo de Servicios".</p>
                         ) : (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
                             {addons.map((addon: any) => {
                               const checked = enabledIds.includes(addon.id);
                               return (
@@ -338,15 +340,16 @@ export default function AdminResourcesPage() {
                                   key={addon.id}
                                   type="button"
                                   onClick={() => toggleAddon(la.service_id, addon.id)}
-                                  style={checked ? { backgroundColor: '#4f46e5', color: '#fff', borderColor: '#4f46e5' } : {}}
                                   className={cn(
-                                    "flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-medium transition-all",
-                                    !checked && "bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600"
+                                    "flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all text-left",
+                                    checked
+                                      ? "bg-indigo-600 text-white border-indigo-600"
+                                      : "bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600"
                                   )}
                                 >
-                                  {checked && <span className="text-[10px]">✓</span>}
-                                  {addon.name}
-                                  <span style={checked ? { color: '#c7d2fe' } : {}} className={cn("text-[10px]", !checked && "text-gray-400")}>+{formatCurrency(addon.additional_cost)}</span>
+                                  <span className={cn("w-4 h-4 rounded flex items-center justify-center border text-[10px] shrink-0", checked ? "bg-white text-indigo-600 border-white" : "bg-gray-50 border-gray-300 text-transparent")}>✓</span>
+                                  <span className="break-words">{addon.name}</span>
+                                  <span className={cn("text-[10px] shrink-0", checked ? "text-indigo-200" : "text-gray-400")}>+{formatCurrency(addon.additional_cost)}</span>
                                 </button>
                               );
                             })}
@@ -401,21 +404,23 @@ export default function AdminResourcesPage() {
             }
             return (
               <Card key={area.id} className={cn("border-none apple-shadow bg-white rounded-2xl p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col justify-between", !area.is_active && "opacity-50 grayscale")}>
-                <div>
-                  <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3 border-2 border-gray-100 shadow-sm">
+                <div className="space-y-2.5">
+                  <div className="w-20 h-20 rounded-full overflow-hidden mx-auto border-2 border-gray-100 shadow-sm">
                     {area.employee_photo_url ? <img src={area.employee_photo_url} alt={area.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"><User className="w-8 h-8 text-primary/40" /></div>}
                   </div>
-                  <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1 truncate">{area.name}</h3>
-                  <p className="text-[11px] text-gray-500 mb-2 truncate">{area.specialty || 'Profesional'}</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className={cn("inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase border", area.is_active ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-100 text-gray-400 border-gray-200")}>{area.is_active ? 'Activo' : 'Inactivo'}</span>
-                    {area.commission_percentage > 0 && <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100">{area.commission_percentage}% com</span>}
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 leading-tight mb-0.5 px-1">{area.name}</h3>
+                    <p className="text-[11px] text-gray-500 px-1">{area.specialty || 'Profesional'}</p>
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase border", area.is_active ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-100 text-gray-400 border-gray-200")}>{area.is_active ? 'Activo' : 'Inactivo'}</span>
+                    {area.commission_percentage > 0 && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100">{area.commission_percentage}% com</span>}
                   </div>
                 </div>
-                <div className="flex gap-1.5 pt-3 mt-3 border-t border-gray-50">
-                  <button onClick={() => handleEdit(area)} className="flex-1 h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1"><Edit2 className="w-3 h-3" /> Editar</button>
-                  <button onClick={() => handleToggleActive(area)} className={cn("flex-1 h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
-                  <button onClick={handleDelete} className="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center shrink-0"><Trash2 className="w-3 h-3" /></button>
+                <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-gray-50">
+                  <button onClick={() => handleEdit(area)} className="flex-1 min-w-[68px] h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Edit2 className="w-3 h-3" /> Editar</button>
+                  <button onClick={() => handleToggleActive(area)} className={cn("flex-1 min-w-[68px] h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center px-1", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
+                  <button onClick={handleDelete} className="flex-1 sm:flex-none h-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Trash2 className="w-3 h-3" /> <span className="text-[10px] font-bold sm:hidden">Eliminar</span></button>
                 </div>
               </Card>
             );

@@ -5,10 +5,10 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useGSAP } from '@gsap/react';
 import { gsap } from '@/lib/gsap';
 import { supabase } from '@/lib/supabase';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,68 +76,42 @@ export function OrganizationsSection() {
     fetchOrganizations();
   }, []);
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !gridRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !gridRef.current) return;
 
-      const cards = gridRef.current.querySelectorAll('[data-org-card]');
-      if (cards.length === 0) return;
+    const cards = gridRef.current.querySelectorAll('[data-org-card]');
+    if (cards.length === 0) return;
 
-      const mm = gsap.matchMedia({
-        // Desktop: reveal completo con blur y escala
-        '(min-width: 768px)': function () {
-          gsap.fromTo(
-            cards,
-            {
-              opacity: 0,
-              y: 80,
-              scale: 0.92,
-              filter: 'blur(8px)',
-            },
-            {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              filter: 'blur(0px)',
-              stagger: 0.08,
-              ease: 'power2.out',
-              scrollTrigger: {
-                trigger: gridRef.current,
-                start: 'top 80%',
-                end: 'top 40%',
-                scrub: 0.6,
-              },
-            }
-          );
+    const isMobile = window.innerWidth < 768;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        cards,
+        {
+          opacity: 0,
+          y: isMobile ? 40 : 80,
+          scale: isMobile ? 0.95 : 0.92,
+          filter: isMobile ? 'blur(0px)' : 'blur(8px)',
         },
-        // Móvil: reveal simple con fade y translate reducido
-        '(max-width: 767px)': function () {
-          gsap.fromTo(
-            cards,
-            {
-              opacity: 0,
-              y: 40,
-            },
-            {
-              opacity: 1,
-              y: 0,
-              stagger: 0.06,
-              ease: 'power2.out',
-              scrollTrigger: {
-                trigger: gridRef.current,
-                start: 'top 85%',
-                end: 'top 55%',
-                scrub: 0.5,
-              },
-            }
-          );
-        },
-      });
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: 'blur(0px)',
+          stagger: isMobile ? 0.06 : 0.1,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: gridRef.current,
+            start: isMobile ? 'top 85%' : 'top 80%',
+            end: isMobile ? 'top 55%' : 'top 40%',
+            scrub: 0.6,
+          },
+        }
+      );
+    }, sectionRef);
 
-      return () => mm.revert();
-    },
-    { scope: sectionRef, dependencies: [reducedMotion, organizations] }
-  );
+    return () => ctx.revert();
+  }, [reducedMotion, organizations]);
 
   return (
     <section ref={sectionRef} id="organizaciones" className="relative py-24 md:py-48 px-5 md:px-6 bg-white">

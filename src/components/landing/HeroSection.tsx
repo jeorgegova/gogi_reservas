@@ -5,9 +5,9 @@
  * Adaptado para móvil con tipografía reducida y animaciones más contenidas.
  */
 import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
-import { gsap, ScrollTrigger } from '@/lib/gsap';
+import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { ParallaxLayer } from './ParallaxLayer';
 import { Button } from '@/components/ui/button';
@@ -18,53 +18,36 @@ export function HeroSection() {
   const contentRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !contentRef.current || !sectionRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !contentRef.current || !sectionRef.current) return;
 
-      // Animación adaptada: en móvil el fade es más sutil para no perder legibilidad
-      const mm = gsap.matchMedia({
-        '(min-width: 768px)': function () {
-          return {
-            animation: ScrollTrigger.create({
-              trigger: sectionRef.current,
-              start: 'top top',
-              end: 'bottom top',
-              scrub: 0.5,
-              onUpdate: (self) => {
-                if (!contentRef.current) return;
-                const progress = self.progress;
-                contentRef.current.style.opacity = String(1 - progress * 0.9);
-                contentRef.current.style.transform = `scale(${1 - progress * 0.08})`;
-                contentRef.current.style.filter = `blur(${progress * 8}px)`;
-              },
-            }),
-          };
-        },
-        '(max-width: 767px)': function () {
-          return {
-            animation: ScrollTrigger.create({
-              trigger: sectionRef.current,
-              start: 'top top',
-              end: 'bottom top',
-              scrub: 0.5,
-              onUpdate: (self) => {
-                if (!contentRef.current) return;
-                const progress = self.progress;
-                contentRef.current.style.opacity = String(1 - progress * 0.7);
-                contentRef.current.style.transform = `scale(${1 - progress * 0.04})`;
-                // En móvil evitamos blur para mantener la legibilidad del texto
-                contentRef.current.style.filter = 'none';
-              },
-            }),
-          };
-        },
-      });
+    const content = contentRef.current;
+    const isMobile = window.innerWidth < 768;
 
-      return () => mm.revert();
-    },
-    { scope: sectionRef, dependencies: [reducedMotion] }
-  );
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        content,
+        {
+          opacity: 1,
+          scale: 1,
+        },
+        {
+          opacity: isMobile ? 0.3 : 0.1,
+          scale: isMobile ? 0.96 : 0.92,
+          filter: isMobile ? 'blur(0px)' : 'blur(8px)',
+          ease: 'none',
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 0.5,
+          },
+        }
+      );
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section

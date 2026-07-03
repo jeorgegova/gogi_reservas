@@ -4,9 +4,9 @@
  * En móvil reduce automáticamente la distancia para mantener el rendimiento.
  */
 import { useRef, type ReactNode } from 'react';
-import { useGSAP } from '@gsap/react';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { cn } from '@/lib/utils';
 
 interface ParallaxLayerProps {
@@ -29,58 +29,33 @@ export function ParallaxLayer({
   const layerRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !layerRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !layerRef.current) return;
 
-      const mm = gsap.matchMedia({
-        '(min-width: 768px)': function () {
-          const distance = 150 * speed;
-          const yFrom = direction === 'up' ? distance : -distance;
-          const yTo = direction === 'up' ? -distance : distance;
+    const isMobile = window.innerWidth < 768;
+    const distance = (isMobile ? 40 : 150) * speed;
+    const yFrom = direction === 'up' ? distance : -distance;
+    const yTo = direction === 'up' ? -distance : distance;
 
-          gsap.fromTo(
-            layerRef.current,
-            { y: yFrom },
-            {
-              y: yTo,
-              ease: 'none',
-              scrollTrigger: {
-                trigger: layerRef.current,
-                start,
-                end,
-                scrub: true,
-              },
-            }
-          );
-        },
-        // En móvil el parallax es mucho más sutil
-        '(max-width: 767px)': function () {
-          const distance = 40 * speed;
-          const yFrom = direction === 'up' ? distance : -distance;
-          const yTo = direction === 'up' ? -distance : distance;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        layerRef.current,
+        { y: yFrom },
+        {
+          y: yTo,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: layerRef.current,
+            start,
+            end,
+            scrub: true,
+          },
+        }
+      );
+    }, layerRef);
 
-          gsap.fromTo(
-            layerRef.current,
-            { y: yFrom },
-            {
-              y: yTo,
-              ease: 'none',
-              scrollTrigger: {
-                trigger: layerRef.current,
-                start,
-                end,
-                scrub: true,
-              },
-            }
-          );
-        },
-      });
-
-      return () => mm.revert();
-    },
-    { scope: layerRef, dependencies: [reducedMotion, speed, direction, start, end] }
-  );
+    return () => ctx.revert();
+  }, [reducedMotion, speed, direction, start, end]);
 
   return (
     <div

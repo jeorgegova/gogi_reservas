@@ -4,9 +4,9 @@
  * En móvil las imágenes se apilan verticalmente sin solapamientos excesivos.
  */
 import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { ImageReveal } from './ImageReveal';
 import { Calendar, Bell, CreditCard } from 'lucide-react';
@@ -29,12 +29,12 @@ export function ShowcaseSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !sectionRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !sectionRef.current) return;
 
-      const lines = sectionRef.current.querySelectorAll('[data-showcase-line]');
+    const lines = sectionRef.current.querySelectorAll('[data-showcase-line]');
 
+    const ctx = gsap.context(() => {
       gsap.fromTo(
         lines,
         { scaleX: 0 },
@@ -50,9 +50,10 @@ export function ShowcaseSection() {
           },
         }
       );
-    },
-    { scope: sectionRef, dependencies: [reducedMotion] }
-  );
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section ref={sectionRef} className="relative py-24 md:py-48 px-5 md:px-6 bg-white overflow-hidden">

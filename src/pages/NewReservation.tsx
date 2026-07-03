@@ -140,6 +140,7 @@ export default function NewReservationPage() {
         id: m.profiles.id,
         full_name: m.profiles.full_name,
         email: m.profiles.email,
+        phone: m.phone || '',
         apartment: m.apartment
       })).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
     },
@@ -1303,13 +1304,30 @@ export default function NewReservationPage() {
               </div>
             )}
 
-            {(isGuestUser || isAdmin) && (
+            {isAdmin && selectedUserId ? (
+              <div className="space-y-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                <Label className="text-xs font-bold text-emerald-700 uppercase">Cliente seleccionado</Label>
+                {(() => {
+                  const selectedUser = users.find((u: any) => u.id === selectedUserId);
+                  return selectedUser ? (
+                    <div className="text-sm space-y-0.5">
+                      <p className="font-bold text-gray-900">{selectedUser.full_name || 'Sin nombre'}</p>
+                      {selectedUser.email && <p className="text-gray-500">{selectedUser.email}</p>}
+                      {selectedUser.phone && <p className="text-gray-500">{selectedUser.phone}</p>}
+                      {selectedUser.apartment && <p className="text-gray-500">Apto {selectedUser.apartment}</p>}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Cargando datos del cliente...</p>
+                  );
+                })()}
+              </div>
+            ) : isGuestUser ? (
               <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
                 <Label className="text-xs font-bold text-primary uppercase">Datos de Contacto</Label>
                 <Input placeholder="Nombre completo" value={guestName} onChange={e => setGuestName(e.target.value)} className="h-10 text-sm bg-white" />
                 <Input placeholder="Teléfono / WhatsApp" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} className="h-10 text-sm bg-white" />
               </div>
-            )}
+            ) : null}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 p-6 pt-0 border-t border-gray-50">
             <Button

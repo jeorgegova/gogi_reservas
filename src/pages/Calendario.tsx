@@ -425,24 +425,24 @@ export default function Calendario() {
     if (showAnalytics) {
         return (
             <div className="space-y-6 animate-fade-in duration-500">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                        <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">
                             Panel de Administración
                         </h1>
-                        <p className="text-gray-500 text-sm">
+                        <p className="text-gray-500 text-xs md:text-sm">
                             Estadísticas y métricas del sistema de {terminology.reservationLabel.toLowerCase()}s.
                         </p>
                     </div>
 
                     {/* Filtros */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
-                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
                             <select
                                 value={selectedMonth}
                                 onChange={(e) => setSelectedMonth(e.target.value)}
-                                className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer"
+                                className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer w-full"
                             >
                                 {monthOptions.map(opt => (
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -450,11 +450,11 @@ export default function Calendario() {
                             </select>
                         </div>
                         <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
-                            <Filter className="w-4 h-4 text-gray-400" />
+                            <Filter className="w-4 h-4 text-gray-400 shrink-0" />
                             <select
                                 value={selectedAreaId}
                                 onChange={(e) => setSelectedAreaId(e.target.value)}
-                                className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer"
+                                className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer w-full"
                             >
                                 <option value="all">Todas las {terminology.areaLabel.toLowerCase()}s</option>
                                 {areasData.map(area => (
@@ -466,23 +466,32 @@ export default function Calendario() {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 md:gap-4">
                     <Card className="border-none shadow-sm bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden rounded-2xl">
-                        <CardContent className="p-5 flex items-center justify-between">
-                            <div><p className="text-xs font-medium text-primary/80">Ingresos del Mes</p><p className="text-2xl font-black text-primary">{formatCurrency(adminStats.totalRevenue)}</p></div>
-                            <DollarSign className="w-8 h-8 text-primary/30" />
+                        <CardContent className="p-2.5 md:p-5 flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[9px] md:text-xs font-medium text-primary/80 truncate">Ingresos</p>
+                                <p className="text-[10px] sm:text-sm md:text-2xl font-black text-primary leading-tight break-words">{formatCurrency(adminStats.totalRevenue)}</p>
+                            </div>
+                            <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 text-primary/30 shrink-0" />
                         </CardContent>
                     </Card>
                     <Card className="border-none shadow-sm bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 overflow-hidden rounded-2xl">
-                        <CardContent className="p-5 flex items-center justify-between">
-                            <div><p className="text-xs font-medium text-emerald-600/80">Trabajos del Mes</p><p className="text-2xl font-black text-emerald-600">{adminStats.totalReservations}</p></div>
-                            <Briefcase className="w-8 h-8 text-emerald-500/30" />
+                        <CardContent className="p-2.5 md:p-5 flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[9px] md:text-xs font-medium text-emerald-600/80 truncate">Trabajos</p>
+                                <p className="text-[10px] sm:text-sm md:text-2xl font-black text-emerald-600 leading-tight break-words">{adminStats.totalReservations}</p>
+                            </div>
+                            <Briefcase className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 text-emerald-500/30 shrink-0" />
                         </CardContent>
                     </Card>
                     <Card className="border-none shadow-sm bg-gradient-to-br from-amber-500/10 to-amber-500/5 overflow-hidden rounded-2xl">
-                        <CardContent className="p-5 flex items-center justify-between">
-                            <div><p className="text-xs font-medium text-amber-600/80">Comisiones</p><p className="text-2xl font-black text-amber-600">{formatCurrency(adminStats.totalCommissions)}</p></div>
-                            <Percent className="w-8 h-8 text-amber-500/30" />
+                        <CardContent className="p-2.5 md:p-5 flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[9px] md:text-xs font-medium text-amber-600/80 truncate">Comisiones</p>
+                                <p className="text-[10px] sm:text-sm md:text-2xl font-black text-amber-600 leading-tight break-words">{formatCurrency(adminStats.totalCommissions)}</p>
+                            </div>
+                            <Percent className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 text-amber-500/30 shrink-0" />
                         </CardContent>
                     </Card>
                 </div>
@@ -500,8 +509,8 @@ export default function Calendario() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-4">
-                            <div className="h-72">
+                        <CardContent className="p-3 md:p-4">
+                            <div className="h-56 md:h-72">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={adminStats.monthlyReservations}>
                                         <defs>
@@ -511,8 +520,8 @@ export default function Calendario() {
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
-                                        <YAxis stroke="#9ca3af" fontSize={12} />
+                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} interval="preserveStartEnd" />
+                                        <YAxis stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#fff',
@@ -547,13 +556,13 @@ export default function Calendario() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-4">
-                            <div className="h-72">
+                        <CardContent className="p-3 md:p-4">
+                            <div className="h-56 md:h-72">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={adminStats.monthlyReservations}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
-                                        <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(value) => `$${value / 1000}k`} />
+                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} interval="preserveStartEnd" />
+                                        <YAxis stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} tickFormatter={(value) => `$${value / 1000}k`} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#fff',
@@ -584,13 +593,13 @@ export default function Calendario() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-4">
-                            <div className="h-72">
+                        <CardContent className="p-3 md:p-4">
+                            <div className="h-56 md:h-72">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={adminStats.reservationsByArea} layout="vertical">
+                                    <BarChart data={adminStats.reservationsByArea} layout="vertical" margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis type="number" stroke="#9ca3af" fontSize={12} />
-                                        <YAxis dataKey="name" type="category" stroke="#9ca3af" fontSize={12} width={100} />
+                                        <XAxis type="number" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} />
+                                        <YAxis dataKey="name" type="category" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} width={80} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#fff',
@@ -621,19 +630,19 @@ export default function Calendario() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-4">
-                            <div className="h-72">
+                        <CardContent className="p-3 md:p-4">
+                            <div className="h-56 md:h-72">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <RechartsPieChart>
                                         <Pie
                                             data={adminStats.reservationsByStatus}
                                             cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={80}
+                                            cy="45%"
+                                            innerRadius={isMobile ? 45 : 60}
+                                            outerRadius={isMobile ? 65 : 80}
                                             paddingAngle={5}
                                             dataKey="value"
-                                            label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                                            label={isMobile ? false : ({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                                             labelLine={false}
                                         >
                                             {adminStats.reservationsByStatus.map((_, index) => (
@@ -648,7 +657,7 @@ export default function Calendario() {
                                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                                             }}
                                         />
-                                        <Legend />
+                                        <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }} />
                                     </RechartsPieChart>
                                 </ResponsiveContainer>
                             </div>
@@ -656,19 +665,20 @@ export default function Calendario() {
                     </Card>
                 </div>
 
-                {/* Recent Reservations Table */}
+                {/* Recent Reservations */}
                 <Card className="border-none shadow-sm bg-white">
-                    <CardHeader className="border-b border-gray-50 p-4">
+                    <CardHeader className="border-b border-gray-50 p-3 md:p-4">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-5 h-5 text-primary" />
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">{terminology.reservationLabel}s Recientes</h3>
-                                <p className="text-xs text-gray-500">Últimas {terminology.reservationLabel.toLowerCase()}s realizadas en el sistema</p>
+                                <h3 className="text-base md:text-lg font-bold text-gray-900">{terminology.reservationLabel}s Recientes</h3>
+                                <p className="text-[11px] md:text-xs text-gray-500">Últimas {terminology.reservationLabel.toLowerCase()}s realizadas en el sistema</p>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto">
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full">
                                 <thead className="bg-gray-50 border-b border-gray-100">
                                     <tr>
@@ -722,27 +732,58 @@ export default function Calendario() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Mobile Cards */}
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {adminStats.recentReservations.map((res: any, idx: number) => (
+                                <div key={idx} className="p-4 hover:bg-gray-50 transition-colors space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-gray-900 truncate">{res.resources?.name || 'N/A'}</p>
+                                            <p className="text-xs text-gray-500 truncate">{res.profiles?.full_name || 'Usuario desconocido'}</p>
+                                        </div>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${res.status === 'approved' ? 'bg-green-50 text-green-700 border border-green-100' :
+                                            res.status === 'pending_validation' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                                res.status === 'pending_payment' ? 'bg-red-50 text-red-700 border border-red-100' :
+                                                    'bg-gray-50 text-gray-600 border border-gray-100'
+                                            }`}>
+                                            {getStatusLabel(res.status)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs text-gray-600">
+                                        <span>{formatDate(res.start_datetime)}</span>
+                                        <span>{formatTime(res.start_datetime)} - {formatTime(res.end_datetime)}</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-gray-900">{formatCurrency(res.total_cost || 0)}</p>
+                                </div>
+                            ))}
+                            {adminStats.recentReservations.length === 0 && (
+                                <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                                    No hay {terminology.reservationLabel.toLowerCase()}s en el período seleccionado
+                                </div>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button asChild className="h-12 rounded-xl apple-shadow hover:apple-shadow-hover bg-primary hover:bg-primary/90 text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] animate-neon">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                    <Button asChild className="h-11 md:h-12 rounded-xl apple-shadow hover:apple-shadow-hover bg-primary hover:bg-primary/90 text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] animate-neon text-xs md:text-sm px-3">
                         <Link to="/admin/reservations">
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Gestionar {terminology.reservationLabel}s
+                            <Calendar className="w-4 h-4 mr-1.5 shrink-0" />
+                            <span className="truncate">Gestionar {terminology.reservationLabel}s</span>
                         </Link>
                     </Button>
-                    <Button asChild variant="outline" className="h-12 rounded-xl shadow-sm">
+                    <Button asChild variant="outline" className="h-11 md:h-12 rounded-xl shadow-sm text-xs md:text-sm px-3">
                         <Link to="/admin/resources">
-                            <Activity className="w-4 h-4 mr-2" />
-                            Configurar {terminology.areaLabel}s
+                            <Activity className="w-4 h-4 mr-1.5 shrink-0" />
+                            <span className="truncate">Configurar {terminology.areaLabel}s</span>
                         </Link>
                     </Button>
-                    <Button asChild variant="outline" className="h-12 rounded-xl shadow-sm">
+                    <Button asChild variant="outline" className="h-11 md:h-12 rounded-xl shadow-sm text-xs md:text-sm px-3">
                         <Link to="/admin/users">
-                            <Users className="w-4 h-4 mr-2" />
-                            Administrar {terminology.userLabel}s
+                            <Users className="w-4 h-4 mr-1.5 shrink-0" />
+                            <span className="truncate">Administrar {terminology.userLabel}s</span>
                         </Link>
                     </Button>
                 </div>

@@ -15,15 +15,21 @@ import { CTASection } from '@/components/landing/CTASection';
 
 export default function LandingPage() {
   // Refrescamos ScrollTrigger después del montaje para asegurar cálculos correctos
+  // una vez que todo el contenido dinámico esté renderizado.
   useEffect(() => {
-    const timeout = setTimeout(() => {
+    const refreshTimeout = setTimeout(() => {
       ScrollTrigger.refresh();
-    }, 100);
+    }, 500);
+
+    const resizeHandler = () => {
+      ScrollTrigger.refresh();
+    };
+
+    window.addEventListener('resize', resizeHandler);
 
     return () => {
-      clearTimeout(timeout);
-      // Limpiamos todos los triggers de ScrollTrigger al desmontar la página
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+      clearTimeout(refreshTimeout);
+      window.removeEventListener('resize', resizeHandler);
     };
   }, []);
 

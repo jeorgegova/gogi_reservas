@@ -6,9 +6,9 @@
  */
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useGSAP } from '@gsap/react';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Calendar, Clock } from 'lucide-react';
@@ -18,10 +18,10 @@ export function CTASection() {
   const contentRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(
-    () => {
-      if (reducedMotion || !contentRef.current || !sectionRef.current) return;
+  useIsomorphicLayoutEffect(() => {
+    if (reducedMotion || !contentRef.current || !sectionRef.current) return;
 
+    const ctx = gsap.context(() => {
       gsap.fromTo(
         contentRef.current,
         { opacity: 0.4, scale: 0.95, y: 60 },
@@ -38,9 +38,10 @@ export function CTASection() {
           },
         }
       );
-    },
-    { scope: sectionRef, dependencies: [reducedMotion] }
-  );
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section ref={sectionRef} className="relative py-24 md:py-48 px-5 md:px-6 bg-slate-950 overflow-hidden">
