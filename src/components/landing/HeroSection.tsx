@@ -12,10 +12,13 @@ import { TextReveal } from './TextReveal';
 import { ParallaxLayer } from './ParallaxLayer';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowRight } from 'lucide-react';
+import logoConTexto from '@/assets/LogoConTexto.png';
+import fondoSuperior from '@/assets/FondoSuperior.png';
 
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const subtitleRef = useRef<HTMLParagraphElement>(null);
   const reducedMotion = useReducedMotion();
 
   useIsomorphicLayoutEffect(() => {
@@ -44,6 +47,24 @@ export function HeroSection() {
           },
         }
       );
+
+      if (subtitleRef.current) {
+        gsap.fromTo(
+          subtitleRef.current,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: subtitleRef.current,
+              start: 'top 85%',
+              end: 'top 60%',
+              scrub: 1,
+            },
+          }
+        );
+      }
     }, sectionRef);
 
     return () => ctx.revert();
@@ -54,40 +75,38 @@ export function HeroSection() {
       ref={sectionRef}
       className="relative min-h-[130vh] md:min-h-[150vh] flex flex-col items-center justify-start overflow-hidden bg-white"
     >
-      {/* Capas parallax de fondo */}
+      {/* Fondo superior */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={fondoSuperior}
+          alt=""
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-white/30" />
+      </div>
+
+      {/* Capas parallax de fondo sutiles */}
       <ParallaxLayer
         speed={0.15}
         direction="up"
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        className="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
       >
-        <div className="w-[80vw] md:w-[70vw] h-[80vw] md:h-[70vw] max-w-[900px] max-h-[900px] rounded-full bg-gradient-to-br from-slate-100 to-slate-50 blur-3xl opacity-60" />
-      </ParallaxLayer>
-
-      <ParallaxLayer
-        speed={0.25}
-        direction="down"
-        className="absolute top-[25%] md:top-[20%] right-[-15%] pointer-events-none"
-      >
-        <div className="w-[50vw] md:w-[40vw] h-[50vw] md:h-[40vw] max-w-[500px] max-h-[500px] rounded-full bg-gradient-to-bl from-indigo-100/60 to-purple-100/30 blur-3xl" />
-      </ParallaxLayer>
-
-      <ParallaxLayer
-        speed={0.35}
-        direction="up"
-        className="absolute bottom-[10%] left-[-5%] pointer-events-none"
-      >
-        <div className="w-[40vw] md:w-[35vw] h-[40vw] md:h-[35vw] max-w-[450px] max-h-[450px] rounded-full bg-gradient-to-tr from-rose-100/40 to-amber-100/30 blur-3xl" />
+        <div className="w-[80vw] md:w-[70vw] h-[80vw] md:h-[70vw] max-w-[900px] max-h-[900px] rounded-full bg-gradient-to-br from-white/40 to-slate-100/40 blur-3xl opacity-40" />
       </ParallaxLayer>
 
       {/* Contenido principal */}
       <div
         ref={contentRef}
-        className="sticky top-0 h-screen w-full flex flex-col items-center justify-center px-5 md:px-6 will-change-transform"
+        className="sticky top-0 h-screen w-full flex flex-col items-center justify-center px-5 md:px-6 will-change-transform z-10"
       >
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-xs md:text-sm font-medium tracking-[0.2em] uppercase text-slate-400 mb-6 md:mb-8">
-            GoGi Reservas
-          </p>
+          <div className="flex justify-center mb-2 md:mb-3">
+            <img
+              src={logoConTexto}
+              alt="GoGi Reservas"
+              className="h-32 md:h-44 w-auto object-contain"
+            />
+          </div>
 
           <TextReveal
             as="h1"
@@ -101,16 +120,9 @@ export function HeroSection() {
           </TextReveal>
 
           <div className="mt-6 md:mt-10 max-w-xl md:max-w-2xl mx-auto px-2 md:px-0">
-            <TextReveal
-              as="p"
-              splitBy="word"
-              className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-500 leading-relaxed"
-              start="top 70%"
-              end="top 40%"
-              scrub={0.8}
-            >
+            <p ref={subtitleRef} className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-500 leading-relaxed">
               La plataforma donde cada espacio, servicio y momento se gestiona con la elegancia de una experiencia premium.
-            </TextReveal>
+            </p>
           </div>
 
           <div className="mt-8 md:mt-12">
