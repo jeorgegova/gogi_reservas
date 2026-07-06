@@ -10,8 +10,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { ParallaxLayer } from './ParallaxLayer';
-import { Button } from '@/components/ui/button';
-import { ArrowDown, ArrowRight } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import logoConTexto from '@/assets/LogoConTexto.png';
 import fondoSuperior from '@/assets/FondoSuperior.png';
 
@@ -73,6 +72,7 @@ export function HeroSection() {
   return (
     <section
       ref={sectionRef}
+      id="hero"
       className="relative min-h-[130vh] md:min-h-[150vh] flex flex-col items-center justify-start overflow-hidden bg-white"
     >
       {/* Fondo superior */}
@@ -104,7 +104,7 @@ export function HeroSection() {
             <img
               src={logoConTexto}
               alt="GoGi Reservas"
-              className="h-32 md:h-44 w-auto object-contain"
+              className={`h-40 md:h-52 w-auto object-contain ${!reducedMotion ? 'animate-float' : ''}`}
             />
           </div>
 
@@ -116,27 +116,15 @@ export function HeroSection() {
             end="top 45%"
             scrub={0.7}
           >
-            Reservas que fluyen contigo.
+            Más reservas, Menos complicaciones.
           </TextReveal>
 
           <div className="mt-6 md:mt-10 max-w-xl md:max-w-2xl mx-auto px-2 md:px-0">
             <p ref={subtitleRef} className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-500 leading-relaxed">
-              La plataforma donde cada espacio, servicio y momento se gestiona con la elegancia de una experiencia premium.
+              Organiza tu agenda, automatiza tus reservas y brinda una experiencia profesional desde el primer clic.
             </p>
           </div>
 
-          <div className="mt-8 md:mt-12">
-            <Button
-              asChild
-              size="lg"
-              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105"
-            >
-              <a href="#organizaciones">
-                Ver organizaciones
-                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
-              </a>
-            </Button>
-          </div>
         </div>
 
         {/* Indicador de scroll */}
@@ -145,6 +133,16 @@ export function HeroSection() {
           <ArrowDown className="w-4 h-4 md:w-5 md:h-5 animate-bounce-soft" />
         </div>
       </div>
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-float {
+          animation: float 4s ease-in-out infinite;
+        }
+      `}</style>
     </section>
   );
 }

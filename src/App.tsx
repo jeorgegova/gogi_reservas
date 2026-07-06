@@ -27,8 +27,9 @@ import VerifyEmail from './pages/VerifyEmail';
 import AdminSettingsPage from '@/pages/admin/AdminSettings';
 import AdminStatisticsPage from '@/pages/admin/AdminStatistics';
 import LandingPage from '@/pages/LandingPage';
+import OrganizacionesPage from '@/pages/Organizaciones';
 
-const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reservations', 'login', 'register', 'maintenance', 'payment', 'bonificaciones', 'forgot-password', 'verify-email'];
+const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reservations', 'login', 'register', 'maintenance', 'payment', 'bonificaciones', 'forgot-password', 'verify-email', 'organizaciones'];
 
 const OrganizationHome = () => {
   const { profile, loading, fetchOrgSettings, setGuestMode, signOut, restoreGuestSession } = useAuth();
@@ -163,6 +164,9 @@ function App() {
         <Routes>
           {/* Root - muestra pantalla de carga o redirige */}
           <Route path="/" element={<RootLoader />} />
+
+          {/* Organizations listing */}
+          <Route path="/organizaciones" element={<OrganizacionesPage />} />
 
           {/* Central login for superadmin access */}
           <Route path="/login" element={<LoginPage />} />

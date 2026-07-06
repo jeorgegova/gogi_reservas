@@ -11,7 +11,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Calendar, Clock } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export function CTASection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -81,10 +81,10 @@ export function CTASection() {
             size="lg"
             className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-white text-slate-900 hover:bg-slate-100 shadow-xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 w-full sm:w-auto"
           >
-            <a href="#organizaciones">
+            <Link to="/organizaciones">
               Explorar organizaciones
               <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
-            </a>
+            </Link>
           </Button>
           <Button
             asChild
@@ -97,19 +97,6 @@ export function CTASection() {
         </div>
       </div>
 
-      <footer className="relative z-10 mt-20 md:mt-32 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 text-slate-500 text-xs md:text-sm max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-white/10 flex items-center justify-center">
-            <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-white" />
-          </div>
-          <span className="font-semibold text-white">GoGi Reservas</span>
-        </div>
-        <div className="flex items-center gap-4 md:gap-6">
-          <Clock className="h-3.5 w-3.5 md:h-4 md:w-4" />
-          <span>Disponible 24/7</span>
-        </div>
-        <p className="text-center md:text-right">© {new Date().getFullYear()} GoGi Reservas. Todos los derechos reservados.</p>
-      </footer>
     </section>
   );
 }

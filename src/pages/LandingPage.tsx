@@ -11,7 +11,9 @@ import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { ShowcaseSection } from '@/components/landing/ShowcaseSection';
 import { GallerySection } from '@/components/landing/GallerySection';
 import { OrganizationsSection } from '@/components/landing/OrganizationsSection';
-import { CTASection } from '@/components/landing/CTASection';
+import { PricingSection } from '@/components/landing/PricingSection';
+import { Navbar } from '@/components/landing/Navbar';
+import { Footer } from '@/components/landing/Footer';
 
 export default function LandingPage() {
   // Refrescamos ScrollTrigger después del montaje para asegurar cálculos correctos
@@ -34,13 +36,17 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="relative bg-white overflow-x-hidden">
-      <HeroSection />
-      <FeaturesSection />
-      <ShowcaseSection />
-      <GallerySection />
-      <OrganizationsSection />
-      <CTASection />
-    </main>
+    <>
+      <Navbar />
+      <main className="relative bg-white overflow-x-hidden">
+        <HeroSection />
+        <FeaturesSection />
+        <ShowcaseSection />
+        <GallerySection />
+        <OrganizationsSection />
+        <PricingSection />
+        <Footer />
+      </main>
+    </>
   );
 }

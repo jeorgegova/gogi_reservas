@@ -9,57 +9,60 @@ import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
-import { Building2, Scissors, Sparkles, Wrench, Laptop, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import conjuntosImg from '@/assets/TiposDeNegocios/ConjuntoRecidencial.png';
+import barberiaImg from '@/assets/TiposDeNegocios/Barberia.png';
+import salonImg from '@/assets/TiposDeNegocios/SalonDeBelleza.png';
+import salaEnsayoImg from '@/assets/TiposDeNegocios/SalaDeEnsayo.png';
+import coworkingImg from '@/assets/TiposDeNegocios/Cooworkin.png';
+import otrosImg from '@/assets/TiposDeNegocios/Otros.png';
 
-const GALLERY_ITEMS = [
+interface GalleryItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  image?: string;
+  gradient?: string;
+  accent?: string;
+  icon?: React.ComponentType<any>;
+}
+
+const GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 'residential',
     title: 'Conjuntos residenciales',
     subtitle: 'Áreas comunes organizadas',
-    icon: Building2,
-    gradient: 'from-blue-500/20 to-indigo-500/20',
-    accent: 'bg-blue-500',
+    image: conjuntosImg,
   },
   {
     id: 'barbershop',
     title: 'Barberías',
     subtitle: 'Citas con precisión',
-    icon: Scissors,
-    gradient: 'from-amber-500/20 to-orange-500/20',
-    accent: 'bg-amber-500',
+    image: barberiaImg,
   },
   {
     id: 'beauty',
     title: 'Salones de belleza',
     subtitle: 'Experiencias de bienestar',
-    icon: Sparkles,
-    gradient: 'from-pink-500/20 to-rose-500/20',
-    accent: 'bg-pink-500',
+    image: salonImg,
   },
   {
     id: 'workshop',
-    title: 'Talleres',
+    title: 'Salas de ensayo',
     subtitle: 'Turnos sin espera',
-    icon: Wrench,
-    gradient: 'from-emerald-500/20 to-teal-500/20',
-    accent: 'bg-emerald-500',
+    image: salaEnsayoImg,
   },
   {
     id: 'office',
     title: 'Oficinas y coworking',
     subtitle: 'Espacios compartidos',
-    icon: Laptop,
-    gradient: 'from-violet-500/20 to-purple-500/20',
-    accent: 'bg-violet-500',
+    image: coworkingImg,
   },
   {
     id: 'other',
     title: 'Cualquier negocio',
     subtitle: 'Adaptable a tu ritmo',
-    icon: Briefcase,
-    gradient: 'from-slate-500/20 to-gray-500/20',
-    accent: 'bg-slate-500',
+    image: otrosImg,
   },
 ];
 
@@ -158,7 +161,8 @@ export function GallerySection() {
     return () => ctx.revert();
   }, [reducedMotion]);
 
-  const renderCard = (item: typeof GALLERY_ITEMS[0], index: number, isGrid = false) => {
+  const renderCard = (item: GalleryItem, index: number, isGrid = false) => {
+    const hasImage = 'image' in item;
     const Icon = item.icon;
     return (
       <div
@@ -166,8 +170,8 @@ export function GallerySection() {
         data-gallery-card={isGrid ? undefined : true}
         className={cn(
           'relative rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden',
-          'bg-gradient-to-br border border-white/10 backdrop-blur-sm',
-          item.gradient,
+          !hasImage && 'bg-gradient-to-br border border-white/10 backdrop-blur-sm',
+          !hasImage && item.gradient,
           'group will-change-transform',
           'transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
           isGrid
@@ -175,18 +179,29 @@ export function GallerySection() {
             : 'flex-shrink-0 w-[78vw] sm:w-[60vw] md:w-[45vw] lg:w-[35vw] aspect-[4/5] snap-center hover:scale-[1.03] hover:-translate-y-2'
         )}
       >
-        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-700" />
+        {hasImage ? (
+          <>
+            <img src={item.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors duration-700" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-700" />
+        )}
 
         <div className="relative h-full flex flex-col justify-between p-6 md:p-10">
-          <div
-            className={cn(
-              'h-11 w-11 md:h-14 md:w-14 rounded-xl md:rounded-2xl flex items-center justify-center',
-              item.accent,
-              'shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3'
-            )}
-          >
-            <Icon className="h-6 w-6 md:h-7 md:w-7 text-white" strokeWidth={1.5} />
-          </div>
+          {hasImage ? (
+            <div />
+          ) : (
+            <div
+              className={cn(
+                'h-11 w-11 md:h-14 md:w-14 rounded-xl md:rounded-2xl flex items-center justify-center',
+                item.accent,
+                'shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3'
+              )}
+            >
+              {Icon && <Icon className="h-6 w-6 md:h-7 md:w-7 text-white" strokeWidth={1.5} />}
+            </div>
+          )}
 
           <div>
             <p className="text-xs md:text-sm text-white/60 font-medium mb-1 md:mb-2 tracking-wide uppercase">
@@ -204,7 +219,7 @@ export function GallerySection() {
 
   if (reducedMotion) {
     return (
-      <section ref={sectionRef} className="relative py-24 md:py-32 px-6 bg-slate-950">
+      <section ref={sectionRef} id="industrias" className="relative py-16 md:py-32 px-6 bg-slate-950">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-white tracking-tight mb-12 md:mb-16">
             Diseñado para cada industria.
@@ -220,11 +235,13 @@ export function GallerySection() {
   return (
     <section
       ref={sectionRef}
-      className="relative md:h-screen md:overflow-hidden bg-slate-950 py-24 md:py-0"
+      id="industrias"
+      className="relative md:h-screen md:overflow-hidden bg-slate-950 py-16 md:py-0"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.08),transparent_70%)]" />
+      {/* Fondo con doble gradiente radial premium (Índigo y Rose) */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(99,102,241,0.12),transparent_60%),radial-gradient(circle_at_80%_75%,rgba(244,63,94,0.08),transparent_60%)] pointer-events-none" />
 
-      <div className="md:absolute md:top-16 md:left-6 lg:left-12 z-10 max-w-xl px-6 md:px-0 mb-8 md:mb-0">
+      <div className="md:absolute md:top-24 md:left-6 lg:left-12 z-10 max-w-none px-6 md:px-0 mb-8 md:mb-0">
         <TextReveal
           as="h2"
           splitBy="word"
@@ -247,7 +264,7 @@ export function GallerySection() {
       {/* Desktop: track controlado por GSAP */}
       <div
         ref={trackRef}
-        className="hidden md:flex absolute top-1/2 -translate-y-1/2 left-0 items-center gap-8 pl-6 lg:pl-12 pr-[50vw] will-change-transform"
+        className="hidden md:flex absolute top-[56%] -translate-y-1/2 left-0 items-center gap-8 pl-6 lg:pl-12 pr-[50vw] will-change-transform"
       >
         {GALLERY_ITEMS.map((item, index) => renderCard(item, index))}
       </div>

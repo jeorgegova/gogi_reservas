@@ -114,9 +114,9 @@ export function OrganizationsSection() {
   }, [reducedMotion, organizations]);
 
   return (
-    <section ref={sectionRef} id="organizaciones" className="relative py-24 md:py-48 px-5 md:px-6 bg-white">
+    <section ref={sectionRef} id="organizaciones" className="relative py-16 md:py-48 px-5 md:px-6 bg-white">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12 md:mb-20">
+        <div className="text-center mb-10 md:mb-20">
           <TextReveal
             as="h2"
             splitBy="word"
@@ -125,7 +125,7 @@ export function OrganizationsSection() {
             end="top 55%"
             scrub={0.7}
           >
-            Organizaciones registradas.
+            Nuestra comunidad
           </TextReveal>
 
           <TextReveal
@@ -136,7 +136,7 @@ export function OrganizationsSection() {
             end="top 58%"
             scrub={0.8}
           >
-            Encuentra tu organización y accede directamente a su portal de reservas.
+            Conoce las organizaciones que confían en GoGi Reservas y accede a su portal de reservas.
           </TextReveal>
         </div>
 
@@ -213,6 +213,21 @@ export function OrganizationsSection() {
             );
           })}
         </div>
+
+        {organizations.length > 0 && (
+          <div className="mt-12 md:mt-16 text-center">
+            <Button
+              asChild
+              size="lg"
+              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105"
+            >
+              <Link to="/organizaciones">
+                Ver todas las organizaciones
+                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );
