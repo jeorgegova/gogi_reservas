@@ -345,6 +345,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     Cerrar Sesión
                   </button>
                 )}
+
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('lastOrganizationSlug');
+                    localStorage.removeItem('guestSession');
+                    window.location.href = '/';
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  GoGi Reservas &copy; {new Date().getFullYear()}
+                </button>
               </>
             )}
           </nav>
@@ -531,6 +542,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
       
       <AuthModal />
+
     </div>
   );
 }

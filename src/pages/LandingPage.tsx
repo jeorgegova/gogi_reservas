@@ -10,7 +10,7 @@ import { HeroSection } from '@/components/landing/HeroSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { ShowcaseSection } from '@/components/landing/ShowcaseSection';
 import { GallerySection } from '@/components/landing/GallerySection';
-import { OrganizationsSection } from '@/components/landing/OrganizationsSection';
+
 import { PricingSection } from '@/components/landing/PricingSection';
 import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
@@ -43,7 +43,6 @@ export default function LandingPage() {
         <FeaturesSection />
         <ShowcaseSection />
         <GallerySection />
-        <OrganizationsSection />
         <PricingSection />
         <Footer />
       </main>

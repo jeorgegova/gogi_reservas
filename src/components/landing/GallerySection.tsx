@@ -176,10 +176,13 @@ export function GallerySection() {
           'transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
           isGrid
             ? 'aspect-[4/3] p-6 md:p-8'
-            : 'flex-shrink-0 w-[78vw] sm:w-[60vw] md:w-[45vw] lg:w-[35vw] aspect-[4/5] snap-center hover:scale-[1.03] hover:-translate-y-2'
+            : cn(
+              'flex-shrink-0 w-[78vw] sm:w-[60vw] md:w-[45vw] lg:w-[35vw] aspect-[4/4.2] snap-center hover:scale-[1.03] hover:-translate-y-2',
+              index === 0 && 'ml-10 sm:ml-20 md:ml-32 lg:ml-48'
+            )
         )}
       >
-        {hasImage ? (
+        {hasImage && item.image ? (
           <>
             <img src={item.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors duration-700" />
@@ -188,26 +191,26 @@ export function GallerySection() {
           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-700" />
         )}
 
-        <div className="relative h-full flex flex-col justify-between p-6 md:p-10">
-          {hasImage ? (
-            <div />
-          ) : (
-            <div
-              className={cn(
-                'h-11 w-11 md:h-14 md:w-14 rounded-xl md:rounded-2xl flex items-center justify-center',
-                item.accent,
-                'shadow-lg transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3'
-              )}
-            >
-              {Icon && <Icon className="h-6 w-6 md:h-7 md:w-7 text-white" strokeWidth={1.5} />}
-            </div>
-          )}
+        <div className="relative h-full flex flex-col justify-between p-6 md:p-10 z-10">
+          <div className="flex justify-between items-start">
+            {Icon && (
+              <div
+                className={cn(
+                  'h-11 w-11 md:h-14 md:w-14 rounded-xl md:rounded-2xl flex items-center justify-center',
+                  item.accent || 'bg-white/10 text-white border border-white/20',
+                  'backdrop-blur-md shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:rotate-3'
+                )}
+              >
+                <Icon className="h-5 w-5 md:h-6 md:w-6" strokeWidth={1.5} />
+              </div>
+            )}
+          </div>
 
           <div>
             <p className="text-xs md:text-sm text-white/60 font-medium mb-1 md:mb-2 tracking-wide uppercase">
               {String(index + 1).padStart(2, '0')}
             </p>
-            <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-white mb-1 md:mb-2">
+            <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-white mb-1 md:mb-2 tracking-tight">
               {item.title}
             </h3>
             <p className="text-white/70 text-base md:text-lg">{item.subtitle}</p>

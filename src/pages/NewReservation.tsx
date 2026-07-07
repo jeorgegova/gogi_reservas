@@ -88,6 +88,8 @@ export default function NewReservationPage() {
   const [userError, setUserError] = useState<string | null>(null);
   const [bonusConfig, setBonusConfig] = useState<any>(null);
   const [userReservationCount, setUserReservationCount] = useState(0);
+  const [serviceBonusMap, setServiceBonusMap] = useState<Record<string, { goal: number; discountPct: number; count: number }>>({});
+  const [resourceBonusMap, setResourceBonusMap] = useState<Record<string, { goal: number; discountPct: number; count: number }>>({});
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0);
@@ -324,7 +326,7 @@ export default function NewReservationPage() {
     setSelectedStartTime('');
 
     fetchBusySlots(employee.id);
-    fetchBonusInfo(employee.id);
+    if (!isAdmin) fetchBonusInfo(employee.id, profile?.id);
     fetchOperationSchedules();
 
     if (isResidential) {
@@ -373,6 +375,7 @@ export default function NewReservationPage() {
     setSelectedService(service);
     setSelectedStartTime('');
     fetchServiceAddons(service.id, selectedArea.id);
+    if (!isAdmin) fetchBonusInfo(selectedArea.id, profile?.id);
     setStep(3);
   };
 
@@ -387,8 +390,8 @@ export default function NewReservationPage() {
     }
   };
 
-  const fetchBonusInfo = async (employeeId: string) => {
-    if (!profile?.id || isGuestUser) { setBonusConfig(null); setUserReservationCount(0); return; }
+  const fetchBonusInfo = async (employeeId: string, targetUserId?: string) => {
+    if (!profile?.id || isGuestUser) { setBonusConfig(null); setUserReservationCount(0); setServiceBonusMap({}); setResourceBonusMap({}); return; }
 
     try {
       const { data: org } = await supabase
@@ -397,33 +400,83 @@ export default function NewReservationPage() {
         .eq('id', profile?.organization_id)
         .single();
 
-      if (!org?.bonus_system_active) { setBonusConfig(null); return; }
+      if (!org?.bonus_system_active) { setBonusConfig(null); setServiceBonusMap({}); setResourceBonusMap({}); return; }
 
-      const { data: config } = await supabase
+      const effectiveUserId = targetUserId || profile.id;
+
+      const { data: configs } = await supabase
         .from('bonus_configs')
         .select('*')
-        .eq('resource_id', employeeId)
-        .eq('is_active', true)
-        .single();
+        .eq('organization_id', profile?.organization_id)
+        .eq('is_active', true);
 
-      setBonusConfig(config);
+      if (!configs || configs.length === 0) {
+        setBonusConfig(null); setUserReservationCount(0); setServiceBonusMap({}); setResourceBonusMap({}); return;
+      }
 
-      if (config) {
-        const targetUserId = (isAdmin && selectedUserId) ? selectedUserId : profile.id;
-        const { count } = await supabase
+      const serviceIds = configs.filter((c: any) => c.service_id).map((c: any) => c.service_id);
+      const resourceIds = configs.filter((c: any) => c.resource_id).map((c: any) => c.resource_id);
+      const countByService: Record<string, number> = {};
+      const countByResource: Record<string, number> = {};
+
+      if (serviceIds.length > 0) {
+        const { data: allRs } = await supabase
+          .from('reservation_services')
+          .select('service_id, reservations!inner(user_id, status)')
+          .in('service_id', serviceIds)
+          .eq('reservations.user_id', effectiveUserId)
+          .eq('reservations.status', 'approved');
+        (allRs || []).forEach((rs: any) => { countByService[rs.service_id] = (countByService[rs.service_id] || 0) + 1; });
+      }
+
+      if (resourceIds.length > 0) {
+        const { data: allRes } = await supabase
           .from('reservations')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', targetUserId)
-          .eq('resource_id', employeeId)
+          .select('resource_id')
+          .in('resource_id', resourceIds)
+          .eq('user_id', effectiveUserId)
           .eq('status', 'approved');
-        setUserReservationCount(count || 0);
+        (allRes || []).forEach((r: any) => { countByResource[r.resource_id] = (countByResource[r.resource_id] || 0) + 1; });
+      }
+
+      const sMap: Record<string, { goal: number; discountPct: number; count: number }> = {};
+      const rMap: Record<string, { goal: number; discountPct: number; count: number }> = {};
+
+      for (const config of configs) {
+        if (config.service_id) {
+          sMap[config.service_id] = { goal: config.reservations_required, discountPct: config.discount_percentage, count: countByService[config.service_id] || 0 };
+        } else if (config.resource_id) {
+          rMap[config.resource_id] = { goal: config.reservations_required, discountPct: config.discount_percentage, count: countByResource[config.resource_id] || 0 };
+        }
+      }
+
+      setServiceBonusMap(sMap);
+      setResourceBonusMap(rMap);
+
+      const matchingConfig = configs.find((c: any) =>
+        (c.service_id && selectedService && c.service_id === selectedService.id) ||
+        (c.resource_id && c.resource_id === employeeId)
+      ) || null;
+      setBonusConfig(matchingConfig);
+
+      if (matchingConfig) {
+        const c = matchingConfig.service_id ? (sMap[matchingConfig.service_id]?.count || 0) : (rMap[matchingConfig.resource_id]?.count || 0);
+        setUserReservationCount(c);
       } else {
         setUserReservationCount(0);
       }
     } catch {
-      setBonusConfig(null);
-      setUserReservationCount(0);
+      setBonusConfig(null); setUserReservationCount(0); setServiceBonusMap({}); setResourceBonusMap({});
     }
+  };
+
+  const getBonusForService = (serviceId: string) => {
+    const fromService = serviceBonusMap[serviceId];
+    if (fromService) return fromService;
+    if (selectedArea) {
+      return resourceBonusMap[selectedArea.id] || null;
+    }
+    return null;
   };
 
   const fetchOperationSchedules = async () => {
@@ -563,13 +616,19 @@ export default function NewReservationPage() {
 
   useEffect(() => {
     if (bonusConfig) {
-      const cycleLength = bonusConfig.reservations_required + 1;
-      const progressInCycle = userReservationCount % cycleLength;
-      setAppliedDiscount(progressInCycle === bonusConfig.reservations_required ? bonusConfig.discount_percentage : 0);
+      const goal = bonusConfig.reservations_required;
+      const hasDiscount = userReservationCount > 0 && (userReservationCount % goal) === 0;
+      setAppliedDiscount(hasDiscount ? bonusConfig.discount_percentage : 0);
     } else {
       setAppliedDiscount(0);
     }
   }, [bonusConfig, userReservationCount]);
+
+  useEffect(() => {
+    if (isAdmin && selectedUserId && selectedArea) {
+      fetchBonusInfo(selectedArea.id, selectedUserId);
+    }
+  }, [selectedUserId, selectedArea?.id, selectedService?.id]);
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
@@ -632,9 +691,54 @@ export default function NewReservationPage() {
     return subtotal;
   };
 
+  // Returns the actual HH:mm clock string for the start of the reservation,
+  // regardless of whether selectedStartTime is a clock time or a jornada key.
+  const getActualStartTimeStr = (): string => {
+    if (!selectedArea) return '';
+    // Hourly: start = first selected hour slot
+    if (isResidential && selectedArea.pricing_type === 'hourly') {
+      return selectedHourSlots[0] || '';
+    }
+    if (!selectedStartTime) return '';
+    if (isResidential && selectedArea.pricing_type === 'jornada') {
+      if (selectedStartTime === 'diurna') return selectedArea.jornada_start_diurna || '08:00';
+      if (selectedStartTime === 'nocturna') return selectedArea.jornada_start_nocturna || '18:00';
+      if (selectedStartTime === 'ambos') return selectedArea.jornada_start_diurna || '08:00';
+      return selectedStartTime;
+    }
+    return selectedStartTime;
+  };
+
+  const getActualEndTimeStr = (): string => {
+    if (!selectedArea) return '';
+    if (isResidential && selectedArea.pricing_type === 'jornada') {
+      if (selectedStartTime === 'diurna') return selectedArea.jornada_end_diurna || '18:00';
+      if (selectedStartTime === 'nocturna') return selectedArea.jornada_end_nocturna || '23:59';
+      if (selectedStartTime === 'ambos') return selectedArea.jornada_end_nocturna || '23:59';
+    }
+    return '';
+  };
+
   const getEndTime = () => {
-    if (!selectedArea || !selectedStartTime) return '';
-    return format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), "yyyy-MM-dd'T'HH:mm:ss");
+    if (!selectedArea) return '';
+    // Hourly: end = last slot + 60 minutes
+    if (isResidential && selectedArea.pricing_type === 'hourly') {
+      if (selectedHourSlots.length === 0) return '';
+      const lastSlot = selectedHourSlots[selectedHourSlots.length - 1];
+      const parsed = parseISO(`${selectedDate}T${lastSlot}:00`);
+      if (isNaN(parsed.getTime())) return '';
+      return format(addMinutes(parsed, 60), "yyyy-MM-dd'T'HH:mm:ss");
+    }
+    if (!selectedStartTime) return '';
+    const actualStart = getActualStartTimeStr();
+    if (!actualStart) return '';
+    if (isResidential && selectedArea.pricing_type === 'jornada') {
+      const actualEnd = getActualEndTimeStr();
+      return `${selectedDate}T${actualEnd}:00`;
+    }
+    const parsed = parseISO(`${selectedDate}T${actualStart}:00`);
+    if (isNaN(parsed.getTime())) return '';
+    return format(addMinutes(parsed, totalSelectedDuration || 60), "yyyy-MM-dd'T'HH:mm:ss");
   };
 
   const toggleAddonSelection = (addon: AddonOption) => {
@@ -646,7 +750,13 @@ export default function NewReservationPage() {
   };
 
   const handleReserve = async () => {
-    if (!profile || !selectedArea || !selectedStartTime) return;
+    const isHourly = isResidential && selectedArea?.pricing_type === 'hourly';
+    const isJornada = isResidential && selectedArea?.pricing_type === 'jornada';
+
+    // For hourly: need at least one slot selected; for others: need selectedStartTime
+    if (!profile || !selectedArea) return;
+    if (isHourly && selectedHourSlots.length === 0) return;
+    if (!isHourly && !selectedStartTime) return;
     if (!isResidential && !selectedService) return;
 
     if (isGuestUser && (!guestName || !guestPhone)) {
@@ -670,15 +780,24 @@ export default function NewReservationPage() {
       }
     }
 
-    const info = getSlotStatus(selectedStartTime);
-    if (info.status !== 'available') {
-      setErrorMessage(`El horario seleccionado ya no está disponible.`);
+    const actualStart = getActualStartTimeStr();
+    // Only validate slot availability for non-jornada, non-hourly bookings
+    if (!isJornada && !isHourly) {
+      const info = getSlotStatus(actualStart);
+      if (info.status !== 'available') {
+        setErrorMessage(`El horario seleccionado ya no está disponible.`);
+        setIsErrorAlertOpen(true);
+        return;
+      }
+    }
+
+    const start = `${selectedDate}T${actualStart}:00`;
+    const end = getEndTime();
+    if (!start || !end) {
+      setErrorMessage('No se pudo calcular el horario de la reserva. Verifica los datos.');
       setIsErrorAlertOpen(true);
       return;
     }
-
-    const start = `${selectedDate}T${selectedStartTime}:00`;
-    const end = getEndTime();
     const totalCost = calculateTotalCost();
 
     if (isAdmin && !selectedUserId) {
@@ -774,6 +893,39 @@ export default function NewReservationPage() {
       </div>
     );
   }
+
+  const renderBonusCard = () => {
+    if (!bonusConfig || (isAdmin && !selectedUserId)) return null;
+    const goal = bonusConfig.reservations_required;
+    const progress = userReservationCount % goal;
+    const hasDiscount = userReservationCount > 0 && progress === 0;
+    const remaining = hasDiscount ? 0 : goal - progress;
+    const progressPercent = (progress / goal) * 100;
+    return (
+      <div className={`p-3 rounded-xl border ${appliedDiscount > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+        <div className="flex items-center gap-2">
+          <Gift className={`w-4 h-4 shrink-0 ${appliedDiscount > 0 ? 'text-emerald-600' : 'text-amber-600'}`} />
+          <div className="flex-1 min-w-0">
+            {hasDiscount ? (
+              <p className="text-xs font-bold text-emerald-700">
+                ¡Bonificación aplicada! {bonusConfig.discount_percentage}% de descuento
+              </p>
+            ) : (
+              <p className="text-xs text-amber-700">
+                Te faltan {remaining} {terminology.reservationLabel}{remaining !== 1 ? 's' : ''} para obtener {bonusConfig.discount_percentage}% OFF
+              </p>
+            )}
+            <div className="mt-1.5 h-1.5 bg-white/60 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${appliedDiscount > 0 ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
@@ -980,6 +1132,24 @@ export default function NewReservationPage() {
                       <span className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
                         <Clock className="w-3 h-3" />{service.duration} min
                       </span>
+                      {(() => {
+                        const bonus = getBonusForService(service.id);
+                        if (!bonus) return null;
+                        const { goal, discountPct, count } = bonus;
+                        const progress = count % goal;
+                        const hasDiscount = count > 0 && progress === 0;
+                        const remaining = hasDiscount ? 0 : goal - progress;
+                        return (
+                          <div className={`mt-2 text-[10px] font-semibold flex items-center gap-1 ${hasDiscount ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            <Gift className="w-3 h-3" />
+                            {hasDiscount ? (
+                              <>{discountPct}% OFF aplicado</>
+                            ) : (
+                              <>Faltan {remaining} {terminology.reservationLabel}{remaining !== 1 ? 's' : ''} para {discountPct}% OFF</>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex justify-end">
                       <span className="text-[10px] font-bold text-primary/60 group-hover:text-primary flex items-center gap-1 transition-colors">
@@ -992,6 +1162,7 @@ export default function NewReservationPage() {
             ) : (
               <p className="text-sm text-gray-400 text-center py-8">Este profesional no tiene servicios vinculados actualmente.</p>
             )}
+            {renderBonusCard()}
           </CardContent>
         </Card>
       )}
@@ -1180,8 +1351,8 @@ export default function NewReservationPage() {
                     const info = getSlotStatus(time);
                     const isOccupied = info.status !== 'available';
                     const startSlot = parseISO(`${selectedDate}T${time}:00`);
-                    const endRange = selectedStartTime ? addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration) : null;
-                    const isInRange = selectedStartTime && startSlot >= parseISO(`${selectedDate}T${selectedStartTime}:00`) && startSlot < endRange!;
+                    const endRange = selectedStartTime ? addMinutes(parseISO(`${selectedDate}T${getActualStartTimeStr()}:00`), totalSelectedDuration) : null;
+                    const isInRange = selectedStartTime && startSlot >= parseISO(`${selectedDate}T${getActualStartTimeStr()}:00`) && startSlot < endRange!;
 
                     return (
                       <div key={time} className="group" title={isOccupied && info.status === 'reserved' && info.conflicts ? info.conflicts.map((c: any) => `${c.userName}${c.userPhone ? ` (${c.userPhone})` : ''}`).join('\n') : undefined}>
@@ -1217,7 +1388,7 @@ export default function NewReservationPage() {
                     <p className="text-xs md:text-sm font-bold text-gray-800 truncate">
                       {isResidential && selectedArea?.pricing_type === 'jornada' ? (selectedJornada === 'diurna' ? 'Jornada Diurna' : selectedJornada === 'nocturna' ? 'Jornada Nocturna' : 'Jornada Completa') :
                        isResidential && selectedHourSlots.length > 0 ? `${selectedHourSlots.length}h (${formatCurrency(selectedHourSlots.length * (selectedArea?.cost_per_hour || 0))})` :
-                       selectedStartTime ? `${formatTime(selectedStartTime)} - ${formatTime(format(addMinutes(parseISO(`${selectedDate}T${selectedStartTime}:00`), totalSelectedDuration), 'HH:mm'))}` : 'No seleccionada'}
+                       selectedStartTime ? `${formatTime(getActualStartTimeStr())} - ${formatTime(format(addMinutes(parseISO(`${selectedDate}T${getActualStartTimeStr()}:00`), totalSelectedDuration || 60), 'HH:mm'))}` : 'No seleccionada'}
                     </p>
                   </div>
                   <Button
@@ -1231,6 +1402,7 @@ export default function NewReservationPage() {
                 </div>
               </div>
             </div>
+            {renderBonusCard()}
           </CardContent>
         </Card>
       )}
@@ -1293,16 +1465,26 @@ export default function NewReservationPage() {
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-2">
-              <span className="text-sm font-black text-gray-900 uppercase">Total</span>
-              <span className="text-2xl font-black text-primary">{formatCurrency(calculateTotalCost())}</span>
+            <div className="space-y-1 pt-2">
+              {appliedDiscount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500">Subtotal</span>
+                  <span className="text-xs text-gray-500">{formatCurrency(totalSelectedCost)}</span>
+                </div>
+              )}
+              {appliedDiscount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-emerald-600 font-medium">Descuento ({appliedDiscount}%)</span>
+                  <span className="text-xs text-emerald-600 font-medium">-{formatCurrency(totalSelectedCost * appliedDiscount / 100)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1 border-t border-gray-100">
+                <span className="text-sm font-black text-gray-900 uppercase">Total</span>
+                <span className="text-2xl font-black text-primary">{formatCurrency(calculateTotalCost())}</span>
+              </div>
             </div>
 
-            {appliedDiscount > 0 && (
-              <div className="flex items-center gap-2 justify-center text-emerald-600 bg-emerald-50 p-2 rounded-lg text-xs font-bold">
-                <Gift className="w-3.5 h-3.5" /> ¡Bonificación aplicada! {appliedDiscount}% de descuento
-              </div>
-            )}
+            {renderBonusCard()}
 
             {isAdmin && selectedUserId ? (
               <div className="space-y-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100">

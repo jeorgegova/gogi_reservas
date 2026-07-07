@@ -15,7 +15,7 @@ const navLinks: NavLink[] = [
   { label: 'Funcionalidades', hash: '#funcionalidades' },
   { label: 'Industrias', hash: '#industrias' },
   { label: 'Precios', hash: '#precios' },
-  { label: 'Organizaciones', hash: '#organizaciones', button: true },
+  { label: 'Portal Reservas', hash: '/organizaciones', button: true, external: true },
 ];
 
 type Theme = 'light' | 'dark';
@@ -110,7 +110,19 @@ export function Navbar() {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6 lg:gap-8">
           {navLinks.map((link) =>
-            link.button ? (
+            link.external ? (
+              <a
+                key={link.hash}
+                href="http://localhost:5173/organizaciones"
+                className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 ${
+                  scrolled
+                    ? 'bg-slate-900 text-white hover:bg-slate-800'
+                    : 'bg-white/90 text-slate-900 hover:bg-white shadow-lg backdrop-blur-sm'
+                }`}
+              >
+                {link.label}
+              </a>
+            ) : link.button ? (
               <button
                 key={link.hash}
                 onClick={() => handleNav(link.hash)}
@@ -157,7 +169,16 @@ export function Navbar() {
         <div className="md:hidden bg-white border-t border-slate-100 shadow-lg">
           <div className="px-5 py-4 space-y-3">
             {navLinks.map((link) =>
-              link.button ? (
+              link.external ? (
+                <a
+                  key={link.hash}
+                  href="http://localhost:5173/organizaciones"
+                  onClick={() => setOpen(false)}
+                  className="block w-full text-center rounded-full py-2.5 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800"
+                >
+                  {link.label}
+                </a>
+              ) : link.button ? (
                 <button
                   key={link.hash}
                   onClick={() => handleNav(link.hash)}

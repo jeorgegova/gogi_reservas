@@ -49,6 +49,37 @@ export default function AdminReservationsPage() {
   const previousIdsRef = useRef<Set<string>>(new Set());
   const highlightTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  // Modal para confirmar cancelación de citas
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<string | null>(null);
+  // Modal para confirmar rechazo de citas
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [reservationToReject, setReservationToReject] = useState<string | null>(null);
+
+  // Tipo de negocio directo de la BD
+  const [orgBusinessType, setOrgBusinessType] = useState<string | null>(null);
+  const isServiceBased = orgBusinessType === 'barbershop' || orgBusinessType === 'beauty_salon';
+
+  // Cargar tipo de negocio al iniciar
+  useEffect(() => {
+    const fetchOrgType = async () => {
+      if (!profile?.organization_id) return;
+      try {
+        const { data } = await supabase
+          .from('organizations')
+          .select('business_type')
+          .eq('id', profile.organization_id)
+          .single();
+        if (data) {
+          setOrgBusinessType(data.business_type);
+        }
+      } catch (err) {
+        console.error('Error fetching org business type:', err);
+      }
+    };
+    fetchOrgType();
+  }, [profile?.organization_id]);
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 250);
@@ -80,7 +111,15 @@ export default function AdminReservationsPage() {
       const baseSelect = `
         *,
         profiles (full_name, apartment, email, role),
-        resources (name)
+        resources (name),
+        reservation_services (
+          charged_price,
+          services (name)
+        ),
+        reservation_addons (
+          charged_price,
+          service_addons (name)
+        )
       `;
 
       const fetchMonth = supabase
@@ -121,7 +160,12 @@ export default function AdminReservationsPage() {
 
       const currentIds = new Set(merged.map(r => r.id));
       const previousIds = previousIdsRef.current;
-      const newlyArrived = merged.filter(r => !previousIds.has(r.id));
+
+      // newlyArrived solo considera reservas pendientes que no estaban en la vista anteriormente
+      const newlyArrived = merged.filter(r =>
+        !previousIds.has(r.id) &&
+        ['pending_validation', 'pending_payment'].includes(r.status)
+      );
 
       if (previousIds.size > 0 && newlyArrived.length > 0) {
         const newIds = newlyArrived.map(r => r.id);
@@ -391,7 +435,9 @@ export default function AdminReservationsPage() {
             <thead>
               <tr className="bg-gray-50/30 border-b border-gray-100">
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.userLabel} {businessType === 'residential' ? `/ ${terminology.unitLabel}` : ''}</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.areaLabel}</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  {isServiceBased ? 'Profesional' : terminology.areaLabel}
+                </th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha / Hora</th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Costo</th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Estado</th>
@@ -414,6 +460,7 @@ export default function AdminReservationsPage() {
               ) : (
                 filteredReservations.map((res) => {
                   const statusInfo = getStatusInfo(res.status);
+                  const isPast = new Date(res.end_datetime).getTime() < new Date().getTime();
                   return (
                     <tr key={res.id} className={cn(
                       "hover:bg-gray-50/50 transition-colors",
@@ -439,18 +486,36 @@ export default function AdminReservationsPage() {
                           <div className="text-[10px] text-gray-500 mt-0.5">{terminology.unitLabel} {res.profiles?.apartment}</div>
                         )}
                         <div className="flex items-center gap-3 mt-0.5">
-                        {res.guest_phone ? (
-                          <span className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
-                            <Smartphone className="w-2.5 h-2.5 text-gray-400" />{res.guest_phone}
-                          </span>
-                        ) : res.profiles?.phone ? (
-                          <span className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
-                            <Smartphone className="w-2.5 h-2.5 text-gray-400" />{res.profiles.phone}
-                          </span>
-                        ) : null}
+                          {res.guest_phone ? (
+                            <span className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
+                              <Smartphone className="w-2.5 h-2.5 text-gray-400" />{res.guest_phone}
+                            </span>
+                          ) : res.profiles?.phone ? (
+                            <span className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
+                              <Smartphone className="w-2.5 h-2.5 text-gray-400" />{res.profiles.phone}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-600 font-medium truncate">{res.resources?.name}</td>
+                      <td className="px-4 py-3 text-gray-600 font-medium">
+                        <div className="font-semibold text-gray-900">{res.resources?.name}</div>
+                        {isServiceBased && (
+                          <div className="mt-1 text-[11px] text-gray-500 space-y-0.5">
+                            {res.reservation_services && res.reservation_services.length > 0 && (
+                              <div className="flex items-center gap-1 font-medium text-primary">
+                                <span className="bg-primary/10 text-primary px-1 py-0.2 rounded text-[9px] font-bold">Servicio</span>
+                                <span>{res.reservation_services.map((rs: any) => rs.services?.name).join(', ')}</span>
+                              </div>
+                            )}
+                            {res.reservation_addons && res.reservation_addons.length > 0 && (
+                              <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                <span className="bg-gray-100 text-gray-600 px-1 py-0.2 rounded text-[9px] font-bold">Adicional</span>
+                                <span>{res.reservation_addons.map((ra: any) => ra.service_addons?.name).join(', ')}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-gray-700 text-xs">{formatDate(res.start_datetime)}</div>
                         <div className="text-[10px] text-gray-400 font-medium">{formatTime(res.start_datetime)} - {formatTime(res.end_datetime)}</div>
@@ -466,17 +531,42 @@ export default function AdminReservationsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1.5">
-                          <Button size="sm" disabled={!!blockingError} variant="outline" className="h-8 px-2.5 text-[10px] font-bold rounded-lg border-gray-200 text-gray-600 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all flex items-center gap-1 whitespace-nowrap disabled:opacity-50" onClick={() => navigate(`/reservations/edit/${res.id}`)}>
-                            <Pencil className="w-3.5 h-3.5" /> Editar
-                          </Button>
-                          {isPending(res.status) && (
+                          {isPast && !['cancelled', 'rejected'].includes(res.status) ? (
+                            <span className="text-[10px] font-bold text-gray-400 bg-gray-50 border border-gray-200/60 px-2 py-1 rounded-md uppercase tracking-wider shrink-0">
+                              {isServiceBased ? 'Servicio Realizado' : 'Reserva Finalizada'}
+                            </span>
+                          ) : (
                             <>
-                              <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.4)] hover:shadow-[0_0_18px_rgba(16,185,129,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => handleUpdateStatus(res.id, 'approved')}>
-                                {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
-                              </Button>
-                              <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-red-500 hover:bg-red-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(239,68,68,0.4)] hover:shadow-[0_0_18px_rgba(239,68,68,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => handleUpdateStatus(res.id, 'rejected')}>
-                                {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
-                              </Button>
+                              {!['cancelled', 'rejected'].includes(res.status) && (
+                                <Button
+                                  size="sm"
+                                  disabled={!!blockingError}
+                                  variant="outline"
+                                  className="h-8 px-2.5 text-[10px] font-bold rounded-lg border-gray-200 text-gray-600 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all flex items-center gap-1 whitespace-nowrap disabled:opacity-50"
+                                  onClick={() => navigate(`/reservations/edit/${res.id}`)}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" /> Editar
+                                </Button>
+                              )}
+                              {isPending(res.status) ? (
+                                <>
+                                  <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.4)] hover:shadow-[0_0_18px_rgba(16,185,129,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => handleUpdateStatus(res.id, 'approved')}>
+                                    {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
+                                  </Button>
+                                  <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-red-500 hover:bg-red-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(239,68,68,0.4)] hover:shadow-[0_0_18px_rgba(239,68,68,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => { setReservationToReject(res.id); setRejectModalOpen(true); }}>
+                                    {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
+                                  </Button>
+                                </>
+                              ) : (
+                                ['approved', 'paid'].includes(res.status) && (
+                                  <Button size="sm" disabled={!!blockingError || !!updatingId} className="h-8 px-2.5 bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-white rounded-lg transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(245,158,11,0.4)] hover:shadow-[0_0_18px_rgba(245,158,11,0.6)] whitespace-nowrap disabled:opacity-50" onClick={() => {
+                                    setReservationToCancel(res.id);
+                                    setCancelModalOpen(true);
+                                  }}>
+                                    {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} {updatingId === res.id ? 'Cancelando...' : 'Cancelar Cita'}
+                                  </Button>
+                                )
+                              )}
                             </>
                           )}
                         </div>
@@ -506,6 +596,7 @@ export default function AdminReservationsPage() {
             const statusInfo = getStatusInfo(res.status);
             const pending = isPending(res.status);
             const userName = res.guest_name || res.profiles?.full_name;
+            const isPast = new Date(res.end_datetime).getTime() < new Date().getTime();
 
             return (
               <div
@@ -532,11 +623,27 @@ export default function AdminReservationsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-gray-500 truncate">{res.resources?.name}</span>
+                        <span className="text-[10px] text-gray-500 font-bold">
+                          {isServiceBased ? `Profesional: ${res.resources?.name}` : res.resources?.name}
+                        </span>
                         {businessType === 'residential' && res.profiles?.apartment && (
                           <span className="text-[10px] text-gray-400 shrink-0">{terminology.unitLabel} {res.profiles?.apartment}</span>
                         )}
                       </div>
+                      {isServiceBased && (
+                        <div className="mt-1 text-[10px] space-y-0.5 border-t border-gray-50 pt-1">
+                          {res.reservation_services && res.reservation_services.length > 0 && (
+                            <div className="text-primary font-medium">
+                              Servicio: {res.reservation_services.map((rs: any) => rs.services?.name).join(', ')}
+                            </div>
+                          )}
+                          {res.reservation_addons && res.reservation_addons.length > 0 && (
+                            <div className="text-gray-400">
+                              Adicional: {res.reservation_addons.map((ra: any) => ra.service_addons?.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <span className={cn(
                       "shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold border uppercase",
@@ -576,34 +683,61 @@ export default function AdminReservationsPage() {
 
                 {(isAdmin || ['pending_validation', 'pending_payment'].includes(res.status)) && (
                   <div className="flex border-t border-amber-100">
-                    <button
-                      disabled={!!blockingError}
-                      onClick={() => navigate(`/reservations/edit/${res.id}`)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-gray-600 bg-gray-50 hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors disabled:opacity-50"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Editar
-                    </button>
-                    {pending && (
+                    {isPast && !['cancelled', 'rejected'].includes(res.status) ? (
+                      <div className="flex-1 py-2.5 text-center text-[10px] font-bold text-gray-400 bg-gray-50 uppercase tracking-wider">
+                        {isServiceBased ? 'Servicio Realizado' : 'Reserva Finalizada'}
+                      </div>
+                    ) : (
                       <>
-                        <div className="w-px bg-amber-100" />
-                        <button
-                          disabled={!!blockingError || !!updatingId}
-                          onClick={() => handleUpdateStatus(res.id, 'approved')}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 active:bg-emerald-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
-                        >
-                          {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <CheckCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(16,185,129,0.6))' }} />}
-                          {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
-                        </button>
-                        <div className="w-px bg-amber-100" />
-                        <button
-                          disabled={!!blockingError || !!updatingId}
-                          onClick={() => handleUpdateStatus(res.id, 'rejected')}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-red-600 bg-red-50/50 hover:bg-red-100 active:bg-red-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(239,68,68,0.2)]"
-                        >
-                          {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" /> : <XCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(239,68,68,0.6))' }} />}
-                          {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
-                        </button>
+                        {!['cancelled', 'rejected'].includes(res.status) && (
+                          <button
+                            disabled={!!blockingError}
+                            onClick={() => navigate(`/reservations/edit/${res.id}`)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-gray-600 bg-gray-50 hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors disabled:opacity-50"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Editar
+                          </button>
+                        )}
+                        {pending ? (
+                          <>
+                            <div className="w-px bg-amber-100" />
+                            <button
+                              disabled={!!blockingError || !!updatingId}
+                              onClick={() => handleUpdateStatus(res.id, 'approved')}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 active:bg-emerald-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+                            >
+                              {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <CheckCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(16,185,129,0.6))' }} />}
+                              {updatingId === res.id ? 'Aprobando...' : 'Aprobar'}
+                            </button>
+                            <div className="w-px bg-amber-100" />
+                            <button
+                              disabled={!!blockingError || !!updatingId}
+                              onClick={() => { setReservationToReject(res.id); setRejectModalOpen(true); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-red-600 bg-red-50/50 hover:bg-red-100 active:bg-red-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+                            >
+                              {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" /> : <XCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(239,68,68,0.6))' }} />}
+                              {updatingId === res.id ? 'Rechazando...' : 'Rechazar'}
+                            </button>
+                          </>
+                        ) : (
+                          ['approved', 'paid'].includes(res.status) && (
+                            <>
+                              <div className="w-px bg-amber-100" />
+                              <button
+                                disabled={!!blockingError || !!updatingId}
+                                onClick={() => {
+                                  setReservationToCancel(res.id);
+                                  setCancelModalOpen(true);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-amber-700 bg-amber-50/50 hover:bg-amber-100 active:bg-amber-200 transition-colors disabled:opacity-50 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
+                              >
+                                {updatingId === res.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" /> : <XCircle className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 0 4px rgba(245,158,11,0.6))' }} />}
+                                {updatingId === res.id ? 'Cancelando...' : 'Cancelar Cita'}
+                              </button>
+                            </>
+                          )
+                        )}
                       </>
                     )}
                   </div>
@@ -613,6 +747,100 @@ export default function AdminReservationsPage() {
           })
         )}
       </div>
+      {/* Modal de Confirmación Estilizado */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => { setCancelModalOpen(false); setReservationToCancel(null); }}
+          />
+
+          {/* Tarjeta del modal */}
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 relative z-10 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4 text-red-500 border border-red-100 animate-pulse">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              ¿Confirmar cancelación?
+            </h3>
+
+            <p className="text-xs text-gray-500 mb-6 leading-relaxed">
+              Esta acción es irreversible y notificará al cliente sobre la cancelación de su cita. ¿Deseas continuar?
+            </p>
+
+            <div className="flex gap-3 w-full">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-10 text-xs font-bold text-gray-500 border-gray-200 hover:bg-gray-50"
+                onClick={() => { setCancelModalOpen(false); setReservationToCancel(null); }}
+              >
+                No, mantener
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 text-xs font-bold shadow-[0_4px_12px_rgba(220,38,38,0.25)] hover:shadow-[0_6px_16px_rgba(220,38,38,0.35)]"
+                onClick={() => {
+                  if (reservationToCancel) {
+                    handleUpdateStatus(reservationToCancel, 'cancelled');
+                  }
+                  setCancelModalOpen(false);
+                  setReservationToCancel(null);
+                }}
+              >
+                Sí, cancelar cita
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Confirmación de Rechazo */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => { setRejectModalOpen(false); setReservationToReject(null); }}
+          />
+
+          {/* Tarjeta del modal */}
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 relative z-10 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4 text-red-500 border border-red-100 animate-pulse">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              ¿Confirmar rechazo?
+            </h3>
+
+            <p className="text-xs text-gray-500 mb-6 leading-relaxed">
+              Esta acción es irreversible y notificará al cliente que su solicitud fue rechazada. ¿Deseas continuar?
+            </p>
+
+            <div className="flex gap-3 w-full">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-10 text-xs font-bold text-gray-500 border-gray-200 hover:bg-gray-50"
+                onClick={() => { setRejectModalOpen(false); setReservationToReject(null); }}
+              >
+                No, mantener
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 text-xs font-bold shadow-[0_4px_12px_rgba(220,38,38,0.25)] hover:shadow-[0_6px_16px_rgba(220,38,38,0.35)]"
+                onClick={() => {
+                  if (reservationToReject) {
+                    handleUpdateStatus(reservationToReject, 'rejected');
+                  }
+                  setRejectModalOpen(false);
+                  setReservationToReject(null);
+                }}
+              >
+                Sí, rechazar cita
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

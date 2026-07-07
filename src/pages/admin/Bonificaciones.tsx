@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useCommonAreasQuery } from '@/hooks/useResources';
+import { useServicesQuery } from '@/hooks/useServices';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,13 +21,17 @@ import {
   Award
 } from 'lucide-react';
 
-
-
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function AdminBonificaciones() {
   const { profile, terminology } = useAuth();
+
+  // business_type se obtiene directamente de la BD para garantizar que sea correcto
+  // independientemente del estado del contexto de autenticación
+  const [orgBusinessType, setOrgBusinessType] = useState<string | null>(null);
+  const isServiceBased = orgBusinessType === 'barbershop' || orgBusinessType === 'beauty_salon';
+
   const [bonusSystemActive, setBonusSystemActive] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
   const [progressData, setProgressData] = useState<any[]>([]);
@@ -44,7 +49,12 @@ export default function AdminBonificaciones() {
   const [editValueDiscount, setEditValueDiscount] = useState<number>(0);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Siempre cargamos ambas listas; la correcta se usa según isServiceBased
   const { data: areas = [] } = useCommonAreasQuery(profile?.organization_id);
+  const { data: services = [] } = useServicesQuery(profile?.organization_id);
+  
+  // La lista activa para el selector del formulario
+  const selectableItems = isServiceBased ? services : areas;
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -54,67 +64,119 @@ export default function AdminBonificaciones() {
 
   const fetchInitialData = async () => {
     try {
-      // 1. Fetch Org Status
+      // 1. Fetch Org Status + business_type directamente de la BD
       const { data: org } = await supabase
         .from('organizations')
-        .select('bonus_system_active')
+        .select('bonus_system_active, business_type')
         .eq('id', profile?.organization_id)
         .single();
       
-      if (org) setBonusSystemActive(org.bonus_system_active);
+      if (org) {
+        setBonusSystemActive(org.bonus_system_active);
+        setOrgBusinessType(org.business_type ?? null);
+      }
 
-      // 2. Fetch Configs
+      // Determinar localmente si es basado en servicio usando el valor recien obtenido
+      const localIsServiceBased =
+        org?.business_type === 'barbershop' || org?.business_type === 'beauty_salon';
+
+      // 2. Fetch Configs – para barberías join con services; para otros con resources
+      const bonusSelect = localIsServiceBased
+        ? '*, services(name)'
+        : '*, resources(name)';
+
       const { data: bonusConfigs } = await supabase
         .from('bonus_configs')
-        .select('*, resources(name)')
+        .select(bonusSelect)
         .eq('organization_id', profile?.organization_id);
       
       setConfigs(bonusConfigs || []);
 
       // 3. Fetch Progress (Derived from reservations)
-      await fetchProgress();
+      await fetchProgress(localIsServiceBased);
 
     } catch (error) {
       console.error('Error fetching data:', error);
     }
   };
 
-  const fetchProgress = async () => {
-    // Obtenemos todas las reservas aprobadas de la organización
-    // Aseguramos el join correcto con profiles
-    const { data: reservations, error } = await supabase
-      .from('reservations')
-      .select(`
-        user_id, 
-        resource_id, 
-        profiles!inner(full_name, apartment)
-      `)
-      .eq('organization_id', profile?.organization_id)
-      .eq('status', 'approved');
+  const fetchProgress = async (serviceBased?: boolean) => {
+    // Aceptamos el valor como parámetro para evitar depender del estado React (que puede estar desactualizado)
+    const useServiceBased = serviceBased ?? isServiceBased;
+    if (useServiceBased) {
+      // Para barberías: agrupamos por usuario + servicio usando reservation_services
+      const { data: resServices, error } = await supabase
+        .from('reservation_services')
+        .select(`
+          service_id,
+          reservations!inner(
+            user_id,
+            organization_id,
+            status,
+            profiles!inner(full_name, apartment)
+          )
+        `)
+        .eq('reservations.organization_id', profile?.organization_id)
+        .eq('reservations.status', 'approved');
 
-    if (error || !reservations) {
-      console.error('Error fetching progress:', error);
-      return;
-    }
-
-    // Agrupar por usuario y área
-    const groups: Record<string, any> = {};
-    reservations.forEach(res => {
-      const profileData = res.profiles as any;
-      const key = `${res.user_id}_${res.resource_id}`;
-      if (!groups[key]) {
-        groups[key] = {
-          userId: res.user_id,
-          userName: profileData?.full_name || 'Sin nombre',
-          apartment: profileData?.apartment || 'S/A',
-          areaId: res.resource_id,
-          count: 0
-        };
+      if (error || !resServices) {
+        console.error('Error fetching progress (services):', error);
+        return;
       }
-      groups[key].count++;
-    });
 
-    setProgressData(Object.values(groups));
+      const groups: Record<string, any> = {};
+      resServices.forEach((rs: any) => {
+        const reservation = rs.reservations;
+        const profileData = reservation?.profiles;
+        const key = `${reservation?.user_id}_${rs.service_id}`;
+        if (!groups[key]) {
+          groups[key] = {
+            userId: reservation?.user_id,
+            userName: profileData?.full_name || 'Sin nombre',
+            apartment: profileData?.apartment || 'S/A',
+            areaId: rs.service_id, // reutilizamos areaId para compatibilidad con el resto del UI
+            count: 0
+          };
+        }
+        groups[key].count++;
+      });
+
+      setProgressData(Object.values(groups));
+    } else {
+      // Para conjuntos residenciales y otros: agrupamos por usuario + recurso
+      const { data: reservations, error } = await supabase
+        .from('reservations')
+        .select(`
+          user_id, 
+          resource_id, 
+          profiles!inner(full_name, apartment)
+        `)
+        .eq('organization_id', profile?.organization_id)
+        .eq('status', 'approved');
+
+      if (error || !reservations) {
+        console.error('Error fetching progress:', error);
+        return;
+      }
+
+      const groups: Record<string, any> = {};
+      reservations.forEach(res => {
+        const profileData = res.profiles as any;
+        const key = `${res.user_id}_${res.resource_id}`;
+        if (!groups[key]) {
+          groups[key] = {
+            userId: res.user_id,
+            userName: profileData?.full_name || 'Sin nombre',
+            apartment: profileData?.apartment || 'S/A',
+            areaId: res.resource_id,
+            count: 0
+          };
+        }
+        groups[key].count++;
+      });
+
+      setProgressData(Object.values(groups));
+    }
   };
 
   const handleToggleSystem = async (checked: boolean) => {
@@ -143,13 +205,23 @@ export default function AdminBonificaciones() {
 
     setIsSubmitting(true);
     try {
-      const configData = {
-        organization_id: profile?.organization_id,
-        resource_id: selectedAreaId,
-        reservations_required: reservationsRequired,
-        discount_percentage: discountPercentage,
-        is_active: true
-      };
+      // Para barberías guardamos en service_id; para otros en resource_id
+      const configData = isServiceBased
+        ? {
+            organization_id: profile?.organization_id,
+            service_id: selectedAreaId,
+            resource_id: null,
+            reservations_required: reservationsRequired,
+            discount_percentage: discountPercentage,
+            is_active: true
+          }
+        : {
+            organization_id: profile?.organization_id,
+            resource_id: selectedAreaId,
+            reservations_required: reservationsRequired,
+            discount_percentage: discountPercentage,
+            is_active: true
+          };
 
       const { error } = await supabase
         .from('bonus_configs')
@@ -166,7 +238,7 @@ export default function AdminBonificaciones() {
     } catch (error: any) {
       console.error('Error saving config:', error);
       if (error?.code === '23505') {
-        toast.error(`Ya existe una bonificación para este ${terminology.areaLabel.toLowerCase()}`);
+        toast.error(`Ya existe una bonificación para este ${isServiceBased ? 'servicio' : terminology.areaLabel.toLowerCase()}`);
       } else {
         toast.error('Error al guardar la configuración');
       }
@@ -228,13 +300,21 @@ export default function AdminBonificaciones() {
 
   const filteredProgress = progressData.filter(item => {
     const searchLower = searchTerm.toLowerCase();
-    const areaName = areas.find(a => a.id === item.areaId)?.name || '';
+    // Para barberías buscar en servicios; para otros en áreas/recursos
+    const itemList = isServiceBased ? services : areas;
+    const areaName = (itemList as any[]).find(a => a.id === item.areaId)?.name || '';
     return (
       item.userName.toLowerCase().includes(searchLower) ||
       item.apartment.toLowerCase().includes(searchLower) ||
       areaName.toLowerCase().includes(searchLower)
     );
   });
+
+  // Para el matching en la tabla de progreso: barberías usan service_id, otros usan resource_id
+  const getConfigForItem = (item: any) =>
+    isServiceBased
+      ? configs.find(c => c.service_id === item.areaId)
+      : configs.find(c => c.resource_id === item.areaId);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -280,22 +360,27 @@ export default function AdminBonificaciones() {
                 <Settings className={cn("w-5 h-5 text-primary")} />
                 Nueva Configuración
               </CardTitle>
-              <CardDescription>Define metas de {terminology.reservationLabel.toLowerCase()} pagada por {terminology.areaLabel.toLowerCase()}.</CardDescription>
+              <CardDescription>
+                Define metas de {terminology.reservationLabel.toLowerCase()} pagada por{' '}
+                {isServiceBased ? 'servicio' : terminology.areaLabel.toLowerCase()}.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSaveConfig} className="space-y-4">
 
                 <div className="space-y-2">
-                  <Label>{terminology.areaLabel}</Label>
+                  <Label>{isServiceBased ? 'Servicio' : terminology.areaLabel}</Label>
                   <select 
                     value={selectedAreaId}
                     onChange={(e) => setSelectedAreaId(e.target.value)}
                     className="w-full p-2 border rounded-md text-sm bg-white"
                     required
                   >
-                    <option value="">Seleccionar área...</option>
-                    {areas.map((area: any) => (
-                      <option key={area.id} value={area.id}>{area.name}</option>
+                    <option value="">
+                      {isServiceBased ? 'Seleccionar servicio...' : 'Seleccionar área...'}
+                    </option>
+                    {selectableItems.map((item: any) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
                     ))}
                   </select>
                 </div>
@@ -380,7 +465,9 @@ export default function AdminBonificaciones() {
                         <Gift className="w-5 h-5 text-primary" />
                       </div>
                     </div>
-                    <CardTitle className="text-base font-bold">{config.resources?.name}</CardTitle>
+                    <CardTitle className="text-base font-bold">
+                      {isServiceBased ? config.services?.name : config.resources?.name}
+                    </CardTitle>
                   </CardHeader>
 
                   <CardContent className="p-4 pt-0">
@@ -460,7 +547,7 @@ export default function AdminBonificaciones() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input 
-                    placeholder={`Buscar ${terminology.userLabel.toLowerCase()} o ${terminology.areaLabel.toLowerCase()}...`} 
+                    placeholder={isServiceBased ? "Buscar cliente o servicio..." : `Buscar ${terminology.userLabel.toLowerCase()} o ${terminology.areaLabel.toLowerCase()}...`} 
                     className="pl-9 w-full md:w-64 h-9"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -474,8 +561,8 @@ export default function AdminBonificaciones() {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
                     <tr className="bg-gray-50 text-gray-500 font-medium uppercase text-[10px] tracking-wider border-b">
-                      <th className="px-6 py-3">Usuario / Apt</th>
-                      <th className="px-6 py-3">{terminology.areaLabel}</th>
+                      <th className="px-6 py-3">{isServiceBased ? 'Cliente' : 'Usuario'} / Apt</th>
+                      <th className="px-6 py-3">{isServiceBased ? 'Servicio' : terminology.areaLabel}</th>
                       <th className="px-6 py-3 text-center">{terminology.reservationLabel}s Pagadas</th>
                       <th className="px-6 py-3">Estado</th>
                     </tr>
@@ -489,8 +576,9 @@ export default function AdminBonificaciones() {
                       </tr>
                     ) : (
                       filteredProgress.map((item, idx) => {
-                        const config = configs.find(c => c.resource_id === item.areaId);
-                        const areaName = areas.find(a => a.id === item.areaId)?.name || 'Área desconocida';
+                        const config = getConfigForItem(item);
+                        const itemList = isServiceBased ? services : areas;
+                        const areaName = (itemList as any[]).find(a => a.id === item.areaId)?.name || (isServiceBased ? 'Servicio desconocido' : 'Área desconocida');
                         const goal = config?.reservations_required || 5;
                         const bonusesEarned = Math.floor(item.count / goal);
                         const progressInCycle = item.count % goal;
@@ -584,8 +672,9 @@ export default function AdminBonificaciones() {
                   </div>
                 ) : (
                   filteredProgress.map((item, idx) => {
-                    const config = configs.find(c => c.resource_id === item.areaId);
-                    const areaName = areas.find(a => a.id === item.areaId)?.name || 'Área desconocida';
+                    const config = getConfigForItem(item);
+                    const itemList = isServiceBased ? services : areas;
+                    const areaName = (itemList as any[]).find(a => a.id === item.areaId)?.name || (isServiceBased ? 'Servicio desconocido' : 'Área desconocida');
                     const goal = config?.reservations_required || 5;
                     const bonusesEarned = Math.floor(item.count / goal);
                     const progressInCycle = item.count % goal;
