@@ -7,6 +7,7 @@ interface NavLink {
   label: string;
   hash: string;
   button?: boolean;
+  external?: boolean;
 }
 
 const navLinks: NavLink[] = [
@@ -111,9 +112,9 @@ export function Navbar() {
         <nav className="hidden md:flex items-center gap-6 lg:gap-8">
           {navLinks.map((link) =>
             link.external ? (
-              <a
+              <Link
                 key={link.hash}
-                href="http://localhost:5173/organizaciones"
+                to={link.hash}
                 className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 ${
                   scrolled
                     ? 'bg-slate-900 text-white hover:bg-slate-800'
@@ -121,7 +122,7 @@ export function Navbar() {
                 }`}
               >
                 {link.label}
-              </a>
+              </Link>
             ) : link.button ? (
               <button
                 key={link.hash}
@@ -170,14 +171,14 @@ export function Navbar() {
           <div className="px-5 py-4 space-y-3">
             {navLinks.map((link) =>
               link.external ? (
-                <a
+                <Link
                   key={link.hash}
-                  href="http://localhost:5173/organizaciones"
+                  to={link.hash}
                   onClick={() => setOpen(false)}
                   className="block w-full text-center rounded-full py-2.5 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800"
                 >
                   {link.label}
-                </a>
+                </Link>
               ) : link.button ? (
                 <button
                   key={link.hash}
