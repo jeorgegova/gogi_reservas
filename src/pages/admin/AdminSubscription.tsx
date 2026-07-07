@@ -402,7 +402,7 @@ export default function AdminSubscription() {
                   </div>
 
                   <div className="text-sm text-gray-600">
-                    Duración: {plan.duration_in_days} días
+                    Duración: {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
                   </div>
 
                   <Button

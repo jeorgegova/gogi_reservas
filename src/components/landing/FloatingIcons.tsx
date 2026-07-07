@@ -44,8 +44,9 @@ export function FloatingIcons() {
     if (reducedMotion || !sectionRef.current) return;
 
     const items = sectionRef.current.querySelectorAll('[data-floating-icon]');
-    const cols = 5;
-    const rows = 6;
+    const isMobile = window.innerWidth < 768;
+    const cols = isMobile ? 4 : 5;
+    const rows = isMobile ? 5 : 6;
     const occupiedCells = new Set<string>();
 
     const getAvailableCell = (): { col: number; row: number } | null => {
@@ -178,7 +179,7 @@ export function FloatingIcons() {
           className="absolute text-slate-300 pointer-events-none select-none"
           style={{ opacity: 0 }}
         >
-          <Icon className="h-10 w-10 md:h-16 md:w-16" strokeWidth={1.2} />
+          <Icon className="h-7 w-7 md:h-16 md:w-16" strokeWidth={1.2} />
         </div>
       ))}
     </div>

@@ -33,7 +33,7 @@ export function ParallaxLayer({
     if (reducedMotion || !layerRef.current) return;
 
     const isMobile = window.innerWidth < 768;
-    const distance = (isMobile ? 40 : 150) * speed;
+    const distance = (isMobile ? 25 : 150) * speed;
     const yFrom = direction === 'up' ? distance : -distance;
     const yTo = direction === 'up' ? -distance : distance;
 

@@ -30,6 +30,7 @@ import {
   Loader2,
   Pencil
 } from 'lucide-react';
+import { sendReservationEmail } from '@/lib/emailService';
 
 export default function AdminReservationsPage() {
   const navigate = useNavigate();
@@ -291,6 +292,10 @@ export default function AdminReservationsPage() {
             })
             .eq('reservation_id', id);
         }
+      }
+
+      if (['approved', 'rejected', 'cancelled'].includes(newStatus) && profile?.organization_id) {
+        sendReservationEmail(id, profile.organization_id, newStatus);
       }
 
       await fetchReservations();

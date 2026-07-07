@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isSuperAdmin = !loading && profile?.role === 'super_admin';
   const isCalendarPage = location.pathname === '/dashboard' || (!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/super-admin') && !location.pathname.startsWith('/reservations') && !location.pathname.startsWith('/profile') && !location.pathname.startsWith('/maintenance') && !location.pathname.startsWith('/bonificaciones') && !location.pathname.startsWith('/login') && !location.pathname.startsWith('/register') && !location.pathname.startsWith('/forgot') && !location.pathname.startsWith('/verify') && location.pathname !== '/');
   const showFab = isCalendarPage;
-  const { status: subscriptionStatus, latestEndDate } = useSubscriptionStatus(orgId);
+  const { status: subscriptionStatus, latestEndDate, isPlanFree } = useSubscriptionStatus(orgId);
 
   // Modo soporte: super_admin con organization impersonada - debe definirse ANTES del useEffect
   const isInSupportMode = isSuperAdmin && impersonatedOrgId !== null;
@@ -150,6 +150,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     navItems = [...adminItems, { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar }, { name: terminology.noticesLabel, path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
+  }
+
+  // Plan gratuito: ocultar secciones restringidas
+  if (isPlanFree) {
+    navItems = navItems.filter(
+      (item) =>
+        item.path !== '/maintenance' &&
+        item.path !== '/admin' &&
+        item.path !== '/admin/statistics'
+    );
   }
 
   // Función para salir del modo soporte

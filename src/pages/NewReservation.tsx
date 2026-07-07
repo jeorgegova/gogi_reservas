@@ -58,7 +58,7 @@ export default function NewReservationPage() {
       });
     }
   }, [profile?.organization_id]);
-  const { status: subscriptionStatus, daysUntilExpiry, previousSubscriptionExpiredBeyond20Days, loading: subscriptionLoading } = useSubscriptionStatus(profile?.organization_id);
+  const { status: subscriptionStatus, daysUntilExpiry, previousSubscriptionExpiredBeyond20Days, loading: subscriptionLoading, maxReservationsPerDay, todayReservationsCount } = useSubscriptionStatus(profile?.organization_id);
   const navigate = useNavigate();
   const { id } = useParams();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
@@ -252,6 +252,13 @@ export default function NewReservationPage() {
     }
 
     if (isGuestUser && isEditing) return { title: 'Invitado', message: 'Como invitado no puedes editar reservas.' };
+
+    if (maxReservationsPerDay !== null && todayReservationsCount >= maxReservationsPerDay && !isAdmin) {
+      return {
+        title: 'Límite diario alcanzado',
+        message: `Has alcanzado el límite de ${maxReservationsPerDay} reservas por día. Intenta de nuevo mañana o contacta al administrador.`
+      };
+    }
 
     return null;
   })();

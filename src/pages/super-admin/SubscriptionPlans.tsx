@@ -30,8 +30,10 @@ export default function SuperAdminSubscriptionPlans() {
     price: '',
     duration_in_days: '',
     max_reservations: '',
+    max_reservations_per_day: '',
     features: ''
   });
+  const [isUnlimitedDuration, setIsUnlimitedDuration] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState<{
     open: boolean;
@@ -106,8 +108,10 @@ export default function SuperAdminSubscriptionPlans() {
         price: plan.price?.toString() || '',
         duration_in_days: plan.duration_in_days?.toString() || '',
         max_reservations: plan.max_reservations?.toString() || '',
+        max_reservations_per_day: plan.max_reservations_per_day?.toString() || '',
         features: plan.features ? JSON.stringify(plan.features, null, 2) : ''
       });
+      setIsUnlimitedDuration(plan.duration_in_days === 36500);
     } else {
       setEditingPlan(null);
       setFormData({
@@ -116,8 +120,10 @@ export default function SuperAdminSubscriptionPlans() {
         price: '',
         duration_in_days: '',
         max_reservations: '',
+        max_reservations_per_day: '',
         features: ''
       });
+      setIsUnlimitedDuration(false);
     }
     setIsModalOpen(true);
   };
@@ -133,6 +139,7 @@ export default function SuperAdminSubscriptionPlans() {
         price: parseFloat(formData.price),
         duration_in_days: parseInt(formData.duration_in_days),
         max_reservations: formData.max_reservations ? parseInt(formData.max_reservations) : null,
+        max_reservations_per_day: formData.max_reservations_per_day ? parseInt(formData.max_reservations_per_day) : null,
         features: formData.features ? JSON.parse(formData.features) : null
       };
 
@@ -174,11 +181,32 @@ export default function SuperAdminSubscriptionPlans() {
   };
 
   const deletePlan = async (planId: string) => {
-    showConfirm(
-      '¿Estás seguro de eliminar este plan?',
-      'Las organizaciones con suscripciones activas no se verán afectadas. Esta acción no se puede deshacer.',
-      async () => {
-        try {
+    try {
+      const { count } = await supabase
+        .from('subscriptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('plan_id', planId);
+
+      if (count && count > 0) {
+        showConfirm(
+          'No se puede eliminar este plan',
+          `Este plan tiene ${count} suscripción(es) asociada(s). ¿Quieres desactivarlo en vez de eliminarlo?`,
+          async () => {
+            await supabase
+              .from('subscription_plans')
+              .update({ is_active: false })
+              .eq('id', planId);
+            fetchPlans();
+          },
+          'default'
+        );
+        return;
+      }
+
+      showConfirm(
+        '¿Estás seguro de eliminar este plan?',
+        'Esta acción no se puede deshacer.',
+        async () => {
           const { error } = await supabase
             .from('subscription_plans')
             .delete()
@@ -186,13 +214,13 @@ export default function SuperAdminSubscriptionPlans() {
 
           if (error) throw error;
           fetchPlans();
-        } catch (error: any) {
-          console.error('Error deleting plan:', error);
-          showAlert('Error al eliminar', error.message, 'destructive');
-        }
-      },
-      'destructive'
-    );
+        },
+        'destructive'
+      );
+    } catch (error: any) {
+      console.error('Error al eliminar plan:', error);
+      showAlert('Error al eliminar', error.message, 'destructive');
+    }
   };
 
   return (
@@ -226,7 +254,7 @@ export default function SuperAdminSubscriptionPlans() {
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Precio</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duración</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Máx Reservas</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Límite Diario</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Estado</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
@@ -235,14 +263,14 @@ export default function SuperAdminSubscriptionPlans() {
                 {loading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={6} className="px-6 py-6">
+                      <td                       colSpan={6} className="px-6 py-6">
                         <div className="h-4 bg-gray-100 rounded-full w-full" />
                       </td>
                     </tr>
                   ))
                 ) : plans.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                    <td                       colSpan={6} className="px-6 py-12 text-center text-gray-400">
                       No hay planes de suscripción configurados.
                     </td>
                   </tr>
@@ -261,11 +289,11 @@ export default function SuperAdminSubscriptionPlans() {
                         <div className="font-bold text-gray-900">{formatCurrency(plan.price)}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-gray-700">{plan.duration_in_days} días</div>
+                        <div className="text-gray-700">{plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-gray-700">
-                          {plan.max_reservations ? `${plan.max_reservations} reservas` : 'Ilimitado'}
+                          {plan.max_reservations_per_day ? `${plan.max_reservations_per_day}/día` : 'Sin límite'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -370,11 +398,11 @@ export default function SuperAdminSubscriptionPlans() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                      <div className="bg-gray-50 border border-gray-100 rounded-lg p-2.5 flex flex-col items-start gap-1">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duración</span>
-                        <span className="font-semibold text-gray-700">{plan.duration_in_days} días</span>
+                        <span className="font-semibold text-gray-700">{plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}</span>
                      </div>
                      <div className="bg-gray-50 border border-gray-100 rounded-lg p-2.5 flex flex-col items-start gap-1">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Máx Reservas</span>
-                        <span className="font-semibold text-gray-700">{plan.max_reservations ? `${plan.max_reservations} reservas` : 'Ilimitado'}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Límite Diario</span>
+                        <span className="font-semibold text-gray-700">{plan.max_reservations_per_day ? `${plan.max_reservations_per_day}/día` : 'Sin límite'}</span>
                      </div>
                   </div>
 
@@ -450,23 +478,42 @@ export default function SuperAdminSubscriptionPlans() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Duración (días)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Duración (días)</Label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isUnlimitedDuration}
+                        onChange={(e) => {
+                          setIsUnlimitedDuration(e.target.checked);
+                          if (e.target.checked) {
+                            setFormData({ ...formData, duration_in_days: '36500' });
+                          } else {
+                            setFormData({ ...formData, duration_in_days: '' });
+                          }
+                        }}
+                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Sin límite</span>
+                    </label>
+                  </div>
                   <Input
                     type="number"
                     value={formData.duration_in_days}
                     onChange={e => setFormData({ ...formData, duration_in_days: e.target.value })}
-                    placeholder="30"
+                    placeholder={isUnlimitedDuration ? '36500' : '30'}
+                    disabled={isUnlimitedDuration}
                     required
                     className="h-11 rounded-xl"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Máx Reservas (opcional)</Label>
+                  <Label className="text-[10px] uppercase font-bold text-gray-400 ml-1">Límite Diario (opcional)</Label>
                   <Input
                     type="number"
-                    value={formData.max_reservations}
-                    onChange={e => setFormData({ ...formData, max_reservations: e.target.value })}
-                    placeholder="100"
+                    value={formData.max_reservations_per_day}
+                    onChange={e => setFormData({ ...formData, max_reservations_per_day: e.target.value })}
+                    placeholder="5"
                     className="h-11 rounded-xl"
                   />
                 </div>

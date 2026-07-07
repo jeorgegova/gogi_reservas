@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { startOfMonth, isAfter, parseISO, startOfDay, format } from 'date-fns';
+import { sendReservationEmail } from '@/lib/emailService';
 
 export default function MyReservationsPage() {
   const { profile, terminology } = useAuth();
@@ -200,7 +201,12 @@ export default function MyReservationsPage() {
       .eq('id', reservationToCancel)
       .eq('organization_id', profile?.organization_id);
 
-    if (!error) fetchReservations();
+    if (!error) {
+      fetchReservations();
+      if (profile?.organization_id) {
+        sendReservationEmail(reservationToCancel, profile.organization_id, 'cancelled');
+      }
+    }
     setIsCancelAlertOpen(false);
     setReservationToCancel(null);
   };

@@ -65,26 +65,27 @@ export function ImageReveal({
 
     const ctx = gsap.context(() => {
       if (isMobile) {
-        // Móvil: fade y scale simples
+        // Móvil: fade y scale suaves
         gsap.fromTo(
           containerRef.current,
-          { opacity: 0, y: 30 },
+          { opacity: 0.4, y: 20 },
           {
             opacity: 1,
             y: 0,
+            duration: 0.6,
             ease: 'power2.out',
             scrollTrigger: {
               trigger: containerRef.current,
-              start: 'top 90%',
-              end: 'top 60%',
-              scrub: 0.5,
+              start: 'top 92%',
+              end: 'top 65%',
+              scrub: 0.4,
             },
           }
         );
 
         gsap.fromTo(
           target,
-          { scale: 1.05 },
+          { scale: 1.03 },
           {
             scale: 1,
             ease: 'none',
@@ -92,7 +93,7 @@ export function ImageReveal({
               trigger: containerRef.current,
               start,
               end,
-              scrub: 0.6,
+              scrub: 0.5,
             },
           }
         );

@@ -46,9 +46,9 @@ export function ShowcaseSection() {
   }, [reducedMotion]);
 
   return (
-    <section ref={sectionRef} id="funcionalidades" className="relative py-16 md:py-48 px-5 md:px-6 bg-white overflow-hidden">
+    <section ref={sectionRef} id="funcionalidades" className="relative py-12 md:py-48 px-5 md:px-6 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-8 md:gap-16 lg:gap-24 items-center">
+        <div className="grid lg:grid-cols-2 gap-6 md:gap-16 lg:gap-24 items-center">
           {/* Text content */}
           <div className="space-y-6 md:space-y-8">
             <TextReveal
@@ -73,7 +73,7 @@ export function ShowcaseSection() {
               Cada interacción fue diseñada para reducir la fricción. Desde la reserva hasta la confirmación, todo fluye con naturalidad.
             </TextReveal>
 
-            <div className="space-y-6 md:space-y-8">
+          <div className="space-y-4 md:space-y-8">
               {[
                 { img: calendarioGris, text: 'Calendario visual claro e intuitivo' },
                 { img: notificaciones, text: 'Recordatorios automáticos para todos' },
@@ -88,26 +88,26 @@ export function ShowcaseSection() {
           </div>
 
           {/* Image reveals */}
-          <div className="order-1 lg:order-2 relative">
+          <div className="order-first lg:order-2 relative">
             <div className="relative z-10">
               <ImageReveal
                 direction="up"
                 start="top 85%"
                 end="top 40%"
-                containerClassName="rounded-[1.75rem] md:rounded-[2.5rem] shadow-2xl shadow-slate-900/10"
+                containerClassName="rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-slate-900/10"
               >
-                <img src={interfazImg} alt="Interfaz GoGi Reservas" className="w-full h-auto object-cover" />
+                <img src={interfazImg} alt="Interfaz GoGi Reservas" className="w-full h-auto object-cover" loading="lazy" />
               </ImageReveal>
             </div>
 
-            <div className="relative z-20 -mt-10 md:-mt-20 ml-8 md:ml-24">
+            <div className="relative z-20 -mt-8 md:-mt-20 ml-6 md:ml-24">
               <ImageReveal
                 direction="left"
                 start="top 90%"
                 end="top 45%"
-                containerClassName="rounded-[1.75rem] md:rounded-[2.5rem] shadow-2xl shadow-slate-900/10 w-[85%]"
+                containerClassName="rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-slate-900/10 w-[85%]"
               >
-                <img src={loginImg} alt="Inicio de sesión GoGi Reservas" className="w-full h-auto object-cover" />
+                <img src={loginImg} alt="Inicio de sesión GoGi Reservas" className="w-full h-auto object-cover" loading="lazy" />
               </ImageReveal>
             </div>
 

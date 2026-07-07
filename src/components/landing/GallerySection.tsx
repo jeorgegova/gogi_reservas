@@ -239,27 +239,27 @@ export function GallerySection() {
     <section
       ref={sectionRef}
       id="industrias"
-      className="relative md:h-screen md:overflow-hidden bg-slate-950 py-16 md:py-0"
+      className="relative md:h-screen md:overflow-hidden bg-slate-950 py-12 md:py-0"
     >
       {/* Fondo con doble gradiente radial premium (Índigo y Rose) */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(99,102,241,0.12),transparent_60%),radial-gradient(circle_at_80%_75%,rgba(244,63,94,0.08),transparent_60%)] pointer-events-none" />
 
-      <div className="md:absolute md:top-24 md:left-6 lg:left-12 z-10 max-w-none px-6 md:px-0 mb-8 md:mb-0">
-        <TextReveal
-          as="h2"
-          splitBy="word"
-          className="text-2xl md:text-4xl lg:text-5xl font-semibold text-white tracking-tight"
-          start="top 80%"
-          end="top 60%"
-          scrub={0.6}
-        >
+      <div className="md:absolute md:top-24 md:left-6 lg:left-12 z-10 max-w-none px-6 md:px-0 mb-4 md:mb-0">
+          <TextReveal
+            as="h2"
+            splitBy="word"
+            className="text-xl md:text-4xl lg:text-5xl font-semibold text-white tracking-tight"
+            start="top 80%"
+            end="top 60%"
+            scrub={0.6}
+          >
           Diseñado para cada industria.
         </TextReveal>
       </div>
 
       {/* Móvil: scroll horizontal nativo con snap */}
-      <div className="md:hidden overflow-x-auto pb-6 px-6 snap-x snap-mandatory scrollbar-hide -mx-6">
-        <div className="flex gap-5 w-max pr-6">
+      <div className="md:hidden overflow-x-auto pb-4 px-6 snap-x snap-mandatory scrollbar-hide -mx-6">
+        <div className="flex gap-4 w-max pr-6">
           {GALLERY_ITEMS.map((item, index) => renderCard(item, index))}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Calendar, Mail, Clock, Phone, ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import logoConTexto from '@/assets/LogoConTexto.png';
+import logoConTextoSinfondo from '@/assets/LogoConTextoSinfondo.png';
 
 const footerLinks = [
   { label: 'Inicio', to: '/' },
@@ -14,11 +14,11 @@ export function Footer() {
     <>
     <footer className="bg-slate-950">
       {/* CTA */}
-      <div className="max-w-7xl mx-auto px-5 md:px-6 py-14 md:py-32 text-center">
-        <h2 className="text-3xl md:text-4xl lg:text-5xl xl:text-7xl font-semibold text-white tracking-tight mb-4 md:mb-6">
+      <div className="max-w-7xl mx-auto px-5 md:px-6 py-12 md:py-32 text-center">
+        <h2 className="text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-semibold text-white tracking-tight mb-3 md:mb-6">
           Empieza a gestionar tus reservas hoy.
         </h2>
-        <p className="text-base md:text-lg lg:text-xl text-slate-400 max-w-2xl mx-auto mb-8 md:mb-12">
+        <p className="text-sm md:text-lg lg:text-xl text-slate-400 max-w-2xl mx-auto mb-6 md:mb-12">
           Únete a las organizaciones que ya confían en GoGi Reservas para ofrecer una experiencia premium.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
@@ -52,7 +52,7 @@ export function Footer() {
             {/* Brand */}
             <div className="space-y-4">
               <Link to="/" className="inline-block">
-                <img src={logoConTexto} alt="GoGi Reservas" className="h-10 md:h-12 w-auto brightness-0 invert" />
+                <img src={logoConTextoSinfondo} alt="GoGi Reservas" className="h-14 md:h-20 w-auto brightness-0 invert" />
               </Link>
               <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
                 La plataforma donde cada espacio, servicio y momento se gestiona con la elegancia de una experiencia premium.

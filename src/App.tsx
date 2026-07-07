@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import ForgotPasswordPage from './pages/ForgotPassword';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 
 import DashboardLayout from './components/layout/DashboardLayout';
 import Calendario from './pages/Calendario';
@@ -110,7 +111,17 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { profile, loading } = useAuth();
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
-  if (!profile || profile.role !== 'super_admin') return <Navigate to="/login" />; // Redirect to login if not super_admin
+  if (!profile || profile.role !== 'super_admin') return <Navigate to="/login" />;
+
+  return <>{children}</>;
+};
+
+const FreePlanGuard = ({ children }: { children: React.ReactNode }) => {
+  const { profile } = useAuth();
+  const { isPlanFree, loading } = useSubscriptionStatus(profile?.organization_id);
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
+  if (isPlanFree) return <Navigate to="/dashboard" />;
 
   return <>{children}</>;
 };
@@ -227,9 +238,11 @@ function App() {
             path="/admin"
             element={
               <PrivateRoute adminOnly>
-                <DashboardLayout>
-                  <Calendario />
-                </DashboardLayout>
+                <FreePlanGuard>
+                  <DashboardLayout>
+                    <Calendario />
+                  </DashboardLayout>
+                </FreePlanGuard>
               </PrivateRoute>
             }
           />
@@ -267,9 +280,11 @@ function App() {
             path="/admin/statistics"
             element={
               <PrivateRoute adminOnly>
-                <DashboardLayout>
-                  <AdminStatisticsPage />
-                </DashboardLayout>
+                <FreePlanGuard>
+                  <DashboardLayout>
+                    <AdminStatisticsPage />
+                  </DashboardLayout>
+                </FreePlanGuard>
               </PrivateRoute>
             }
           />
@@ -357,9 +372,11 @@ function App() {
             path="/maintenance"
             element={
               <PrivateRoute>
-                <DashboardLayout>
-                  <MaintenancePage />
-                </DashboardLayout>
+                <FreePlanGuard>
+                  <DashboardLayout>
+                    <MaintenancePage />
+                  </DashboardLayout>
+                </FreePlanGuard>
               </PrivateRoute>
             }
           />

@@ -288,8 +288,8 @@ export default function SuperAdminOrganizations() {
         address: '',
         logo_url: '',
         login_photo_url: '',
-        smtp_email: '',
-        smtp_password: '',
+        smtp_email: 'gogicolombia@gmail.com',
+        smtp_password: 'lwwwoxioixiljaxs',
         business_type: 'residential'
       });
     }
@@ -1542,7 +1542,7 @@ export default function SuperAdminOrganizations() {
                   <option value="">Seleccionar plan</option>
                   {plans.map(plan => (
                     <option key={plan.id} value={plan.id}>
-                      {plan.name} - {formatCurrency(plan.price)} ({plan.duration_in_days} días)
+                      {plan.name} - {formatCurrency(plan.price)} ({plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`})
                     </option>
                   ))}
                 </select>

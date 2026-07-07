@@ -169,19 +169,18 @@ export function FeaturesSection() {
     <section
       ref={sectionRef}
       id="caracteristicas"
-      className="relative bg-white"
-      style={{ height: reducedMotion ? 'auto' : '400vh' }}
+      className="relative bg-white lg:h-[400vh]"
     >
       {reducedMotion ? (
-        <div className="relative z-10 py-16 md:py-32 px-6 max-w-7xl mx-auto">
+        <div className="relative z-10 py-12 md:py-32 px-6 max-w-7xl mx-auto">
           <FloatingIcons />
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-900 mb-10 md:mb-16 text-center">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-900 mb-8 md:mb-16 text-center">
             Todo lo que necesitas.
           </h2>
-          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+          <div className="grid md:grid-cols-2 gap-4 md:gap-8">
             {FEATURES.map((feature) => (
-              <div key={feature.id} className="p-6 md:p-8 rounded-3xl bg-slate-50">
-                <img src={feature.iconImage} alt="" className="h-12 w-12 md:h-16 md:w-16 object-contain mb-4" />
+              <div key={feature.id} className="p-5 md:p-8 rounded-3xl bg-slate-50">
+                <img src={feature.iconImage} alt="" className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-4" />
                 <h3 className="text-lg md:text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
                 <p className="text-slate-500 leading-relaxed text-sm md:text-base">{feature.description}</p>
               </div>
@@ -191,16 +190,16 @@ export function FeaturesSection() {
       ) : (
         <div
           ref={pinRef}
-          className="relative z-10 lg:h-screen w-full flex items-center justify-center px-5 md:px-6 py-12 md:py-24 lg:py-0"
+          className="relative z-10 lg:h-screen w-full flex items-center justify-center px-5 md:px-6 py-8 md:py-24 lg:py-0"
         >
           <FloatingIcons />
-          <div className="relative z-10 max-w-7xl w-full mx-auto grid lg:grid-cols-2 gap-10 md:gap-12 lg:gap-24 items-center">
+          <div className="relative z-10 max-w-7xl w-full mx-auto grid lg:grid-cols-2 gap-6 md:gap-12 lg:gap-24 items-center">
             {/* Visual */}
             <div
               ref={visualRef}
-              className="relative w-full order-1 lg:order-1"
+              className="relative w-full order-first lg:order-1"
             >
-              <div className="relative w-full min-h-[300px] md:min-h-[400px]">
+              <div className="relative w-full min-h-[220px] md:min-h-[400px]">
                 {FEATURES.map((feature, index) => (
                   <div
                     key={feature.id}
@@ -229,10 +228,10 @@ export function FeaturesSection() {
                   className={cn(
                     'lg:absolute lg:inset-0 flex flex-col justify-center will-change-transform',
                     index === 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0',
-                    'mb-10 md:mb-12 lg:mb-0 last:mb-0'
+                    'mb-6 md:mb-12 lg:mb-0 last:mb-0'
                   )}
                 >
-                  <img src={feature.iconImage} alt="" className="h-12 w-12 md:h-16 md:w-16 object-contain mb-4 md:mb-6" />
+                  <img src={feature.iconImage} alt="" className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-6" />
                   <h3 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-semibold text-slate-900 tracking-tight mb-3 md:mb-4">
                     {feature.title}
                   </h3>

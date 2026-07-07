@@ -10,15 +10,25 @@ interface SubscriptionStatusInfo {
   daysUntilExpiry?: number;
   loading: boolean;
   previousSubscriptionExpiredBeyond20Days?: boolean;
+  maxReservationsPerDay: number | null;
+  todayReservationsCount: number;
+  isPlanFree: boolean;
 }
 
 
 export function useSubscriptionStatus(organizationId: string | undefined): SubscriptionStatusInfo {
-  const [statusInfo, setStatusInfo] = useState<SubscriptionStatusInfo>({ status: 'inactive', hasSubscription: false, loading: true });
+  const [statusInfo, setStatusInfo] = useState<SubscriptionStatusInfo>({ 
+    status: 'inactive', 
+    hasSubscription: false, 
+    loading: true,
+    maxReservationsPerDay: null,
+    todayReservationsCount: 0,
+    isPlanFree: false
+  });
 
   useEffect(() => {
     if (!organizationId) {
-      setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false });
+      setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false, maxReservationsPerDay: null, todayReservationsCount: 0, isPlanFree: false });
       return;
     }
 
@@ -34,18 +44,51 @@ export function useSubscriptionStatus(organizationId: string | undefined): Subsc
         // Then get top 2 subscription details (most recent first)
         const { data, error } = await supabase
           .from('subscriptions')
-          .select('id, end_date, status, updated_at')
+          .select('id, end_date, status, updated_at, plan_id')
           .eq('organization_id', organizationId)
           .order('updated_at', { ascending: false })
           .limit(2);
 
         if (error) {
           console.error('Error fetching subscription:', error);
-          setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false });
+          setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false, maxReservationsPerDay: null, todayReservationsCount: 0, isPlanFree: false });
           return;
         }
 
-        // Check if previous subscription (second one) is expired beyond 20 days
+        // Also fetch the active plan's daily limit and count today's reservations
+        let maxReservationsPerDay: number | null = null;
+        let todayReservationsCount = 0;
+        let isPlanFree = false;
+        
+        if (data && data.length > 0) {
+          const activeSubscription = data[0];
+          const { data: planData } = await supabase
+            .from('subscription_plans')
+            .select('max_reservations_per_day, price')
+            .eq('id', activeSubscription.plan_id)
+            .single();
+          
+          maxReservationsPerDay = planData?.max_reservations_per_day ?? null;
+          isPlanFree = (planData?.price ?? 1) === 0;
+          
+          if (maxReservationsPerDay !== null) {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date();
+            todayEnd.setHours(23, 59, 59, 999);
+            
+            const { count } = await supabase
+              .from('reservations')
+              .select('*', { count: 'exact', head: true })
+              .eq('organization_id', organizationId)
+              .gte('start_datetime', todayStart.toISOString())
+              .lte('start_datetime', todayEnd.toISOString())
+              .not('status', 'in', '("cancelled","rejected")');
+            
+            todayReservationsCount = count ?? 0;
+          }
+        }
+        
         let previousSubscriptionExpiredBeyond20Days = false;
         if (data && data.length >= 2) {
           const previousSubscription = data[1]; // Second most recent
@@ -63,10 +106,13 @@ export function useSubscriptionStatus(organizationId: string | undefined): Subsc
               hasSubscription: true, 
               latestEndDate: orgData.subscription_end_date,
               loading: false,
-              previousSubscriptionExpiredBeyond20Days: false
+              previousSubscriptionExpiredBeyond20Days: false,
+              maxReservationsPerDay: null,
+              todayReservationsCount: 0,
+              isPlanFree: false
             });
           } else {
-            setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false });
+            setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false, maxReservationsPerDay: null, todayReservationsCount: 0, isPlanFree: false });
           }
           return;
         }
@@ -141,11 +187,14 @@ export function useSubscriptionStatus(organizationId: string | undefined): Subsc
           latestEndDate: latestSubscription.end_date,
           daysUntilExpiry,
           loading: false,
-          previousSubscriptionExpiredBeyond20Days
+          previousSubscriptionExpiredBeyond20Days,
+          maxReservationsPerDay,
+          todayReservationsCount,
+          isPlanFree
         });
       } catch (error) {
         console.error('Error fetching subscription status:', error);
-        setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false });
+        setStatusInfo({ status: 'inactive', hasSubscription: false, loading: false, maxReservationsPerDay: null, todayReservationsCount: 0, isPlanFree: false });
       }
     };
 

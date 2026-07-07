@@ -19,6 +19,22 @@ interface SubscriptionPlan {
 
 const STATIC_PLANS: SubscriptionPlan[] = [
   {
+    id: 'static-gratuito',
+    name: 'Plan Gratuito',
+    description: 'Perfecto para probar la plataforma sin compromiso. Gestiona hasta 5 reservas diarias.',
+    price: 0,
+    duration_in_days: 36500,
+    max_reservations: null,
+    is_active: true,
+    features: [
+      'Hasta 5 reservas diarias',
+      '1 Sede / Organización',
+      'Recordatorios por correo',
+      'Panel de administración móvil',
+      'Sin costo, para siempre'
+    ]
+  },
+  {
     id: 'static-basico',
     name: 'Plan Emprendedor',
     description: 'Perfecto para profesionales independientes y locales pequeños que inician su digitalización.',
@@ -165,18 +181,18 @@ export function PricingSection() {
     <section
       ref={sectionRef}
       id="precios"
-      className="relative py-24 md:py-32 px-5 md:px-6 bg-slate-50 overflow-hidden"
+      className="relative py-16 md:py-32 px-5 md:px-6 bg-slate-50 overflow-hidden"
     >
       {/* Decorative Blur Backgrounds */}
       <div className="absolute top-0 right-1/4 w-[350px] h-[350px] rounded-full bg-indigo-500/5 blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-16 md:mb-24">
+        <div className="text-center max-w-3xl mx-auto mb-12 md:mb-24">
           <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-indigo-50 px-3 py-1.5 rounded-full">
             Planes flexibles
           </span>
-          <h2 className="text-3xl md:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-6">
+          <h2 className="text-2xl md:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6">
             Precios simples y transparentes
           </h2>
           <p className="text-base md:text-lg text-slate-500 leading-relaxed">
@@ -192,10 +208,10 @@ export function PricingSection() {
         ) : (
           <div
             ref={cardsRef}
-            className="grid md:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto"
+            className="grid md:grid-cols-4 gap-8 items-stretch max-w-6xl mx-auto"
           >
             {plans.map((plan, index) => {
-              const isPopular = index === 1; // Mark second plan (Pro) as recommended
+              const isPopular = index === 2; // Profesional es el recomendado
               const features = getFeaturesList(plan);
 
               return (
@@ -227,7 +243,7 @@ export function PricingSection() {
                         {formatPrice(plan.price)}
                       </span>
                       <span className="text-sm text-slate-400 font-medium ml-2">
-                        / {plan.duration_in_days} días
+                        / {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
                       </span>
                     </div>
 

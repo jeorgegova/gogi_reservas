@@ -34,14 +34,14 @@ export function HeroSection() {
           scale: 1,
         },
         {
-          opacity: isMobile ? 0.3 : 0.1,
-          scale: isMobile ? 0.96 : 0.92,
+          opacity: isMobile ? 0.5 : 0.1,
+          scale: isMobile ? 0.98 : 0.92,
           filter: isMobile ? 'blur(0px)' : 'blur(8px)',
           ease: 'none',
           scrollTrigger: {
             trigger: sectionRef.current,
             start: 'top top',
-            end: 'bottom top',
+            end: 'bottom center',
             scrub: 0.5,
           },
         }
@@ -73,7 +73,7 @@ export function HeroSection() {
     <section
       ref={sectionRef}
       id="hero"
-      className="relative min-h-[130vh] md:min-h-[150vh] flex flex-col items-center justify-start overflow-hidden bg-white"
+      className="relative min-h-screen md:min-h-[150vh] flex flex-col items-center justify-start overflow-hidden bg-white"
     >
       {/* Fondo superior */}
       <div className="absolute inset-0 z-0">
@@ -81,13 +81,14 @@ export function HeroSection() {
           src={fondoSuperior}
           alt=""
           className="w-full h-full object-cover"
+          loading="eager"
         />
         <div className="absolute inset-0 bg-white/30" />
       </div>
 
       {/* Capas parallax de fondo sutiles */}
       <ParallaxLayer
-        speed={0.15}
+        speed={0.08}
         direction="up"
         className="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
       >
@@ -97,21 +98,21 @@ export function HeroSection() {
       {/* Contenido principal */}
       <div
         ref={contentRef}
-        className="sticky top-0 h-screen w-full flex flex-col items-center justify-center px-5 md:px-6 will-change-transform z-10"
+        className="sticky top-0 h-screen w-full flex flex-col items-center justify-center px-5 md:px-6 will-change-[opacity,transform] z-10"
       >
         <div className="max-w-6xl mx-auto text-center">
           <div className="flex justify-center mb-2 md:mb-3">
             <img
               src={logoConTexto}
               alt="GoGi Reservas"
-              className={`h-40 md:h-52 w-auto object-contain ${!reducedMotion ? 'animate-float' : ''}`}
+              className={`h-32 md:h-52 w-auto object-contain ${!reducedMotion ? 'animate-float' : ''}`}
             />
           </div>
 
           <TextReveal
             as="h1"
             splitBy="word"
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-semibold tracking-tight text-slate-900 leading-[1.08] md:leading-[1.05]"
+            className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-semibold tracking-tight text-slate-900 leading-[1.08] md:leading-[1.05]"
             start="top 75%"
             end="top 45%"
             scrub={0.7}
@@ -119,8 +120,8 @@ export function HeroSection() {
             Más reservas, Menos complicaciones.
           </TextReveal>
 
-          <div className="mt-6 md:mt-10 max-w-xl md:max-w-2xl mx-auto px-2 md:px-0">
-            <p ref={subtitleRef} className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-500 leading-relaxed">
+          <div className="mt-4 md:mt-10 max-w-xl md:max-w-2xl mx-auto px-2 md:px-0">
+            <p ref={subtitleRef} className="text-sm sm:text-lg md:text-xl lg:text-2xl text-slate-500 leading-relaxed">
               Organiza tu agenda, automatiza tus reservas y brinda una experiencia profesional desde el primer clic.
             </p>
           </div>
@@ -128,7 +129,7 @@ export function HeroSection() {
         </div>
 
         {/* Indicador de scroll */}
-        <div className="absolute bottom-8 md:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 md:gap-3 text-slate-400">
+        <div className="absolute bottom-6 md:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 md:gap-3 text-slate-400">
           <span className="text-[10px] md:text-xs tracking-widest uppercase font-medium">Scroll</span>
           <ArrowDown className="w-4 h-4 md:w-5 md:h-5 animate-bounce-soft" />
         </div>
