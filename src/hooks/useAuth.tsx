@@ -237,8 +237,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!saved) return false;
     try {
       const data = JSON.parse(saved);
+
+      let guestProfileId = data.guestUserId;
+      if (!guestProfileId && data.orgId) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('guest_user_id')
+          .eq('id', data.orgId)
+          .single();
+        guestProfileId = org?.guest_user_id;
+      }
+
       const guestProfile: Profile = {
-        id: data.orgId || 'guest',
+        id: guestProfileId || data.orgId || 'guest',
         email: 'guest@guest.com',
         full_name: null,
         phone: null,
@@ -280,7 +291,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isGuestRef.current = true;
         setProfile(guestProfile);
         setIsGuest(true);
-        localStorage.setItem('guestSession', JSON.stringify({ orgSlug: orgSlug || data.organizations?.slug, orgId: orgId || data.organization_id }));
+        localStorage.setItem('guestSession', JSON.stringify({ guestUserId: data.id, orgSlug: orgSlug || data.organizations?.slug, orgId: orgId || data.organization_id }));
       }
     } catch (error) {
       console.error('useAuth: Error fetching guest profile:', error);

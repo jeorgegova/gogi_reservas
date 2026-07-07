@@ -80,26 +80,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const slug = organization?.slug;
     const wasInSupportMode = isInSupportMode;
 
-    // Limpiar modo soporte antes de cerrar sesión
     if (wasInSupportMode) {
       setImpersonatedOrgId(null);
     }
 
-    // Guardar el slug en localStorage para recordar la organización
     if (slug) {
       localStorage.setItem('lastOrganizationSlug', slug);
     }
 
     await signOut();
 
+    // window.location.href para evitar que PrivateRoute redirija a / con Navigate
     if (wasInSupportMode) {
-      navigate('/super-admin/organizations');
-    } else if (profile?.role === 'super_admin') {
-      navigate('/');
+      window.location.href = '/super-admin/organizations';
     } else if (slug) {
-      navigate(`/${slug}/login`);
+      window.location.href = `/${slug}/login`;
     } else {
-      navigate('/');
+      window.location.href = '/';
     }
   };
 

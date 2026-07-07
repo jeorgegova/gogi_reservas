@@ -231,19 +231,27 @@ export default function NewReservationPage() {
 
   const blockingError = (() => {
     if (subscriptionLoading) return null;
-    if (subscriptionStatus === 'cancelled') return 'Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.';
-    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return 'Servicio temporalmente inhabilitado.';
+    if (subscriptionStatus === 'cancelled') return { title: 'Suscripción cancelada', message: 'Tu suscripción ha sido cancelada. Contacta al administrador para reactivar tu cuenta.' };
+    if (subscriptionStatus === 'inactive' || (subscriptionStatus === 'past_due' && daysUntilExpiry !== undefined && daysUntilExpiry < -20) || (subscriptionStatus === 'past_due' && previousSubscriptionExpiredBeyond20Days)) return { title: 'Servicio temporalmente inhabilitado', message: 'Servicio temporalmente inhabilitado.' };
 
     if (isEditing && reservationToEdit) {
-      if (reservationToEdit.user_id !== profile?.id && !isAdmin) return `No tienes permiso para editar esta reserva.`;
-      if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return `La reserva ya se validó y no se puede editar.`;
+      if (reservationToEdit.user_id !== profile?.id && !isAdmin) return { title: 'Sin permisos', message: 'No tienes permiso para editar esta reserva.' };
+      if (reservationToEdit.status !== 'pending_validation' && !isAdmin) return { title: 'Reserva ya validada', message: 'La reserva ya se validó y no se puede editar.' };
     }
 
-    if (!isAdmin && !isEditing && hasPendingReservation && !isGuestUser) {
-      return `Tienes una reserva pendiente de pago o validación. Debes completar el pago o esperar aprobación antes de hacer una nueva.`;
+    if (hasPendingReservation && !isGuestUser) {
+      const showBlock = !isAdmin || (isAdmin && selectedUserId);
+      if (showBlock) {
+        return {
+          title: 'Reserva pendiente',
+          message: isAdmin
+            ? 'El cliente seleccionado tiene una reserva pendiente. No puede realizar un nuevo servicio hasta que se complete la actual.'
+            : 'Tienes una reserva pendiente. No puedes solicitar un nuevo servicio hasta que se complete la actual.'
+        };
+      }
     }
 
-    if (isGuestUser && isEditing) return `Como invitado no puedes editar reservas.`;
+    if (isGuestUser && isEditing) return { title: 'Invitado', message: 'Como invitado no puedes editar reservas.' };
 
     return null;
   })();
@@ -806,7 +814,18 @@ export default function NewReservationPage() {
       return;
     }
 
-    const reservationUserId = (isAdmin && selectedUserId) ? selectedUserId : profile.id;
+    let reservationUserId = (isAdmin && selectedUserId) ? selectedUserId : profile.id;
+
+    if (isGuestUser && profile?.organization_id) {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('guest_user_id')
+        .eq('id', profile.organization_id)
+        .single();
+      if (org?.guest_user_id && org.guest_user_id !== profile.id) {
+        reservationUserId = org.guest_user_id;
+      }
+    }
 
     const reservationData: any = {
       user_id: reservationUserId,
@@ -886,8 +905,8 @@ export default function NewReservationPage() {
               <HelpCircle className="w-12 h-12" />
             </div>
           </div>
-          <CardTitle className="text-xl mb-4">Servicio temporalmente inhabilitado</CardTitle>
-          <CardDescription className="text-base mb-6">{blockingError}</CardDescription>
+          <CardTitle className="text-xl mb-4">{blockingError.title}</CardTitle>
+          <CardDescription className="text-base mb-6">{blockingError.message}</CardDescription>
           <Button onClick={() => navigate('/reservations/my')}>Ver mis reservas</Button>
         </Card>
       </div>

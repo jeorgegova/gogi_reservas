@@ -10,6 +10,7 @@ import {
   formatCurrency,
   formatDate,
   formatTime,
+  detoxTime,
   cn
 } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
@@ -460,7 +461,7 @@ export default function AdminReservationsPage() {
               ) : (
                 filteredReservations.map((res) => {
                   const statusInfo = getStatusInfo(res.status);
-                  const isPast = new Date(res.end_datetime).getTime() < new Date().getTime();
+                  const isPast = new Date(detoxTime(res.end_datetime)).getTime() < new Date().getTime();
                   return (
                     <tr key={res.id} className={cn(
                       "hover:bg-gray-50/50 transition-colors",
@@ -531,7 +532,7 @@ export default function AdminReservationsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1.5">
-                          {isPast && !['cancelled', 'rejected'].includes(res.status) ? (
+                          {isPast && res.status === 'approved' ? (
                             <span className="text-[10px] font-bold text-gray-400 bg-gray-50 border border-gray-200/60 px-2 py-1 rounded-md uppercase tracking-wider shrink-0">
                               {isServiceBased ? 'Servicio Realizado' : 'Reserva Finalizada'}
                             </span>
@@ -596,7 +597,7 @@ export default function AdminReservationsPage() {
             const statusInfo = getStatusInfo(res.status);
             const pending = isPending(res.status);
             const userName = res.guest_name || res.profiles?.full_name;
-            const isPast = new Date(res.end_datetime).getTime() < new Date().getTime();
+            const isPast = new Date(detoxTime(res.end_datetime)).getTime() < new Date().getTime();
 
             return (
               <div
@@ -683,7 +684,7 @@ export default function AdminReservationsPage() {
 
                 {(isAdmin || ['pending_validation', 'pending_payment'].includes(res.status)) && (
                   <div className="flex border-t border-amber-100">
-                    {isPast && !['cancelled', 'rejected'].includes(res.status) ? (
+                    {isPast && res.status === 'approved' ? (
                       <div className="flex-1 py-2.5 text-center text-[10px] font-bold text-gray-400 bg-gray-50 uppercase tracking-wider">
                         {isServiceBased ? 'Servicio Realizado' : 'Reserva Finalizada'}
                       </div>
