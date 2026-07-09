@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import {
   Plus, Edit2, Clock, Trash2, Package, ListPlus, Link, Unlink,
   Info, CheckCircle2, Layers, Tag, X, ChevronLeft
@@ -70,9 +71,10 @@ interface SlidePanelProps {
   children: React.ReactNode;
   size?: 'md' | 'lg' | 'xl';
   headerAction?: React.ReactNode;
+  disableOverlayClose?: boolean;
 }
 
-function SlidePanel({ isOpen, onClose, title, subtitle, children, size = 'lg', headerAction }: SlidePanelProps) {
+function SlidePanel({ isOpen, onClose, title, subtitle, children, size = 'lg', headerAction, disableOverlayClose }: SlidePanelProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -93,10 +95,10 @@ function SlidePanel({ isOpen, onClose, title, subtitle, children, size = 'lg', h
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !disableOverlayClose) onClose(); };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, disableOverlayClose]);
 
   const widthClass = size === 'xl' ? 'max-w-3xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-xl';
 
@@ -110,7 +112,7 @@ function SlidePanel({ isOpen, onClose, title, subtitle, children, size = 'lg', h
           "absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity duration-300",
           visible ? "opacity-100" : "opacity-0"
         )}
-        onClick={onClose}
+        onClick={() => { if (!disableOverlayClose) onClose(); }}
         aria-hidden="true"
       />
       {/* Panel */}
@@ -174,6 +176,8 @@ export default function AdminServicesPage() {
   const [isServicePanelOpen, setIsServicePanelOpen] = useState(false);
   const [currentService, setCurrentService] = useState<any>({ name: '', description: '', base_cost: 0, duration_minutes: 30, is_active: true, image_url: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [submittingAddon, setSubmittingAddon] = useState(false);
+  const [countAnimating, setCountAnimating] = useState(false);
 
   // Help card visibility
   const [showHelpCard, setShowHelpCard] = useState(true);
@@ -216,10 +220,11 @@ export default function AdminServicesPage() {
     } catch (e: any) { toast.error('Error al cargar: ' + e.message); } finally { setLoading(false); }
   };
 
-  const fetchAllAddons = async () => {
+  const fetchAllAddons = async (animate?: boolean) => {
     if (!profile?.organization_id) return;
     const { data } = await supabase.from('service_addons').select('*').eq('organization_id', profile.organization_id).order('display_order', { ascending: true });
     setAllAddons(data || []);
+    if (animate) { setCountAnimating(true); setTimeout(() => setCountAnimating(false), 1500); }
   };
 
   const fetchLinkedAddons = async (serviceId: string) => {
@@ -260,10 +265,12 @@ export default function AdminServicesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Eliminar este servicio?')) return;
-    await supabase.from('services').delete().eq('id', id).eq('organization_id', profile?.organization_id);
-    toast.success('Servicio eliminado'); fetchServices();
+    setDeleteTarget({ type: 'service', id });
   };
+
+    // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'service'; id: string } | { type: 'addon'; id: string } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Global addon CRUD
   const openAddonPanel = () => {
@@ -276,17 +283,22 @@ export default function AdminServicesPage() {
   const handleSaveAddon = async () => {
     if (!addonForm.name.trim()) return toast.error('Nombre obligatorio');
     if (!profile?.organization_id) return;
+    if (submittingAddon) return;
+    setSubmittingAddon(true);
     const payload = { ...addonForm, name: addonForm.name.trim(), description: addonForm.description || null, organization_id: profile.organization_id };
     try {
       if (editingAddon?.id) {
         await supabase.from('service_addons').update(payload).eq('id', editingAddon.id);
         toast.success('Adicional actualizado');
+        fetchAllAddons();
       } else {
         await supabase.from('service_addons').insert(payload);
         toast.success('Adicional creado');
+        fetchAllAddons(true);
       }
-      setEditingAddon(null); setAddonForm({ name: '', description: '', additional_cost: 0, additional_duration_minutes: 0, is_active: true }); fetchAllAddons();
+      setEditingAddon(null); setAddonForm({ name: '', description: '', additional_cost: 0, additional_duration_minutes: 0, is_active: true });
     } catch (e: any) { toast.error('Error: ' + e.message); }
+    finally { setSubmittingAddon(false); }
   };
 
   const handleEditAddon = (addon: any) => {
@@ -296,9 +308,22 @@ export default function AdminServicesPage() {
   };
 
   const handleDeleteAddon = async (id: string) => {
-    if (!window.confirm('¿Eliminar este adicional? Se desvinculará de todos los servicios.')) return;
-    await supabase.from('service_addons').delete().eq('id', id);
-    toast.success('Adicional eliminado'); fetchAllAddons(); fetchServices();
+    setDeleteTarget({ type: 'addon', id });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      if (deleteTarget.type === 'service') {
+        await supabase.from('services').delete().eq('id', deleteTarget.id).eq('organization_id', profile?.organization_id);
+        toast.success('Servicio eliminado'); fetchServices();
+      } else {
+        await supabase.from('service_addons').delete().eq('id', deleteTarget.id);
+        toast.success('Adicional eliminado'); fetchAllAddons(); fetchServices();
+      }
+    } catch (e: any) { toast.error('Error: ' + e.message); }
+    finally { setDeleteLoading(false); setDeleteTarget(null); }
   };
 
   const handleCancelAddon = () => {
@@ -324,11 +349,14 @@ export default function AdminServicesPage() {
 
   const formatDuration = (min: number) => { const h = Math.floor(min / 60); const m = min % 60; return h === 0 ? `${m} min` : m === 0 ? `${h}h` : `${h}h ${m}min`; };
 
+  const highlightAnim = `@keyframes highlightPulse { 0% { background-color: rgb(224 231 255); transform: scale(1.05); } 100% { background-color: transparent; transform: scale(1); } }`;
+
   const addonCount = allAddons.length;
   const activeServicesCount = services.filter(s => s.is_active).length;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <style>{highlightAnim}</style>
       {/* Sticky header for mobile + actions */}
       <div className="sticky top-0 z-30 -mx-4 px-4 py-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sm:static sm:z-auto sm:mx-0 sm:p-0 sm:bg-transparent sm:border-none sm:backdrop-blur-none">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -411,6 +439,7 @@ export default function AdminServicesPage() {
         title={currentService.id ? 'Editar Servicio' : 'Crear Nuevo Servicio'}
         subtitle={currentService.id ? 'Modifica los datos de este servicio.' : 'Completa los datos para publicar un nuevo servicio en tu catálogo.'}
         size="xl"
+        disableOverlayClose
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -498,6 +527,7 @@ export default function AdminServicesPage() {
         title="Biblioteca de Adicionales"
         subtitle="Crea aquí los extras una sola vez. Después podrás agregarlos a cada servicio."
         size="lg"
+        disableOverlayClose
       >
         <div className="space-y-6">
           {/* Addon form */}
@@ -540,8 +570,8 @@ export default function AdminServicesPage() {
                 {editingAddon && (
                   <Button type="button" variant="outline" onClick={handleCancelAddon} className="h-10 text-xs rounded-xl border-gray-200">Cancelar</Button>
                 )}
-                <Button type="button" onClick={handleSaveAddon} className="h-10 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5">
-                  {editingAddon ? 'Actualizar adicional' : 'Crear adicional'}
+                <Button type="button" onClick={handleSaveAddon} disabled={submittingAddon} className="h-10 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {submittingAddon ? 'Guardando...' : editingAddon ? 'Actualizar adicional' : 'Crear adicional'}
                 </Button>
               </div>
             </div>
@@ -558,7 +588,7 @@ export default function AdminServicesPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Adicionales creados ({allAddons.length})</h4>
+              <h4 className={cn("text-xs font-bold uppercase tracking-wide inline-block px-2 py-0.5 rounded-lg transition-all duration-700", countAnimating ? "text-indigo-700 bg-indigo-100 scale-105" : "text-gray-400")} style={countAnimating ? { animation: 'highlightPulse 1.5s ease-out' } : undefined}>Adicionales creados ({allAddons.length})</h4>
               <div className="space-y-2">
                 {allAddons.map(addon => (
                   <div key={addon.id} className={cn("flex items-center justify-between p-4 rounded-xl border", addon.is_active ? "bg-white border-gray-100" : "bg-gray-50 border-gray-100 opacity-50")}>
@@ -681,6 +711,19 @@ export default function AdminServicesPage() {
           })}
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        title={deleteTarget?.type === 'service' ? 'Eliminar servicio' : 'Eliminar adicional'}
+        description={deleteTarget?.type === 'service' ? '¿Estás seguro de que quieres eliminar este servicio? Se desvinculará de todas las reservas.' : '¿Estás seguro de que quieres eliminar este adicional? Se desvinculará de todos los servicios.'}
+        confirmText="Eliminar"
+        onConfirm={confirmDelete}
+        variant="destructive"
+        loading={deleteLoading}
+        className="z-[200]"
+      />
 
       {/* Floating action button for mobile */}
       <button

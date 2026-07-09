@@ -5,7 +5,8 @@ export const getResources = async (orgId: string) => {
     .from('resources')
     .select('*')
     .eq('organization_id', orgId)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .order('display_order', { ascending: true });
   if (error) throw error;
   return data;
 };

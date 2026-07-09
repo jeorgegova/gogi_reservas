@@ -135,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: 'Dashboard (informes)', path: '/admin', icon: LayoutDashboard },
       { name: `Calendario (${terminology.reservationLabel}s)`, path: '/dashboard', icon: Calendar },
       { name: `Gestión ${terminology.reservationLabel}s`, path: '/admin/reservations', icon: Calendar },
-      { name: terminology.areaLabel + (isResidential ? 's' : 's'), path: '/admin/resources', icon: isResidential ? Building2 : Users },
+      { name: isResidential ? terminology.areaLabel + 's' : 'Profesional', path: '/admin/resources', icon: isResidential ? Building2 : Users },
       ...(!isResidential ? [{ name: 'Servicios', path: '/admin/services', icon: Package }] : []),
       ...(!isResidential ? [{ name: 'Rendimiento / Estadísticas', path: '/admin/statistics', icon: History }] : []),
       { name: terminology.userLabel + 's', path: '/admin/users', icon: User },

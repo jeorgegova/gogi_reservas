@@ -28,13 +28,12 @@ persistQueryClient({
     // Only persist queries that match these keys
     shouldDehydrateQuery: (query) => {
       const queryKey = query.queryKey as string[];
-      // DO NOT persist reservations
-      if (queryKey.includes('reservations')) {
+      // DO NOT persist reservations or resources
+      if (queryKey.includes('reservations') || queryKey.includes('resources')) {
         return false;
       }
-      // Persist resources and organizations
+      // Persist organizations
       return (
-        queryKey.includes('resources') || 
         queryKey.includes('organizations') ||
         queryKey.includes('organization')
       );

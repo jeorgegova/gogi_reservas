@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 import { Button } from './button';
+import { cn } from '@/lib/utils';
 
 interface AlertDialogProps {
   open: boolean;
@@ -14,6 +16,7 @@ interface AlertDialogProps {
   variant?: 'default' | 'destructive';
   showCancel?: boolean;
   loading?: boolean;
+  className?: string;
 }
 
 export function AlertDialog({
@@ -26,12 +29,13 @@ export function AlertDialog({
   onConfirm,
   variant = 'default',
   showCancel = true,
-  loading = false
+  loading = false,
+  className = ''
 }: AlertDialogProps) {
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  return createPortal(
+    <div className={cn("fixed inset-0 z-50 flex items-center justify-center", className)}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
@@ -85,7 +89,8 @@ export function AlertDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

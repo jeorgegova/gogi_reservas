@@ -891,11 +891,11 @@ export default function Calendario() {
 
                                         // Vistas de semana y día (PC y Móvil): contenido completo
                                         return (
-                                            <div className="flex flex-col gap-0.5 p-1 h-full border-l-2 overflow-hidden" style={{ borderLeftColor: statusColor }}>
-                                                <span className="text-[10px] font-bold text-gray-900 border-b border-gray-100/50 pb-0.5 truncate">
-                                                    {eventInfo.timeText}
+                                            <div className="flex flex-row items-center gap-1 p-0.5 border-l-2 text-[10px]" style={{ borderLeftColor: statusColor, height: '100%', boxSizing: 'border-box' }}>
+                                                <span className="font-bold text-gray-900 whitespace-nowrap shrink-0 leading-tight">
+                                                    {eventInfo.timeText?.replace(/\s*(a\.\s*m\.|p\.\s*m\.)/gi, '')}
                                                 </span>
-                                                <span className="text-[10px] sm:text-[11px] font-medium text-gray-700 leading-tight truncate whitespace-normal line-clamp-2">
+                                                <span className="font-medium text-gray-700 truncate leading-tight min-w-0">
                                                     {eventInfo.event.title}
                                                 </span>
                                             </div>
@@ -1119,6 +1119,9 @@ export default function Calendario() {
                                     slotMinTime="08:00:00"
                                     slotMaxTime="22:00:00"
                                     allDaySlot={false}
+                                    slotEventOverlap={false}
+                                    eventOrder="start,-duration"
+                                    expandRows={true}
                                 />
                             </div>
                         </CardContent>

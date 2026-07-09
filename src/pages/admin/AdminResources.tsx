@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Edit2, Package, User, Trash2, Building2 } from 'lucide-react';
+import { AlertDialog } from '@/components/ui/alert-dialog';
+import { Plus, Edit2, Package, User, Trash2, Building2, GripVertical } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 function CurrencyInput({ value, onChange, className, placeholder }: { value: number; onChange: (val: number) => void; className?: string; placeholder?: string }) {
   const [displayValue, setDisplayValue] = useState('');
@@ -28,6 +30,7 @@ interface LinkedAddon {
 
 export default function AdminResourcesPage() {
   const { profile, terminology } = useAuth();
+  const queryClient = useQueryClient();
   const [orgBusinessType, setOrgBusinessType] = useState<string>('residential');
   const isResidential = orgBusinessType === 'residential';
 
@@ -41,11 +44,16 @@ export default function AdminResourcesPage() {
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [currentArea, setCurrentArea] = useState<any>({ name: '', description: '', specialty: '', employee_photo_url: '', resource_type: isResidential ? 'facility' : 'employee', display_order: 0, is_active: true, image_url: '', commission_percentage: 0, is_free: false, pricing_type: 'hourly', cost_per_hour: 0, fixed_cost: 0, max_hours_per_reservation: 4, estimated_duration_minutes: 60, cost_jornada_diurna: 0, cost_jornada_nocturna: 0, cost_jornada_ambos: 0, jornada_start_diurna: '08:00', jornada_end_diurna: '18:00', jornada_start_nocturna: '18:00', jornada_end_nocturna: '23:59' });
 
   const [linkedAddons, setLinkedAddons] = useState<LinkedAddon[]>([]);
   const [orgAddons, setOrgAddons] = useState<any[]>([]);
   const [showServicePicker, setShowServicePicker] = useState(false);
+  const dragIdRef = useRef<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const [allServiceAddons, setAllServiceAddons] = useState<Record<string, any[]>>({});
   const [enabledAddonIds, setEnabledAddonIds] = useState<Record<string, string[]>>({});
@@ -63,6 +71,16 @@ export default function AdminResourcesPage() {
     if (!profile?.organization_id) return;
     const { data, error } = await supabase.from('services').select('*').eq('organization_id', profile.organization_id).eq('is_active', true).order('name');
     if (error) { toast.error('Error al cargar servicios: ' + error.message); } else { setOrgAddons(data || []); }
+  };
+
+  const saveCurrentOrder = async () => {
+    try {
+      await Promise.all(areas.map((item, idx) =>
+        supabase.from('resources').update({ display_order: idx }).eq('id', item.id).eq('organization_id', profile?.organization_id)
+      ));
+      queryClient.invalidateQueries({ queryKey: ['resources', profile?.organization_id] });
+      toast.success('Orden guardado correctamente');
+    } catch (e: any) { toast.error('Error al guardar orden: ' + e.message); fetchAreas(); }
   };
 
   const fetchLinkedAddons = async (areaId: string) => {
@@ -100,7 +118,7 @@ export default function AdminResourcesPage() {
   };
 
   const handleStartNew = () => {
-    setCurrentArea({ name: '', description: '', specialty: '', employee_photo_url: '', resource_type: isResidential ? 'facility' : 'employee', display_order: 0, is_active: true, image_url: '', commission_percentage: 0, is_free: false, pricing_type: 'hourly', cost_per_hour: 0, fixed_cost: 0, max_hours_per_reservation: 4, estimated_duration_minutes: 60, cost_jornada_diurna: 0, cost_jornada_nocturna: 0, cost_jornada_ambos: 0, jornada_start_diurna: '08:00', jornada_end_diurna: '18:00', jornada_start_nocturna: '18:00', jornada_end_nocturna: '23:59' });
+    setCurrentArea({ name: '', description: '', specialty: '', employee_photo_url: '', resource_type: isResidential ? 'facility' : 'employee', display_order: areas.length, is_active: true, image_url: '', commission_percentage: 0, is_free: false, pricing_type: 'hourly', cost_per_hour: 0, fixed_cost: 0, max_hours_per_reservation: 4, estimated_duration_minutes: 60, cost_jornada_diurna: 0, cost_jornada_nocturna: 0, cost_jornada_ambos: 0, jornada_start_diurna: '08:00', jornada_end_diurna: '18:00', jornada_start_nocturna: '18:00', jornada_end_nocturna: '23:59' });
     setLinkedAddons([]); setAllServiceAddons({}); setEnabledAddonIds({}); setShowServicePicker(false); setIsEditing(true);
   };
 
@@ -119,9 +137,21 @@ export default function AdminResourcesPage() {
   const handleUpdatePrice = (serviceId: string, price: number) => setLinkedAddons(prev => prev.map(la => la.service_id === serviceId ? { ...la, custom_price: price } : la));
   const toggleAddon = (serviceId: string, addonId: string) => setEnabledAddonIds(prev => { const cur = prev[serviceId] || []; return { ...prev, [serviceId]: cur.includes(addonId) ? cur.filter(id => id !== addonId) : [...cur, addonId] }; });
 
+  const confirmDeleteResource = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await supabase.from('resources').delete().eq('id', deleteTarget.id);
+      fetchAreas(); toast.success('Eliminado');
+    } catch (e: any) { toast.error('Error: ' + e.message); }
+    finally { setDeleteLoading(false); setDeleteTarget(null); }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.organization_id || !currentArea.name?.trim()) { toast.error('El nombre es obligatorio'); return; }
+    if (submitting) return;
+    setSubmitting(true);
     const areaData: any = {
       name: currentArea.name.trim(), description: currentArea.description || null, specialty: currentArea.specialty || null,
       employee_photo_url: currentArea.employee_photo_url || null, resource_type: currentArea.resource_type || (isResidential ? 'facility' : 'employee'),
@@ -160,6 +190,7 @@ export default function AdminResourcesPage() {
       setIsEditing(false); fetchAreas();
       toast.success(currentArea.id ? (isResidential ? `${terminology.areaLabel} actualizada` : 'Empleado actualizado') : (isResidential ? `${terminology.areaLabel} creada` : 'Empleado creado'));
     } catch (e: any) { toast.error('Error: ' + e.message); }
+    finally { setSubmitting(false); }
   };
 
   const availableToAdd = orgAddons.filter((oa: any) => !linkedAddons.find(la => la.service_id === oa.id));
@@ -254,7 +285,6 @@ export default function AdminResourcesPage() {
                         <option value="employee">Empleado</option><option value="facility">Instalación</option><option value="room">Sala</option><option value="court">Cancha</option><option value="equipment">Equipo</option><option value="general">General</option>
                       </select>
                     </div>
-                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">Orden</Label><Input type="number" value={currentArea.display_order || 0} onChange={e => setCurrentArea({ ...currentArea, display_order: parseInt(e.target.value) || 0 })} className="h-10 rounded-lg text-sm mt-1" /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                     {!isResidential && (
@@ -364,7 +394,7 @@ export default function AdminResourcesPage() {
 
               <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
                 <Button type="button" variant="outline" onClick={() => setIsEditing(false)} className="h-12 px-6 font-bold rounded-xl">Cancelar</Button>
-                <Button type="submit" className="h-12 px-8 font-black rounded-xl bg-primary hover:bg-primary/95 shadow-lg shadow-primary/20 text-white border-none">Guardar Cambios</Button>
+                <Button type="submit" disabled={submitting} className="h-12 px-8 font-black rounded-xl bg-primary hover:bg-primary/95 shadow-lg shadow-primary/20 text-white border-none disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Guardando...' : 'Guardar Cambios'}</Button>
               </div>
             </form>
           </CardContent>
@@ -374,12 +404,8 @@ export default function AdminResourcesPage() {
       {/* CARDS */}
       <div className={cn("grid gap-4", isResidential ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
         {loading ? [1, 2, 3].map(i => <div key={i} className="h-56 bg-gray-50 animate-pulse rounded-2xl" />) : (
-          areas.filter(a => !(isEditing && currentArea.id && a.id === currentArea.id)).map(area => {
-            const handleDelete = async () => {
-              if (!window.confirm(`¿Eliminar ${area.name}?`)) return;
-              await supabase.from('resources').delete().eq('id', area.id);
-              fetchAreas(); toast.success('Eliminado');
-            };
+          areas.filter(a => !(isEditing && currentArea.id && a.id === currentArea.id)).map((area, idx) => {
+            const handleDelete = () => setDeleteTarget(area);
             if (isResidential) {
               return (
                 <Card key={area.id} className={cn("border-none apple-shadow bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1 flex flex-col", !area.is_active && "opacity-50 grayscale")}>
@@ -394,16 +420,42 @@ export default function AdminResourcesPage() {
                     {area.description && <p className="text-[11px] text-gray-500 line-clamp-2 mb-3 flex-1">{area.description}</p>}
                     <div className="text-[10px] text-gray-400 mb-1">{area.is_free ? 'Gratuito' : area.pricing_type === 'hourly' ? `${formatCurrency(area.cost_per_hour)}/hora` : area.pricing_type === 'jornada' ? `Jornada desde ${formatCurrency(area.cost_jornada_diurna)}` : `${formatCurrency(area.fixed_cost)} fijo`}</div>
                     <div className="flex gap-1.5 pt-3 border-t border-gray-50">
-                      <button onClick={() => handleEdit(area)} className="flex-1 h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1"><Edit2 className="w-3 h-3" /> Editar</button>
-                      <button onClick={() => handleToggleActive(area)} className={cn("flex-1 h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
-                      <button onClick={handleDelete} className="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center shrink-0"><Trash2 className="w-3 h-3" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleEdit(area); }} className="flex-1 h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1"><Edit2 className="w-3 h-3" /> Editar</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleToggleActive(area); }} className={cn("flex-1 h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center shrink-0"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   </div>
                 </Card>
               );
             }
             return (
-              <Card key={area.id} className={cn("border-none apple-shadow bg-white rounded-2xl text-center transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col overflow-hidden", !area.is_active && "opacity-50 grayscale")}>
+              <Card key={area.id} className={cn(
+                "border-none apple-shadow bg-white rounded-2xl text-center transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col overflow-hidden relative group cursor-pointer",
+                !area.is_active && "opacity-50 grayscale",
+                draggingId === area.id && "opacity-30 scale-95"
+              )}
+                onClick={() => handleEdit(area)}
+                draggable
+                onDragStart={() => { dragIdRef.current = area.id; setDraggingId(area.id); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragIdRef.current && dragIdRef.current !== area.id) {
+                    setAreas(prev => {
+                      const fromIdx = prev.findIndex(a => a.id === dragIdRef.current);
+                      if (fromIdx === -1) return prev;
+                      const list = [...prev];
+                      const [moved] = list.splice(fromIdx, 1);
+                      list.splice(idx, 0, moved);
+                      return list;
+                    });
+                  }
+                }}
+                onDragEnd={() => { dragIdRef.current = null; setDraggingId(null); saveCurrentOrder(); }}
+              >
+                <div onClick={(e) => e.stopPropagation()} className="absolute top-2 right-2 z-20 p-1.5 rounded-lg bg-white/80 backdrop-blur-sm shadow-sm text-gray-500 hover:text-gray-700 hover:bg-white cursor-grab active:cursor-grabbing transition-all">
+                  <GripVertical className="w-4 h-4" strokeWidth={2.5} />
+                </div>
                 {area.image_url && (
                   <div className="w-full h-24 bg-gray-100 relative shrink-0">
                     <img src={area.image_url} alt="" className="w-full h-full object-cover" />
@@ -423,9 +475,9 @@ export default function AdminResourcesPage() {
                     {area.commission_percentage > 0 && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100">{area.commission_percentage}% com</span>}
                   </div>
                   <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-gray-50 w-full">
-                    <button onClick={() => handleEdit(area)} className="flex-1 min-w-[68px] h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Edit2 className="w-3 h-3" /> Editar</button>
-                    <button onClick={() => handleToggleActive(area)} className={cn("flex-1 min-w-[68px] h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center px-1", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
-                    <button onClick={handleDelete} className="flex-1 sm:flex-none h-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Trash2 className="w-3 h-3" /> <span className="text-[10px] font-bold sm:hidden">Eliminar</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleEdit(area); }} className="flex-1 min-w-[68px] h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Edit2 className="w-3 h-3" /> Editar</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleToggleActive(area); }} className={cn("flex-1 min-w-[68px] h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center px-1", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="flex-1 sm:flex-none h-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Trash2 className="w-3 h-3" /> <span className="text-[10px] font-bold sm:hidden">Eliminar</span></button>
                   </div>
                 </div>
               </Card>
@@ -433,6 +485,17 @@ export default function AdminResourcesPage() {
           })
         )}
       </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        title={`Eliminar ${deleteTarget?.name || ''}`}
+        description={`¿Estás seguro de que quieres eliminar a ${deleteTarget?.name}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={confirmDeleteResource}
+        variant="destructive"
+        loading={deleteLoading}
+      />
     </div>
   );
 }
