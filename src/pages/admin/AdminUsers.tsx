@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,9 +24,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTerminology, type BusinessTerminology } from '@/lib/terminology';
+import { toast } from 'sonner';
 
 interface UserProfile {
   id: string;
+  user_id: string;
+  membership_id: string;
   email: string;
   full_name: string;
   apartment: string;
@@ -66,6 +69,7 @@ export default function AdminUsersPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [roleChangeUser, setRoleChangeUser] = useState<UserProfile | null>(null);
   const [isRoleAlertOpen, setIsRoleAlertOpen] = useState(false);
+  const [roleChanging, setRoleChanging] = useState(false);
 
   // Form state
   const [editForm, setEditForm] = useState({
@@ -110,6 +114,8 @@ export default function AdminUsersPage() {
       console.log('data users....', data);
       const transformedUsers: UserProfile[] = (data || []).map((m: any) => ({
         id: m.profiles.id,
+        user_id: m.user_id,
+        membership_id: m.id,
         email: m.profiles.email,
         full_name: m.profiles.full_name,
         role: m.role,
@@ -124,20 +130,43 @@ export default function AdminUsersPage() {
 
   const handleToggleRole = async () => {
     if (!roleChangeUser || !profile?.organization_id) return;
+    setRoleChanging(true);
     const newRole = roleChangeUser.role === 'admin' ? 'user' : 'admin';
 
-    await supabase
+    console.log('handleToggleRole', {
+      membership_id: roleChangeUser.membership_id,
+      user_id: roleChangeUser.user_id,
+      id: roleChangeUser.id,
+      org_id: profile.organization_id,
+      newRole
+    });
+
+    const { error: membershipsError } = await supabase
       .from('memberships')
       .update({ role: newRole })
-      .eq('user_id', roleChangeUser.id)
-      .eq('organization_id', profile.organization_id);
+      .eq('id', roleChangeUser.membership_id);
 
-    await supabase
+    if (membershipsError) {
+      console.error('Error updating memberships:', membershipsError);
+      toast.error('Error al actualizar membresía: ' + membershipsError.message);
+      setRoleChanging(false);
+      return;
+    }
+
+    const { error: profilesError } = await supabase
       .from('profiles')
       .update({ role: newRole })
       .eq('id', roleChangeUser.id);
 
-    fetchUsers();
+    if (profilesError) {
+      console.error('Error updating profile:', profilesError);
+      toast.error('Error al actualizar perfil: ' + profilesError.message);
+      setRoleChanging(false);
+      return;
+    }
+
+    await fetchUsers();
+    setRoleChanging(false);
     setIsRoleAlertOpen(false);
     setRoleChangeUser(null);
   };
@@ -145,11 +174,13 @@ export default function AdminUsersPage() {
   const handleDeleteUser = async () => {
     if (!deletingUser || !profile?.organization_id) return;
 
-    await supabase
-      .from('memberships')
-      .delete()
-      .eq('user_id', deletingUser.id)
-      .eq('organization_id', profile.organization_id);
+    const deleteQuery = supabase.from('memberships').delete();
+    if (deletingUser.membership_id) {
+      deleteQuery.eq('id', deletingUser.membership_id);
+    } else {
+      deleteQuery.eq('user_id', deletingUser.id).eq('organization_id', profile.organization_id);
+    }
+    await deleteQuery;
 
     fetchUsers();
     setIsDeleteAlertOpen(false);
@@ -172,15 +203,17 @@ export default function AdminUsersPage() {
     if (!editingUser || !profile?.organization_id) return;
     setIsSubmitting(true);
 
-    const { error } = await supabase
-      .from('memberships')
-      .update({
-        role: editForm.role,
-        apartment: editForm.apartment,
-        phone: editForm.phone
-      })
-      .eq('user_id', editingUser.id)
-      .eq('organization_id', profile.organization_id);
+    const editQuery = supabase.from('memberships').update({
+      role: editForm.role,
+      apartment: editForm.apartment,
+      phone: editForm.phone
+    });
+    if (editingUser.membership_id) {
+      editQuery.eq('id', editingUser.membership_id);
+    } else {
+      editQuery.eq('user_id', editingUser.id).eq('organization_id', profile.organization_id);
+    }
+    const { error } = await editQuery;
 
     if (!error) {
       const profileUpdates: Record<string, string> = {};
@@ -230,8 +263,8 @@ export default function AdminUsersPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20">
             <Users className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -241,175 +274,193 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      <Card className="border-none shadow-sm bg-white">
-        <CardHeader className="p-4 bg-gray-50/50 border-b border-gray-100">
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder={`Buscar por nombre, ${businessType === 'residential' ? terminology.unitLabel.toLowerCase() + ', ' : ''}email...`}
-              className="pl-10 h-9 rounded-lg text-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-visible">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="bg-gray-50/30 border-b border-gray-100">
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contacto</th>
-                  {businessType === 'residential' && <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{terminology.unitLabel}</th>}
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rol</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td colSpan={5} className="px-6 py-4">
-                        <div className="h-4 bg-gray-100 rounded-full w-full" />
-                      </td>
-                    </tr>
-                  ))
-                ) : filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                      No se encontraron {terminology.userLabel.toLowerCase()}s.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
-                            <User className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="font-bold text-gray-900 leading-tight">{user.full_name}</div>
-                            <div className="text-[10px] text-gray-400 uppercase mt-0.5">ID: {user.id.substring(0, 8)}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-gray-600 font-medium">
-                          <Mail className="w-3.5 h-3.5 text-gray-300" />
-                          <span>{user.email}</span>
-                        </div>
-                        {user.phone && (
-                          <a
-                            href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
-                            className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400 hover:text-primary transition-colors cursor-pointer"
-                          >
-                            <Smartphone className="w-3.5 h-3.5 text-gray-300" />
-                            <span>{user.phone}</span>
-                          </a>
-                        )}
-                      </td>
-                      {businessType === 'residential' && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-1.5 text-gray-700 font-bold">
-                            <MapPin className="w-3.5 h-3.5 text-gray-300" />
-                            <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
-                          </div>
-                        </td>
-                      )}
-                      <td className="px-6 py-4">
-                        <div className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase",
-                          user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100'
-                        )}>
-                          {user.role}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end">
-                          {user.id !== orgSettings?.guest_user_id ? (
-                            <DropdownMenu
-                              trigger={
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                                  onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
-                                >
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              }
-                            >
-                              <DropdownMenuItem onClick={() => openEditModal(user)}>
-                                <Pencil className="h-4 w-4" />
-                                Editar {terminology.userLabel.toLowerCase()}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
-                                {user.role === 'admin' ? (
-                                  <>
-                                    <ShieldOff className="h-4 w-4" />
-                                    Quitar admin
-                                  </>
-                                ) : (
-                                  <>
-                                    <Shield className="h-4 w-4" />
-                                    Hacer admin
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
-                                <Trash2 className="h-4 w-4" />
-                                Eliminar {terminology.userLabel.toLowerCase()}
-                              </DropdownMenuItem>
-                            </DropdownMenu>
-                          ) : (
-                            <div className="flex items-center gap-2 px-2 py-1 text-[10px] font-bold text-gray-400 bg-gray-50 border border-gray-100 rounded-md uppercase">
-                              Sin Acciones
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+      {/* Search */}
+      <div className="relative w-full">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Input
+          placeholder={`Buscar por nombre, ${businessType === 'residential' ? terminology.unitLabel.toLowerCase() + ', ' : ''}email...`}
+          className="pl-10 h-10 rounded-xl text-sm bg-white border-gray-200/80 shadow-sm focus:border-primary/30 focus:ring-2 focus:ring-primary/10 transition-all"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
-          {/* Mobile Cards View */}
-          <div className="md:hidden flex flex-col divide-y divide-gray-100">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-visible">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="px-6 py-3.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Usuario</th>
+              <th className="px-6 py-3.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contacto</th>
+              {businessType === 'residential' && <th className="px-6 py-3.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{terminology.unitLabel}</th>}
+              <th className="px-6 py-3.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rol</th>
+              <th className="px-6 py-3.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="p-4 animate-pulse">
-                  <div className="h-16 bg-gray-100 rounded-xl w-full" />
-                </div>
-              ))
-            ) : filteredUsers.length === 0 ? (
-              <div className="px-6 py-12 text-center text-gray-400 text-sm">
-                No se encontraron {terminology.userLabel.toLowerCase()}s.
-              </div>
-            ) : (
-              filteredUsers.map((user) => (
-                <div key={user.id} className="p-4 bg-white hover:bg-gray-50 transition-colors flex flex-col gap-3">
-                  <div className="flex justify-between items-start">
+                <tr key={i} className="animate-pulse">
+                  <td colSpan={5} className="px-6 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                        {user.full_name ? user.full_name.charAt(0).toUpperCase() : <User className="w-5 h-5" />}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <h3 className="font-bold text-gray-900 truncate">{user.full_name}</h3>
-                        <span className="text-xs text-gray-500 truncate">{user.email}</span>
+                      <div className="w-9 h-9 rounded-xl bg-gray-100" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 bg-gray-100 rounded-full w-48" />
+                        <div className="h-3 bg-gray-50 rounded-full w-32" />
                       </div>
                     </div>
+                  </td>
+                </tr>
+              ))
+            ) : filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-16 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <Users className="w-8 h-8 text-gray-200" />
+                    <p className="text-sm text-gray-400 font-medium">No se encontraron {terminology.userLabel.toLowerCase()}s.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                          <User className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900 leading-tight">{user.full_name}</div>
+                          <div className="text-[10px] text-gray-400 mt-0.5 font-mono">ID: {user.id.substring(0, 8)}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-gray-600 text-xs">
+                        <Mail className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                        <span className="truncate max-w-[200px]">{user.email}</span>
+                      </div>
+                      {user.phone && (
+                        <a href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
+                          className="flex items-center gap-1.5 mt-1 text-xs text-gray-400 hover:text-primary transition-colors">
+                          <Smartphone className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                          <span>{user.phone}</span>
+                        </a>
+                      )}
+                    </td>
+                    {businessType === 'residential' && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-gray-700 text-xs font-medium">
+                          <MapPin className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                          <span>{terminology.unitLabel} {user.apartment || <span className="text-gray-300 italic">N/A</span>}</span>
+                        </div>
+                      </td>
+                    )}
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide",
+                        user.role === 'admin'
+                          ? 'bg-purple-50 text-purple-700 ring-1 ring-purple-200/60'
+                          : 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/60'
+                      )}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", user.role === 'admin' ? 'bg-purple-500' : 'bg-blue-500')} />
+                        {user.role === 'admin' ? 'Admin' : 'Usuario'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end">
+                        {user.id !== orgSettings?.guest_user_id ? (
+                          <DropdownMenu
+                            trigger={
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                                onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            }
+                          >
+                            <DropdownMenuItem onClick={() => openEditModal(user)}>
+                              <Pencil className="h-4 w-4" />
+                              Editar {terminology.userLabel.toLowerCase()}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
+                              {user.role === 'admin' ? (
+                                <><ShieldOff className="h-4 w-4" /> Quitar admin</>
+                              ) : (
+                                <><Shield className="h-4 w-4" /> Hacer admin</>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar {terminology.userLabel.toLowerCase()}
+                            </DropdownMenuItem>
+                          </DropdownMenu>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-gray-400 bg-gray-50 rounded-lg uppercase tracking-wide">Sin Acciones</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+          </tbody>
+        </table>
+      </div>
 
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100/80 p-4 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gray-100" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-4 bg-gray-100 rounded-full w-40" />
+                  <div className="h-3 bg-gray-50 rounded-full w-28" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : filteredUsers.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100/80 p-12 text-center">
+            <Users className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+            <p className="text-sm text-gray-400 font-medium">No se encontraron {terminology.userLabel.toLowerCase()}s.</p>
+          </div>
+        ) : (
+          filteredUsers.map((user) => (
+              <div key={user.id} className="bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden transition-all hover:shadow-md active:scale-[0.99]">
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-900 truncate text-sm">{user.full_name}</h3>
+                          <span className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase shrink-0",
+                            user.role === 'admin'
+                              ? 'bg-purple-50 text-purple-700 ring-1 ring-purple-200/60'
+                              : 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/60'
+                          )}>
+                            <span className={cn("w-1 h-1 rounded-full", user.role === 'admin' ? 'bg-purple-500' : 'bg-blue-500')} />
+                            {user.role === 'admin' ? 'Admin' : 'User'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
+                      </div>
+                    </div>
                     {user.id !== orgSettings?.guest_user_id ? (
                       <DropdownMenu
                         trigger={
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full shrink-0"
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-xl shrink-0"
                             onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
                           >
                             <MoreHorizontal className="w-4 h-4" />
@@ -422,15 +473,9 @@ export default function AdminUsersPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => confirmRoleChange(user)}>
                           {user.role === 'admin' ? (
-                            <>
-                              <ShieldOff className="h-4 w-4" />
-                              Quitar admin
-                            </>
+                            <><ShieldOff className="h-4 w-4" /> Quitar admin</>
                           ) : (
-                            <>
-                              <Shield className="h-4 w-4" />
-                              Hacer admin
-                            </>
+                            <><Shield className="h-4 w-4" /> Hacer admin</>
                           )}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => confirmDelete(user)} variant="destructive">
@@ -439,39 +484,29 @@ export default function AdminUsersPage() {
                         </DropdownMenuItem>
                       </DropdownMenu>
                     ) : (
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">Sin Acciones</span>
+                      <span className="text-[10px] font-bold text-gray-300 uppercase shrink-0">—</span>
                     )}
                   </div>
-
-                  <div className="flex items-center gap-3 mt-1">
-                    <div className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border uppercase shrink-0",
-                      user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100'
-                    )}>
-                      {user.role}
-                    </div>
+                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50">
                     {user.phone && (
-                      <a
-                        href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
-                        className="flex items-center gap-1 text-xs text-gray-500 truncate hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <Smartphone className="w-3 h-3 text-gray-400 shrink-0" />
-                        <span className="truncate">{user.phone}</span>
+                      <a href={`tel:${user.phone.replace(/[^0-9+]/g, '')}`}
+                        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary transition-colors">
+                        <Smartphone className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                        <span>{user.phone}</span>
                       </a>
                     )}
                     {businessType === 'residential' && (
-                      <div className="flex items-center gap-1 text-xs text-gray-700 font-bold ml-auto shrink-0">
-                        <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                        <span>{terminology.unitLabel} {user.apartment || 'N/A'}</span>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+                        <MapPin className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                        <span>{terminology.unitLabel} {user.apartment || '—'}</span>
                       </div>
                     )}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+          ))
+        )}
+      </div>
 
       {/* Edit User Modal */}
       <Modal
@@ -599,6 +634,7 @@ export default function AdminUsersPage() {
         description={`¿Estás seguro de que quieres ${roleChangeUser?.role === 'admin' ? 'quitar los permisos de administrador' : 'hacer administrador'} a ${roleChangeUser?.full_name}?`}
         confirmText={roleChangeUser?.role === 'admin' ? 'Quitar admin' : 'Hacer admin'}
         onConfirm={handleToggleRole}
+        loading={roleChanging}
       />
 
       {/* Delete Confirmation */}

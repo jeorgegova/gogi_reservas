@@ -181,7 +181,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
+        <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20">
           <Settings className="h-5 w-5 text-white" />
         </div>
         <div>

@@ -169,7 +169,7 @@ export default function AdminResourcesPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">{isResidential ? <Building2 className="h-5 w-5 text-primary-foreground" /> : <User className="h-5 w-5 text-primary-foreground" />}</div>
+          <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20">{isResidential ? <Building2 className="h-5 w-5 text-white" /> : <User className="h-5 w-5 text-white" />}</div>
           <div><h1 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight">{isResidential ? `Gestión de ${terminology.areaLabel}s` : 'Gestión de Empleados'}</h1><p className="text-gray-500 text-xs md:text-sm">{isResidential ? 'Configura las áreas comunes disponibles para reservar.' : 'Configura los profesionales y los servicios que ofrecen.'}</p></div>
         </div>
         <Button onClick={handleStartNew} className="bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 font-bold h-10 md:h-12 px-4 md:px-6 rounded-xl border-none text-xs md:text-sm shrink-0"><Plus className="w-4 h-4 mr-1.5" /> {isResidential ? `Nueva ${terminology.areaLabel}` : 'Nuevo Empleado'}</Button>
@@ -403,24 +403,30 @@ export default function AdminResourcesPage() {
               );
             }
             return (
-              <Card key={area.id} className={cn("border-none apple-shadow bg-white rounded-2xl p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col justify-between", !area.is_active && "opacity-50 grayscale")}>
-                <div className="space-y-2.5">
-                  <div className="w-20 h-20 rounded-full overflow-hidden mx-auto border-2 border-gray-100 shadow-sm">
+              <Card key={area.id} className={cn("border-none apple-shadow bg-white rounded-2xl text-center transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col overflow-hidden", !area.is_active && "opacity-50 grayscale")}>
+                {area.image_url && (
+                  <div className="w-full h-24 bg-gray-100 relative shrink-0">
+                    <img src={area.image_url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-transparent to-transparent" />
+                  </div>
+                )}
+                <div className={cn("p-4 flex flex-col items-center", area.image_url ? "relative z-10 pt-0" : "")}>
+                  <div className={cn("w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-sm", area.image_url ? "-mt-10 mb-2" : "mx-auto mb-2.5")}>
                     {area.employee_photo_url ? <img src={area.employee_photo_url} alt={area.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"><User className="w-8 h-8 text-primary/40" /></div>}
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 leading-tight mb-0.5 px-1">{area.name}</h3>
                     <p className="text-[11px] text-gray-500 px-1">{area.specialty || 'Profesional'}</p>
                   </div>
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap mt-2">
                     <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase border", area.is_active ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-100 text-gray-400 border-gray-200")}>{area.is_active ? 'Activo' : 'Inactivo'}</span>
                     {area.commission_percentage > 0 && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100">{area.commission_percentage}% com</span>}
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-gray-50">
-                  <button onClick={() => handleEdit(area)} className="flex-1 min-w-[68px] h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Edit2 className="w-3 h-3" /> Editar</button>
-                  <button onClick={() => handleToggleActive(area)} className={cn("flex-1 min-w-[68px] h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center px-1", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
-                  <button onClick={handleDelete} className="flex-1 sm:flex-none h-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Trash2 className="w-3 h-3" /> <span className="text-[10px] font-bold sm:hidden">Eliminar</span></button>
+                  <div className="flex flex-wrap gap-2 pt-3 mt-3 border-t border-gray-50 w-full">
+                    <button onClick={() => handleEdit(area)} className="flex-1 min-w-[68px] h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Edit2 className="w-3 h-3" /> Editar</button>
+                    <button onClick={() => handleToggleActive(area)} className={cn("flex-1 min-w-[68px] h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center px-1", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
+                    <button onClick={handleDelete} className="flex-1 sm:flex-none h-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center gap-1 px-2"><Trash2 className="w-3 h-3" /> <span className="text-[10px] font-bold sm:hidden">Eliminar</span></button>
+                  </div>
                 </div>
               </Card>
             );

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { Button } from './button';
 
 interface AlertDialogProps {
@@ -13,6 +13,7 @@ interface AlertDialogProps {
   onConfirm: () => void;
   variant?: 'default' | 'destructive';
   showCancel?: boolean;
+  loading?: boolean;
 }
 
 export function AlertDialog({
@@ -24,16 +25,17 @@ export function AlertDialog({
   cancelText = 'Cancelar',
   onConfirm,
   variant = 'default',
-  showCancel = true
+  showCancel = true,
+  loading = false
 }: AlertDialogProps) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={() => onOpenChange(false)}
+        onClick={() => { if (!loading) onOpenChange(false); }}
       />
       
       {/* Dialog */}
@@ -62,24 +64,23 @@ export function AlertDialog({
             {showCancel && (
               <Button
                 variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="flex-1 h-11 rounded-xl border-gray-200 font-medium hover:bg-gray-50"
+                onClick={() => { if (!loading) onOpenChange(false); }}
+                disabled={loading}
+                className="flex-1 h-11 rounded-xl border-gray-200 font-medium hover:bg-gray-50 disabled:opacity-50"
               >
                 {cancelText}
               </Button>
             )}
             <Button
-              onClick={() => {
-                onConfirm();
-                onOpenChange(false);
-              }}
-              className={`flex-1 h-11 rounded-xl font-medium ${
+              onClick={() => { onConfirm(); }}
+              disabled={loading}
+              className={`flex-1 h-11 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                 variant === 'destructive' 
                   ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/25' 
                   : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/25'
               }`}
             >
-              {confirmText}
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin inline" /> Procesando...</> : confirmText}
             </Button>
           </div>
         </div>

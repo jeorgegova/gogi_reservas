@@ -173,6 +173,7 @@ export default function AdminServicesPage() {
   const [loading, setLoading] = useState(true);
   const [isServicePanelOpen, setIsServicePanelOpen] = useState(false);
   const [currentService, setCurrentService] = useState<any>({ name: '', description: '', base_cost: 0, duration_minutes: 30, is_active: true, image_url: '' });
+  const [submitting, setSubmitting] = useState(false);
 
   // Help card visibility
   const [showHelpCard, setShowHelpCard] = useState(true);
@@ -237,6 +238,8 @@ export default function AdminServicesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.organization_id || !currentService.name?.trim()) return toast.error('Nombre obligatorio');
+    if (submitting) return;
+    setSubmitting(true);
     const payload = { name: currentService.name.trim(), description: currentService.description || null, base_cost: currentService.base_cost || 0, duration_minutes: currentService.duration_minutes || 30, is_active: currentService.is_active !== false, image_url: currentService.image_url || null, organization_id: profile.organization_id };
     try {
       if (currentService.id) {
@@ -248,6 +251,7 @@ export default function AdminServicesPage() {
       }
       setIsServicePanelOpen(false); fetchServices();
     } catch (e: any) { toast.error('Error: ' + e.message); }
+    finally { setSubmitting(false); }
   };
 
   const handleToggleActive = async (service: any) => {
@@ -329,7 +333,7 @@ export default function AdminServicesPage() {
       <div className="sticky top-0 z-30 -mx-4 px-4 py-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sm:static sm:z-auto sm:mx-0 sm:p-0 sm:bg-transparent sm:border-none sm:backdrop-blur-none">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20"><Package className="h-5 w-5 text-primary-foreground" /></div>
+            <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20"><Package className="h-5 w-5 text-white" /></div>
             <div>
               <h1 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight">Catálogo de Servicios</h1>
               <p className="text-gray-500 text-xs md:text-sm">Crea tus servicios y los complementos que se pueden agregar a cada uno.</p>
@@ -452,11 +456,11 @@ export default function AdminServicesPage() {
               <SectionLabel>Vista previa en el catálogo</SectionLabel>
               <Card className={cn("border-none apple-shadow rounded-2xl overflow-hidden", !currentService.is_active && "opacity-60 grayscale")}>
                 {currentService.image_url ? (
-                  <div className="w-full h-40 bg-gray-100">
+                  <div className="w-full aspect-[4/3] bg-gray-100">
                     <img src={currentService.image_url} alt="Vista previa" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                 ) : (
-                  <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
+                  <div className="w-full aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
                     <Package className="w-12 h-12 text-gray-200" />
                   </div>
                 )}
@@ -480,8 +484,8 @@ export default function AdminServicesPage() {
           </div>
           <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 sticky bottom-0 bg-white py-4 -mx-6 px-6">
             <Button type="button" variant="outline" onClick={handleCloseServicePanel} className="h-11 px-6 font-bold rounded-xl border-gray-200">Cancelar</Button>
-            <Button type="submit" className="h-11 px-8 font-black rounded-xl bg-primary hover:bg-primary/95 shadow-lg shadow-primary/20 text-white border-none">
-              {currentService.id ? 'Guardar cambios' : 'Crear servicio'}
+            <Button type="submit" disabled={submitting} className="h-11 px-8 font-black rounded-xl bg-primary hover:bg-primary/95 shadow-lg shadow-primary/20 text-white border-none disabled:opacity-50 disabled:cursor-not-allowed">
+              {submitting ? 'Guardando...' : currentService.id ? 'Guardar cambios' : 'Crear servicio'}
             </Button>
           </div>
         </form>

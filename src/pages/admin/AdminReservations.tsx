@@ -13,7 +13,7 @@ import {
   detoxTime,
   cn
 } from '@/lib/utils';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
+import { format, parse, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
@@ -25,6 +25,8 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Smartphone,
   AlertCircle,
   Loader2,
@@ -45,6 +47,9 @@ export default function AdminReservationsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [blockingError, setBlockingError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [sortDesc, setSortDesc] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,10 +110,12 @@ export default function AdminReservationsPage() {
     if (!silent) setLoading(true);
 
     try {
-      const monthStart = startOfMonth(currentMonth).toISOString();
-      const monthEnd = endOfMonth(currentMonth).toISOString();
+      const hasDateRange = dateFrom && dateTo;
+      const dateStart = hasDateRange ? parse(dateFrom, 'yyyy-MM-dd', new Date()).toISOString() : startOfMonth(currentMonth).toISOString();
+      const dateEnd = hasDateRange ? new Date(parse(dateTo, 'yyyy-MM-dd', new Date()).setHours(23, 59, 59, 999)).toISOString() : endOfMonth(currentMonth).toISOString();
       const orgId = profile.organization_id;
       const pendingStatuses = ['pending_validation', 'pending_payment', 'paid'];
+      const orderDir = sortDesc ? false : true;
 
       const baseSelect = `
         *,
@@ -128,16 +135,16 @@ export default function AdminReservationsPage() {
         .from('reservations')
         .select(baseSelect)
         .eq('organization_id', orgId)
-        .gte('start_datetime', monthStart)
-        .lte('start_datetime', monthEnd)
-        .order('start_datetime', { ascending: true });
+        .gte('start_datetime', dateStart)
+        .lte('start_datetime', dateEnd)
+        .order('start_datetime', { ascending: orderDir });
 
       const fetchPending = supabase
         .from('reservations')
         .select(baseSelect)
         .eq('organization_id', orgId)
         .in('status', pendingStatuses)
-        .order('start_datetime', { ascending: true });
+        .order('start_datetime', { ascending: orderDir });
 
       const [monthResult, pendingResult] = await Promise.all([fetchMonth, fetchPending]);
 
@@ -157,7 +164,8 @@ export default function AdminReservationsPage() {
         const aP = pendingStatuses.includes(a.status) ? 0 : 1;
         const bP = pendingStatuses.includes(b.status) ? 0 : 1;
         if (aP !== bP) return aP - bP;
-        return new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime();
+        const diff = new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime();
+        return sortDesc ? -diff : diff;
       });
 
       const currentIds = new Set(merged.map(r => r.id));
@@ -211,7 +219,7 @@ export default function AdminReservationsPage() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [profile?.organization_id, currentMonth, terminology.reservationLabel]);
+  }, [profile?.organization_id, currentMonth, terminology.reservationLabel, sortDesc, dateFrom, dateTo]);
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -343,8 +351,8 @@ export default function AdminReservationsPage() {
     <div className="space-y-3 md:space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20">
-          <ClipboardList className="h-5 w-5 text-primary-foreground" />
+        <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20">
+          <ClipboardList className="h-5 w-5 text-white" />
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight truncate">Gestión de {terminology.reservationLabel}s</h1>
@@ -366,31 +374,42 @@ export default function AdminReservationsPage() {
 
       {/* Filters bar */}
       <div className="flex flex-col gap-2">
-        {/* Month navigator */}
-        <div className="flex items-center gap-2">
+        {/* Month / Date range navigator */}
+        <div className="flex items-center justify-center gap-1.5 w-full">
           <button
-            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            onClick={() => { if (dateFrom && dateTo) { setDateFrom(''); setDateTo(''); setCurrentMonth(subMonths(currentMonth, 1)); } else { setCurrentMonth(subMonths(currentMonth, 1)); } }}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
-          <div className="flex-1 text-center">
+          <div className="text-center min-w-[100px] cursor-pointer" onClick={() => { setDateFrom(''); setDateTo(''); }}>
             <span className="text-sm font-bold text-gray-700 capitalize">
-              {format(currentMonth, 'MMMM yyyy', { locale: es })}
+              {dateFrom && dateTo ? `${format(parse(dateFrom, 'yyyy-MM-dd', new Date()), 'dd/MM/yy')} - ${format(parse(dateTo, 'yyyy-MM-dd', new Date()), 'dd/MM/yy')}` : format(currentMonth, 'MMMM yyyy', { locale: es })}
             </span>
           </div>
           <button
-            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            onClick={() => { if (dateFrom && dateTo) { setDateFrom(''); setDateTo(''); setCurrentMonth(addMonths(currentMonth, 1)); } else { setCurrentMonth(addMonths(currentMonth, 1)); } }}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
           >
             <ChevronRight className="w-4 h-4 text-gray-500" />
           </button>
-          <button
-            onClick={() => setCurrentMonth(new Date())}
-            className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-md hover:bg-primary/20 transition-colors shrink-0"
-          >
-            Hoy
-          </button>
+        </div>
+        {/* Date range */}
+        <div className="flex items-center justify-center gap-2 w-full">
+          <span className="text-[10px] font-bold text-gray-400 shrink-0">Desde:</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="h-7 sm:h-8 rounded-lg border border-gray-200 bg-white px-1 text-[10px] sm:text-[11px] text-gray-700 min-w-0 flex-1 outline-none focus:ring-1 focus:ring-primary"
+          />
+          <span className="text-[10px] font-bold text-gray-400 shrink-0">Hasta:</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="h-7 sm:h-8 rounded-lg border border-gray-200 bg-white px-1 text-[10px] sm:text-[11px] text-gray-700 min-w-0 flex-1 outline-none focus:ring-1 focus:ring-primary"
+          />
         </div>
 
         {/* Search + Status filter */}
@@ -423,9 +442,17 @@ export default function AdminReservationsPage() {
             <option value="rejected">Rechazadas</option>
             <option value="cancelled">Canceladas</option>
           </select>
-          {(searchTerm || statusFilter !== 'all') && (
+          <button
+            onClick={() => setSortDesc(!sortDesc)}
+            className="h-8 px-2 rounded-lg border border-gray-200 bg-white text-[10px] font-bold text-gray-500 hover:text-primary hover:border-primary/30 transition-colors shrink-0 flex items-center gap-1"
+            title={sortDesc ? 'Más recientes primero' : 'Más antiguos primero'}
+          >
+            {sortDesc ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{sortDesc ? 'Más reciente' : 'Más antiguo'}</span>
+          </button>
+          {(searchTerm || statusFilter !== 'all' || dateFrom || dateTo) && (
             <button
-              onClick={() => { setSearchTerm(''); setStatusFilter('all'); setCurrentMonth(new Date()); }}
+              onClick={() => { setSearchTerm(''); setStatusFilter('all'); setCurrentMonth(new Date()); setDateFrom(''); setDateTo(''); }}
               className="h-8 px-2 rounded-lg border border-gray-200 bg-white text-[10px] font-bold text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shrink-0"
             >
               Limpiar
@@ -444,7 +471,10 @@ export default function AdminReservationsPage() {
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   {isServiceBased ? 'Profesional' : terminology.areaLabel}
                 </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha / Hora</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 transition-colors" onClick={() => setSortDesc(!sortDesc)}>
+                  Fecha / Hora
+                  {sortDesc ? <ChevronDown className="inline w-3 h-3 ml-1 -mt-0.5" /> : <ChevronUp className="inline w-3 h-3 ml-1 -mt-0.5" />}
+                </th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Costo</th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Estado</th>
                 <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Acciones</th>

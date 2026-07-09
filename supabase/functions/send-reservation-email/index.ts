@@ -2,6 +2,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+};
+
 const STATUS_LABELS: Record<string, string> = {
   approved: "aprobada",
   rejected: "rechazada",
@@ -243,6 +249,10 @@ function buildDetailsHTML(reservation: any): string {
 }
 
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const payload = await req.json();
     const { reservation_id, org_id, new_status } = payload;
@@ -284,7 +294,7 @@ serve(async (req) => {
     if (!clientEmail) {
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "sin email de cliente" }), {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -324,13 +334,13 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("send-reservation-email error:", err);
     return new Response(JSON.stringify({ success: false, error: String(err) }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

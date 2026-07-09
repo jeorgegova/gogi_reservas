@@ -77,7 +77,7 @@ export default function AdminStatisticsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 md:p-2.5 bg-primary rounded-xl shadow-lg shadow-primary/20"><TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-white" /></div>
+          <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20"><TrendingUp className="h-5 w-5 text-white" /></div>
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Rendimiento</h1>
             <p className="text-gray-500 text-xs md:text-sm">Estadísticas y comisiones por {terminology.areaLabel.toLowerCase()}.</p>

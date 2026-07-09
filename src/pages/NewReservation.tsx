@@ -914,7 +914,7 @@ export default function NewReservationPage() {
           </div>
           <CardTitle className="text-xl mb-4">{blockingError.title}</CardTitle>
           <CardDescription className="text-base mb-6">{blockingError.message}</CardDescription>
-          <Button onClick={() => navigate('/reservations/my')}>Ver mis reservas</Button>
+          <Button onClick={() => navigate(isAdmin ? '/admin/reservations' : '/reservations/my')}>{isAdmin ? 'Ir a Gestión de Citas' : 'Ver mis reservas'}</Button>
         </Card>
       </div>
     );
@@ -1097,23 +1097,31 @@ export default function NewReservationPage() {
               ) : (
               <Card
                 key={employee.id}
-                className="border-none apple-shadow bg-white rounded-2xl p-4 text-center cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col justify-between"
+                className="border-none apple-shadow bg-white rounded-2xl text-center cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col overflow-hidden"
                 onClick={() => handleEmployeeClick(employee)}
               >
-                <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3 border-2 border-gray-100 shadow-sm">
-                  {employee.employee_photo_url ? (
-                    <img src={employee.employee_photo_url} alt={employee.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
-                      <User className="w-8 h-8 text-primary/40" />
-                    </div>
-                  )}
+                {employee.image_url && (
+                  <div className="w-full h-32 bg-gray-100 -mb-10 relative shrink-0">
+                    <img src={employee.image_url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-transparent to-transparent" />
+                  </div>
+                )}
+                <div className={cn("p-4 flex flex-col items-center flex-1", employee.image_url ? "relative z-10 pt-0" : "")}>
+                  <div className={cn("w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-sm", employee.image_url ? "-mt-10 mb-2" : "mx-auto mb-3")}>
+                    {employee.employee_photo_url ? (
+                      <img src={employee.employee_photo_url} alt={employee.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
+                        <User className="w-8 h-8 text-primary/40" />
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1 truncate">{employee.name}</h3>
+                  <p className="text-[11px] text-gray-500 mb-3 truncate">{employee.specialty || 'Profesional de servicios'}</p>
+                  <Button className="w-full h-8 bg-primary/10 text-primary font-bold text-xs rounded-xl hover:bg-primary hover:text-white border-none shadow-none mt-auto">
+                    Seleccionar
+                  </Button>
                 </div>
-                <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1 truncate">{employee.name}</h3>
-                <p className="text-[11px] text-gray-500 mb-3 truncate">{employee.specialty || 'Profesional de servicios'}</p>
-                <Button className="w-full h-8 bg-primary/10 text-primary font-bold text-xs rounded-xl hover:bg-primary hover:text-white border-none shadow-none mt-auto">
-                  Seleccionar
-                </Button>
               </Card>
               )
             ))}
@@ -1143,7 +1151,7 @@ export default function NewReservationPage() {
                     className="p-4 rounded-xl border border-gray-100 bg-white hover:border-primary/30 hover:bg-primary/5 hover:shadow-md transition-all duration-300 text-left flex flex-col gap-3 group"
                   >
                     {service.image_url && (
-                      <div className="w-full h-32 rounded-lg overflow-hidden bg-gray-100">
+                      <div className="w-full aspect-[4/3] rounded-lg overflow-hidden bg-gray-100">
                         <img src={service.image_url} alt={service.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                     )}

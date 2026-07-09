@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, useRef } from 'react';
+import { useState, useEffect, createContext, useContext, useRef, useCallback } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getTerminology, type BusinessTerminology, type BusinessType } from '../lib/terminology';
@@ -201,7 +201,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const fetchOrgSettings = async (slug: string): Promise<OrganizationSettings | null> => {
+  const fetchOrgSettings = useCallback(async (slug: string): Promise<OrganizationSettings | null> => {
     try {
       const { data, error } = await supabase
         .from('organizations')
@@ -221,7 +221,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('useAuth: Error fetching org settings:', error);
       return null;
     }
-  };
+  }, []);
 
   const clearGuestMode = () => {
     setProfile(null);
@@ -232,7 +232,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('guestSession');
   };
 
-  const restoreGuestSession = async () => {
+  const restoreGuestSession = useCallback(async () => {
     const saved = localStorage.getItem('guestSession');
     if (!saved) return false;
     try {
@@ -268,9 +268,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem('guestSession');
       return false;
     }
-  };
+  }, []);
 
-  const fetchGuestProfile = async (guestUserId: string, orgSlug?: string, orgId?: string) => {
+  const fetchGuestProfile = useCallback(async (guestUserId: string, orgSlug?: string, orgId?: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -301,7 +301,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -331,7 +331,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-    const signOut = async () => {
+    const signOut = useCallback(async () => {
       try {
         // 1. Sign out from Supabase (this handles session clearing)
         await supabase.auth.signOut();
@@ -359,7 +359,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsGuest(false);
       isGuestRef.current = false;
       profileRef.current = null;
-    };
+    }, []);
 
   const contextFetchProfile = async () => {
     if (user) await fetchProfile(user.id);

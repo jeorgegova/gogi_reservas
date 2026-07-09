@@ -321,10 +321,14 @@ export default function AdminBonificaciones() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Gift className="w-8 h-8 text-primary" />
-            Módulo de Bonificaciones
-          </h1>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20">
+              <Gift className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Módulo de Bonificaciones</h1>
+            </div>
+          </div>
           <p className="text-gray-500">Configura recompensas para tus {terminology.userLabel.toLowerCase()}s leales.</p>
         </div>
         

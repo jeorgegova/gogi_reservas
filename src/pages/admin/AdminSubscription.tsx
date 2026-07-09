@@ -273,7 +273,9 @@ export default function AdminSubscription() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Crown className="w-8 h-8 text-primary" />
+        <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20">
+          <Crown className="h-5 w-5 text-white" />
+        </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Suscripción</h1>
           <p className="text-gray-600">Gestiona tu suscripción y planes disponibles</p>
