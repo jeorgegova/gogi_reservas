@@ -256,169 +256,169 @@ export default function AdminResourcesPage() {
                   </div>
                   <div className="space-y-4">
                     <div className="flex items-center gap-3"><Switch checked={currentArea.is_free || false} onCheckedChange={c => setCurrentArea({ ...currentArea, is_free: c })} /><Label className="text-sm text-gray-600 cursor-pointer">Área gratuita (sin costo)</Label></div>
-                      <div><Label className="text-[10px] uppercase font-bold text-gray-400">{currentArea.is_free ? 'Tipo de Duración' : 'Tipo de Precio'}</Label>
-                        <select value={currentArea.pricing_type || 'hourly'} onChange={e => setCurrentArea({ ...currentArea, pricing_type: e.target.value })} className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 mt-1">
-                          <option value="hourly">Por Hora</option>
-                          <option value="jornada">Por Jornada (Día/Noche)</option>
-                          <option value="fixed">Precio Fijo</option>
-                        </select>
+                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">{currentArea.is_free ? 'Tipo de Duración' : 'Tipo de Precio'}</Label>
+                      <select value={currentArea.pricing_type || 'hourly'} onChange={e => setCurrentArea({ ...currentArea, pricing_type: e.target.value })} className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 mt-1">
+                        <option value="hourly">Por Hora</option>
+                        <option value="jornada">Por Jornada (Día/Noche)</option>
+                        <option value="fixed">Precio Fijo</option>
+                      </select>
+                    </div>
+                    {currentArea.pricing_type === 'hourly' ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        {!currentArea.is_free && <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo por Hora</Label><CurrencyInput value={currentArea.cost_per_hour || 0} onChange={v => setCurrentArea({ ...currentArea, cost_per_hour: v })} className="h-10 rounded-lg text-sm mt-1" /></div>}
+                        <div><Label className="text-[10px] uppercase font-bold text-gray-400">Máx. Horas por Reserva</Label><Input type="number" min="1" max="24" value={currentArea.max_hours_per_reservation || 4} onChange={e => setCurrentArea({ ...currentArea, max_hours_per_reservation: parseInt(e.target.value) || 4 })} className="h-10 rounded-lg text-sm mt-1" /></div>
                       </div>
-                      {currentArea.pricing_type === 'hourly' ? (
-                        <div className="grid grid-cols-2 gap-4">
-                          {!currentArea.is_free && <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo por Hora</Label><CurrencyInput value={currentArea.cost_per_hour || 0} onChange={v => setCurrentArea({ ...currentArea, cost_per_hour: v })} className="h-10 rounded-lg text-sm mt-1" /></div>}
-                          <div><Label className="text-[10px] uppercase font-bold text-gray-400">Máx. Horas por Reserva</Label><Input type="number" min="1" max="24" value={currentArea.max_hours_per_reservation || 4} onChange={e => setCurrentArea({ ...currentArea, max_hours_per_reservation: parseInt(e.target.value) || 4 })} className="h-10 rounded-lg text-sm mt-1" /></div>
+                    ) : currentArea.pricing_type === 'jornada' ? (
+                      <div className="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Diurna</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_diurna || '08:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                          <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_diurna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                          {!currentArea.is_free && <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_diurna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_diurna: v })} className="h-9 rounded-lg text-xs" /></div>}
                         </div>
-                      ) : currentArea.pricing_type === 'jornada' ? (
-                        <div className="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                          <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Diurna</Label>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_diurna || '08:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                            <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_diurna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                            {!currentArea.is_free && <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_diurna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_diurna: v })} className="h-9 rounded-lg text-xs" /></div>}
-                          </div>
-                          <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Nocturna</Label>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_nocturna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                            <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_nocturna || '23:59'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                            {!currentArea.is_free && <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_nocturna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_nocturna: v })} className="h-9 rounded-lg text-xs" /></div>}
-                          </div>
-                          <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Completa (Día + Noche)</Label>
-                          {!currentArea.is_free ? (
-                            <div className="w-40"><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_ambos || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_ambos: v })} className="h-9 rounded-lg text-xs" /></div>
-                          ) : (
-                            <p className="text-[10px] text-gray-400 italic">Gratuito · solo restricción de horario</p>
-                          )}
+                        <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Nocturna</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_nocturna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                          <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_nocturna || '23:59'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                          {!currentArea.is_free && <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_nocturna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_nocturna: v })} className="h-9 rounded-lg text-xs" /></div>}
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-4">
-                          {!currentArea.is_free && <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo Fijo</Label><CurrencyInput value={currentArea.fixed_cost || 0} onChange={v => setCurrentArea({ ...currentArea, fixed_cost: v })} className="h-10 rounded-lg text-sm mt-1" /></div>}
-                          <div><Label className="text-[10px] uppercase font-bold text-gray-400">Duración (minutos)</Label><Input type="number" min="15" step="15" value={currentArea.estimated_duration_minutes || 60} onChange={e => setCurrentArea({ ...currentArea, estimated_duration_minutes: parseInt(e.target.value) || 60 })} className="h-10 rounded-lg text-sm mt-1" /></div>
-                        </div>
-                      )}
+                        <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Completa (Día + Noche)</Label>
+                        {!currentArea.is_free ? (
+                          <div className="w-40"><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_ambos || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_ambos: v })} className="h-9 rounded-lg text-xs" /></div>
+                        ) : (
+                          <p className="text-[10px] text-gray-400 italic">Gratuito · solo restricción de horario</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                        {!currentArea.is_free && <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo Fijo</Label><CurrencyInput value={currentArea.fixed_cost || 0} onChange={v => setCurrentArea({ ...currentArea, fixed_cost: v })} className="h-10 rounded-lg text-sm mt-1" /></div>}
+                        <div><Label className="text-[10px] uppercase font-bold text-gray-400">Duración (minutos)</Label><Input type="number" min="15" step="15" value={currentArea.estimated_duration_minutes || 60} onChange={e => setCurrentArea({ ...currentArea, estimated_duration_minutes: parseInt(e.target.value) || 60 })} className="h-10 rounded-lg text-sm mt-1" /></div>
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 pt-1"><Switch checked={currentArea.is_active} onCheckedChange={c => setCurrentArea({ ...currentArea, is_active: c })} /><Label className="text-sm text-gray-600 cursor-pointer">Área disponible y visible</Label></div>
                   </div>
                 </div>
               ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div><Label className="text-[10px] uppercase font-bold text-gray-400">Nombre Completo</Label><Input value={currentArea.name} onChange={e => setCurrentArea({ ...currentArea, name: e.target.value })} placeholder="Ej: Juan Pérez" required className="h-10 rounded-lg text-sm mt-1" /></div>
-                  <div><Label className="text-[10px] uppercase font-bold text-gray-400">Especialidad (etiqueta visible)</Label><Input value={currentArea.specialty || ''} onChange={e => setCurrentArea({ ...currentArea, specialty: e.target.value })} placeholder="Ej: Colorista, Barbero" className="h-10 rounded-lg text-sm mt-1" /></div>
-                  <div><Label className="text-[10px] uppercase font-bold text-gray-400">Descripción / Biografía</Label><Input value={currentArea.description || ''} onChange={e => setCurrentArea({ ...currentArea, description: e.target.value })} placeholder="Especialista en cortes modernos" className="h-10 rounded-lg text-sm mt-1" /></div>
-                </div>
-                <div className="space-y-4">
-                  <div><Label className="text-[10px] uppercase font-bold text-gray-400">URL Foto del Empleado (circular)</Label><Input value={currentArea.employee_photo_url || ''} onChange={e => setCurrentArea({ ...currentArea, employee_photo_url: e.target.value })} placeholder="https://..." className="h-10 rounded-lg text-sm mt-1" /></div>
-                  <div><Label className="text-[10px] uppercase font-bold text-gray-400">URL Imagen de Portada (fondo)</Label><Input value={currentArea.image_url || ''} onChange={e => setCurrentArea({ ...currentArea, image_url: e.target.value })} placeholder="https://..." className="h-10 rounded-lg text-sm mt-1" /></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">Tipo</Label>
-                      <select value={currentArea.resource_type || 'employee'} onChange={e => setCurrentArea({ ...currentArea, resource_type: e.target.value })} className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 mt-1">
-                        <option value="employee">Empleado</option><option value="facility">Instalación</option><option value="room">Sala</option><option value="court">Cancha</option><option value="equipment">Equipo</option><option value="general">General</option>
-                      </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">Nombre Completo</Label><Input value={currentArea.name} onChange={e => setCurrentArea({ ...currentArea, name: e.target.value })} placeholder="Ej: Juan Pérez" required className="h-10 rounded-lg text-sm mt-1" /></div>
+                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">Especialidad (etiqueta visible)</Label><Input value={currentArea.specialty || ''} onChange={e => setCurrentArea({ ...currentArea, specialty: e.target.value })} placeholder="Ej: Colorista, Barbero" className="h-10 rounded-lg text-sm mt-1" /></div>
+                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">Descripción / Biografía</Label><Input value={currentArea.description || ''} onChange={e => setCurrentArea({ ...currentArea, description: e.target.value })} placeholder="Especialista en cortes modernos" className="h-10 rounded-lg text-sm mt-1" /></div>
+                  </div>
+                  <div className="space-y-4">
+                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">URL Foto del Empleado (circular)</Label><Input value={currentArea.employee_photo_url || ''} onChange={e => setCurrentArea({ ...currentArea, employee_photo_url: e.target.value })} placeholder="https://..." className="h-10 rounded-lg text-sm mt-1" /></div>
+                    <div><Label className="text-[10px] uppercase font-bold text-gray-400">URL Imagen de Portada (fondo)</Label><Input value={currentArea.image_url || ''} onChange={e => setCurrentArea({ ...currentArea, image_url: e.target.value })} placeholder="https://..." className="h-10 rounded-lg text-sm mt-1" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label className="text-[10px] uppercase font-bold text-gray-400">Tipo</Label>
+                        <select value={currentArea.resource_type || 'employee'} onChange={e => setCurrentArea({ ...currentArea, resource_type: e.target.value })} className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 mt-1">
+                          <option value="employee">Empleado</option><option value="facility">Instalación</option><option value="room">Sala</option><option value="court">Cancha</option><option value="equipment">Equipo</option><option value="general">General</option>
+                        </select>
+                      </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-4 mt-2">
+                      {!isResidential && (
+                        <div><Label className="text-[10px] uppercase font-bold text-gray-400">Comisión (%)</Label><Input type="number" min="0" max="100" value={currentArea.commission_percentage || 0} onChange={e => setCurrentArea({ ...currentArea, commission_percentage: parseFloat(e.target.value) || 0 })} className="h-10 rounded-lg text-sm mt-1" placeholder="0" /></div>
+                      )}
+                      <div className={cn("flex items-end pb-1", isResidential && "col-span-2")}><p className="text-[10px] text-gray-400">{isResidential ? 'Configura nombre, imagen y descripción del área.' : '% de ganancia para el empleado. 0 = sin comisión.'}</p></div>
+                    </div>
+                    <div className="flex items-center gap-3 pt-1"><Switch checked={currentArea.is_active} onCheckedChange={c => setCurrentArea({ ...currentArea, is_active: c })} /><Label className="text-sm text-gray-600 cursor-pointer">Activo y visible para clientes</Label></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    {!isResidential && (
-                      <div><Label className="text-[10px] uppercase font-bold text-gray-400">Comisión (%)</Label><Input type="number" min="0" max="100" value={currentArea.commission_percentage || 0} onChange={e => setCurrentArea({ ...currentArea, commission_percentage: parseFloat(e.target.value) || 0 })} className="h-10 rounded-lg text-sm mt-1" placeholder="0" /></div>
-                    )}
-                    <div className={cn("flex items-end pb-1", isResidential && "col-span-2")}><p className="text-[10px] text-gray-400">{isResidential ? 'Configura nombre, imagen y descripción del área.' : '% de ganancia para el empleado. 0 = sin comisión.'}</p></div>
-                  </div>
-                  <div className="flex items-center gap-3 pt-1"><Switch checked={currentArea.is_active} onCheckedChange={c => setCurrentArea({ ...currentArea, is_active: c })} /><Label className="text-sm text-gray-600 cursor-pointer">Activo y visible para clientes</Label></div>
                 </div>
-              </div>
               )}
 
               {/* Services section - only for non-residential */}
               {!isResidential && (
-              <div className="border-t border-gray-100 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2"><Package className="w-5 h-5 text-primary" /><h3 className="text-base font-bold text-gray-900">Servicios que realiza</h3></div>
-                  <Button type="button" variant="outline" onClick={() => setShowServicePicker(!showServicePicker)} className="h-9 text-xs font-bold rounded-xl border-gray-200"><Plus className="w-3.5 h-3.5 mr-1" /> Agregar Servicio</Button>
+                <div className="border-t border-gray-100 pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2"><Package className="w-5 h-5 text-primary" /><h3 className="text-base font-bold text-gray-900">Servicios que realiza</h3></div>
+                    <Button type="button" variant="outline" onClick={() => setShowServicePicker(!showServicePicker)} className="h-9 text-xs font-bold rounded-xl border-gray-200"><Plus className="w-3.5 h-3.5 mr-1" /> Agregar Servicio</Button>
+                  </div>
+
+                  {/* Service picker dropdown */}
+                  {showServicePicker && (
+                    <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-gray-400 block mb-2">Servicios disponibles en el catálogo:</Label>
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {availableToAdd.length > 0 ? availableToAdd.map(svc => (
+                          <button key={svc.id} type="button" onClick={() => handleAddService(svc)} className="w-full flex items-center justify-between p-2.5 rounded-lg bg-white hover:bg-primary/5 border border-gray-100 hover:border-primary/20 transition-all text-left">
+                            <div><span className="text-sm font-medium text-gray-900">{svc.name}</span><span className="text-[10px] text-gray-400 ml-2">{fd(svc.duration_minutes)}</span></div>
+                            <span className="text-xs font-bold text-gray-500">{formatCurrency(svc.base_cost)}</span>
+                          </button>
+                        )) : <p className="text-xs text-gray-400 text-center py-2">Todos los servicios ya fueron asignados</p>}
+                      </div>
+                      <button type="button" onClick={() => setShowServicePicker(false)} className="w-full text-[10px] text-gray-400 hover:text-gray-600 pt-1">Cerrar</button>
+                    </div>
+                  )}
+
+                  {/* Assigned services */}
+                  {linkedAddons.length === 0 && !showServicePicker && (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
+                      <Package className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                      <p className="text-sm text-gray-400">Sin servicios asignados</p>
+                      <p className="text-[11px] text-gray-300 mt-1">Hacé clic en "Agregar Servicio" para empezar</p>
+                    </div>
+                  )}
+
+                  {linkedAddons.map((la) => {
+                    const addons = allServiceAddons[la.service_id] || [];
+                    const enabledIds = enabledAddonIds[la.service_id] || [];
+                    return (
+                      <div key={la.service_id} className="mb-3 rounded-xl border border-gray-200 bg-white overflow-hidden">
+                        {/* Service header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50/50">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-gray-900 text-sm break-words">{la.name}</span>
+                              <span className="px-2 py-0.5 bg-gray-200 rounded-full text-[10px] text-gray-500 font-medium shrink-0">{fd(la.duration_minutes)}</span>
+                            </div>
+                            {la.description && <p className="text-[11px] text-gray-400 mt-0.5 break-words">{la.description}</p>}
+                          </div>
+                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] uppercase font-bold text-gray-400">Precio:</span>
+                              <CurrencyInput value={la.custom_price} onChange={(v) => handleUpdatePrice(la.service_id, v)} className="h-8 rounded-lg text-xs w-28" placeholder="Precio" />
+                            </div>
+                            <button type="button" onClick={() => handleRemoveService(la.service_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+
+                        {/* Addons for this service */}
+                        <div className="border-t border-gray-100 p-3 sm:p-4">
+                          <div className="flex flex-wrap items-center gap-2 mb-3">
+                            <span className="text-[10px] uppercase font-bold text-gray-400">Adicionales disponibles:</span>
+                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{enabledIds.length} de {addons.length} activos</span>
+                          </div>
+                          {addons.length === 0 ? (
+                            <p className="text-[11px] text-gray-400 italic leading-relaxed">Este servicio no tiene adicionales configurados. Creá adicionales globales y vinculalos al servicio en "Catálogo de Servicios".</p>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
+                              {addons.map((addon: any) => {
+                                const checked = enabledIds.includes(addon.id);
+                                return (
+                                  <button
+                                    key={addon.id}
+                                    type="button"
+                                    onClick={() => toggleAddon(la.service_id, addon.id)}
+                                    className={cn(
+                                      "flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all text-left",
+                                      checked
+                                        ? "bg-indigo-600 text-white border-indigo-600"
+                                        : "bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600"
+                                    )}
+                                  >
+                                    <span className={cn("w-4 h-4 rounded flex items-center justify-center border text-[10px] shrink-0", checked ? "bg-white text-indigo-600 border-white" : "bg-gray-50 border-gray-300 text-transparent")}>✓</span>
+                                    <span className="break-words">{addon.name}</span>
+                                    <span className={cn("text-[10px] shrink-0", checked ? "text-indigo-200" : "text-gray-400")}>+{formatCurrency(addon.additional_cost)}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-
-                {/* Service picker dropdown */}
-                {showServicePicker && (
-                  <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
-                    <Label className="text-[10px] uppercase font-bold text-gray-400 block mb-2">Servicios disponibles en el catálogo:</Label>
-                    <div className="max-h-48 overflow-y-auto space-y-1">
-                      {availableToAdd.length > 0 ? availableToAdd.map(svc => (
-                        <button key={svc.id} type="button" onClick={() => handleAddService(svc)} className="w-full flex items-center justify-between p-2.5 rounded-lg bg-white hover:bg-primary/5 border border-gray-100 hover:border-primary/20 transition-all text-left">
-                          <div><span className="text-sm font-medium text-gray-900">{svc.name}</span><span className="text-[10px] text-gray-400 ml-2">{fd(svc.duration_minutes)}</span></div>
-                          <span className="text-xs font-bold text-gray-500">{formatCurrency(svc.base_cost)}</span>
-                        </button>
-                      )) : <p className="text-xs text-gray-400 text-center py-2">Todos los servicios ya fueron asignados</p>}
-                    </div>
-                    <button type="button" onClick={() => setShowServicePicker(false)} className="w-full text-[10px] text-gray-400 hover:text-gray-600 pt-1">Cerrar</button>
-                  </div>
-                )}
-
-                {/* Assigned services */}
-                {linkedAddons.length === 0 && !showServicePicker && (
-                  <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
-                    <Package className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">Sin servicios asignados</p>
-                    <p className="text-[11px] text-gray-300 mt-1">Hacé clic en "Agregar Servicio" para empezar</p>
-                  </div>
-                )}
-
-                {linkedAddons.map((la) => {
-                  const addons = allServiceAddons[la.service_id] || [];
-                  const enabledIds = enabledAddonIds[la.service_id] || [];
-                  return (
-                    <div key={la.service_id} className="mb-3 rounded-xl border border-gray-200 bg-white overflow-hidden">
-                      {/* Service header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50/50">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-bold text-gray-900 text-sm break-words">{la.name}</span>
-                            <span className="px-2 py-0.5 bg-gray-200 rounded-full text-[10px] text-gray-500 font-medium shrink-0">{fd(la.duration_minutes)}</span>
-                          </div>
-                          {la.description && <p className="text-[11px] text-gray-400 mt-0.5 break-words">{la.description}</p>}
-                        </div>
-                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase font-bold text-gray-400">Precio:</span>
-                            <CurrencyInput value={la.custom_price} onChange={(v) => handleUpdatePrice(la.service_id, v)} className="h-8 rounded-lg text-xs w-28" placeholder="Precio" />
-                          </div>
-                          <button type="button" onClick={() => handleRemoveService(la.service_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-
-                      {/* Addons for this service */}
-                      <div className="border-t border-gray-100 p-3 sm:p-4">
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <span className="text-[10px] uppercase font-bold text-gray-400">Adicionales disponibles:</span>
-                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{enabledIds.length} de {addons.length} activos</span>
-                        </div>
-                        {addons.length === 0 ? (
-                          <p className="text-[11px] text-gray-400 italic leading-relaxed">Este servicio no tiene adicionales configurados. Creá adicionales globales y vinculalos al servicio en "Catálogo de Servicios".</p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
-                            {addons.map((addon: any) => {
-                              const checked = enabledIds.includes(addon.id);
-                              return (
-                                <button
-                                  key={addon.id}
-                                  type="button"
-                                  onClick={() => toggleAddon(la.service_id, addon.id)}
-                                  className={cn(
-                                    "flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all text-left",
-                                    checked
-                                      ? "bg-indigo-600 text-white border-indigo-600"
-                                      : "bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600"
-                                  )}
-                                >
-                                  <span className={cn("w-4 h-4 rounded flex items-center justify-center border text-[10px] shrink-0", checked ? "bg-white text-indigo-600 border-white" : "bg-gray-50 border-gray-300 text-transparent")}>✓</span>
-                                  <span className="break-words">{addon.name}</span>
-                                  <span className={cn("text-[10px] shrink-0", checked ? "text-indigo-200" : "text-gray-400")}>+{formatCurrency(addon.additional_cost)}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
               )}
 
               <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
@@ -449,9 +449,9 @@ export default function AdminResourcesPage() {
                     {area.description && <p className="text-[11px] text-gray-500 line-clamp-2 mb-3 flex-1">{area.description}</p>}
                     <div className="text-[10px] text-gray-400 mb-1">{area.is_free ? 'Gratuito' : area.pricing_type === 'hourly' ? `${formatCurrency(area.cost_per_hour)}/hora` : area.pricing_type === 'jornada' ? `Jornada desde ${formatCurrency(area.cost_jornada_diurna)}` : `${formatCurrency(area.fixed_cost)} fijo`}</div>
                     <div className="flex gap-1.5 pt-3 border-t border-gray-50">
-                    <button onClick={(e) => { e.stopPropagation(); handleEdit(area); }} className="flex-1 h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1"><Edit2 className="w-3 h-3" /> Editar</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleToggleActive(area); }} className={cn("flex-1 h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center shrink-0"><Trash2 className="w-3 h-3" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleEdit(area); }} className="flex-1 h-8 bg-primary/10 text-primary hover:bg-primary hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1"><Edit2 className="w-3 h-3" /> Editar</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleToggleActive(area); }} className={cn("flex-1 h-8 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center", area.is_active ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200" : "bg-emerald-500 text-white hover:bg-emerald-600")}>{area.is_active ? 'Desactivar' : 'Activar'}</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="h-8 w-8 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg border border-red-100 transition-all active:scale-95 flex items-center justify-center shrink-0"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   </div>
                 </Card>
@@ -484,7 +484,7 @@ export default function AdminResourcesPage() {
                   }
                 }}
                 onDragEnd={() => { dragIdRef.current = null; setDraggingId(null); saveCurrentOrder(); }}
-                onTouchStart={(e) => {
+                onTouchStart={() => {
                   touchDragIdRef.current = area.id;
                   touchTargetIdRef.current = area.id;
                   touchMovedRef.current = false;
