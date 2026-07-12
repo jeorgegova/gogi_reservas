@@ -301,7 +301,8 @@ export default function SuperAdminOrganizations() {
     setLoading(true);
 
     const dataToSave = {
-      ...formData
+      ...formData,
+      business_type: formData.business_type === 'office' ? 'residential' : formData.business_type,
     };
 
     if (editingOrg) {
@@ -640,6 +641,70 @@ export default function SuperAdminOrganizations() {
 
       // Update organization's subscription status
       await updateOrganizationSubscriptionStatus(selectedOrgForSubscription.id);
+
+      // If the assigned plan is free, enforce limits: 1 active employee and 5 active services (non-residential), 3 active common areas (residential)
+      if (selectedPlan.price === 0) {
+        try {
+          const isResidentialOrg = selectedOrgForSubscription.business_type === 'residential';
+
+          if (!isResidentialOrg) {
+            // Enforce 1 active employee
+            const { data: employees } = await supabase
+              .from('resources')
+              .select('id, is_active, display_order')
+              .eq('organization_id', selectedOrgForSubscription.id)
+              .eq('resource_type', 'employee')
+              .order('display_order', { ascending: true });
+
+            const activeEmployees = (employees || []).filter((r: any) => r.is_active);
+            if (activeEmployees.length > 1) {
+              const toDisable = activeEmployees.slice(1).map((r: any) => r.id);
+              await supabase
+                .from('resources')
+                .update({ is_active: false })
+                .eq('organization_id', selectedOrgForSubscription.id)
+                .in('id', toDisable);
+            }
+
+            // Enforce 5 active services
+            const { data: services } = await supabase
+              .from('services')
+              .select('id, is_active, created_at')
+              .eq('organization_id', selectedOrgForSubscription.id)
+              .eq('is_active', true)
+              .order('created_at', { ascending: true });
+
+            if ((services || []).length > 3) {
+              const toDisableServices = services!.slice(3).map((s: any) => s.id);
+              await supabase
+                .from('services')
+                .update({ is_active: false })
+                .eq('organization_id', selectedOrgForSubscription.id)
+                .in('id', toDisableServices);
+            }
+          } else {
+            // Enforce 3 active common areas for residential organizations
+            const { data: commonAreas } = await supabase
+              .from('resources')
+              .select('id, is_active, display_order')
+              .eq('organization_id', selectedOrgForSubscription.id)
+              .order('display_order', { ascending: true });
+
+            const activeAreas = (commonAreas || []).filter((r: any) => r.is_active);
+            if (activeAreas.length > 3) {
+              const toDisable = activeAreas.slice(3).map((r: any) => r.id);
+              await supabase
+                .from('resources')
+                .update({ is_active: false })
+                .eq('organization_id', selectedOrgForSubscription.id)
+                .in('id', toDisable);
+            }
+          }
+        } catch (limitError: any) {
+          console.error('Error enforcing free plan limits:', limitError);
+          // Don't fail the subscription assignment
+        }
+      }
 
       setSubscriptionModalOpen(false);
       // Refresh data to show updated status

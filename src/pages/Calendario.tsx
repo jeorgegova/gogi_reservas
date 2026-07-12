@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, detoxTime, formatDate, formatDateTimeISO, formatTime } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { getTerminology } from '@/lib/terminology';
 import { useCommonAreasQuery } from '@/hooks/useResources';
 import { useReservationsQuery } from '@/hooks/useReservations';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import * as reservationService from '@/services/reservations';
 import {
@@ -23,9 +25,11 @@ import {
     PieChart,
     Activity,
     Briefcase,
-    Percent
+    Percent,
+    Crown
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
     BarChart,
@@ -50,7 +54,23 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 export default function Calendario() {
     const navigate = useNavigate();
-    const { profile, terminology } = useAuth();
+    const { profile, businessType, orgSettings } = useAuth();
+    const [orgBusinessType, setOrgBusinessType] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (profile?.organization_id) {
+            supabase.from('organizations').select('business_type').eq('id', profile.organization_id).single().then(({ data }) => {
+                if (data) setOrgBusinessType(data.business_type);
+            });
+        }
+    }, [profile?.organization_id]);
+
+    const effectiveBusinessType = orgBusinessType || orgSettings?.business_type || businessType;
+    console.log('Tipo organizacion...', effectiveBusinessType, { dbType: orgBusinessType, orgSettingsType: orgSettings?.business_type, authType: businessType });
+
+    const terminology = getTerminology(effectiveBusinessType);
+    const isResidential = effectiveBusinessType === 'residential';
+    const { isPlanFree, loading: subscriptionLoading } = useSubscriptionStatus(profile?.organization_id);
     const location = useLocation();
     const isAdminPage = location.pathname === '/admin';
     // Only show analytics on /admin route, not on /dashboard
@@ -303,6 +323,13 @@ export default function Calendario() {
         })).reverse();
     }, []);
 
+    const isMonthAllowed = (monthValue: string) => {
+        if (!isPlanFree) return true;
+        const current = format(new Date(), 'yyyy-MM');
+        const previous = format(subMonths(new Date(), 1), 'yyyy-MM');
+        return monthValue === current || monthValue === previous;
+    };
+
     // Helper functions for calendar events
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -423,8 +450,8 @@ export default function Calendario() {
 
     // Renderizar vista de Admin
     if (showAnalytics) {
-        return (
-            <div className="space-y-6 animate-fade-in duration-500">
+        const analyticsContent = (
+            <div className={cn("space-y-6 animate-fade-in duration-500", isPlanFree && "opacity-40 pointer-events-none grayscale")}>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
                     <div>
                         <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">
@@ -441,11 +468,19 @@ export default function Calendario() {
                             <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
                             <select
                                 value={selectedMonth}
-                                onChange={(e) => setSelectedMonth(e.target.value)}
-                                className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer w-full"
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (isMonthAllowed(value)) {
+                                        setSelectedMonth(value);
+                                    } else {
+                                        toast.info('Plan gratuito: solo puedes ver el mes actual y el anterior.');
+                                    }
+                                }}
+                                disabled={subscriptionLoading}
+                                className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer w-full disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {monthOptions.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    <option key={opt.value} value={opt.value} disabled={!isMonthAllowed(opt.value)}>{opt.label}{!isMonthAllowed(opt.value) ? ' (plan de pago)' : ''}</option>
                                 ))}
                             </select>
                         </div>
@@ -456,7 +491,7 @@ export default function Calendario() {
                                 onChange={(e) => setSelectedAreaId(e.target.value)}
                                 className="text-sm font-medium bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer w-full"
                             >
-                                <option value="all">Todas las {terminology.areaLabel.toLowerCase()}s</option>
+                                <option value="all">{isResidential ? `Todas las ${terminology.areaLabel.toLowerCase()}s` : 'Todos los profesionales'}</option>
                                 {areasData.map(area => (
                                     <option key={area.id} value={area.id}>{area.name}</option>
                                 ))}
@@ -520,8 +555,8 @@ export default function Calendario() {
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} interval="preserveStartEnd" />
-                                        <YAxis stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} />
+                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                                        <YAxis stroke="#9ca3af" fontSize={10} tick={{ fontSize: 10 }} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#fff',
@@ -561,8 +596,8 @@ export default function Calendario() {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={adminStats.monthlyReservations}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} interval="preserveStartEnd" />
-                                        <YAxis stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} tickFormatter={(value) => `$${value / 1000}k`} />
+                                        <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                                        <YAxis stroke="#9ca3af" fontSize={10} tick={{ fontSize: 10 }} tickFormatter={(value) => `$${value / 1000}k`} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#fff',
@@ -588,8 +623,8 @@ export default function Calendario() {
                             <div className="flex items-center gap-2">
                                 <Activity className="w-5 h-5 text-amber-500" />
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900">{terminology.areaLabel}s Más Occupadas</h3>
-                                    <p className="text-xs text-gray-500">Distribución de {terminology.reservationLabel.toLowerCase()}s por {terminology.areaLabel.toLowerCase()}</p>
+                                    <h3 className="text-lg font-bold text-gray-900">{isResidential ? `${terminology.areaLabel}s Más Ocupadas` : 'Profesionales Más Solicitados'}</h3>
+                                    <p className="text-xs text-gray-500">{isResidential ? `Distribución de ${terminology.reservationLabel.toLowerCase()}s por ${terminology.areaLabel.toLowerCase()}` : 'Distribución de reservas por profesional'}</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -598,8 +633,8 @@ export default function Calendario() {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={adminStats.reservationsByArea} layout="vertical" margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis type="number" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} />
-                                        <YAxis dataKey="name" type="category" stroke="#9ca3af" fontSize={10} tick={{fontSize: 10}} width={80} />
+                                        <XAxis type="number" stroke="#9ca3af" fontSize={10} tick={{ fontSize: 10 }} />
+                                        <YAxis dataKey="name" type="category" stroke="#9ca3af" fontSize={10} tick={{ fontSize: 10 }} width={80} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#fff',
@@ -789,6 +824,34 @@ export default function Calendario() {
                 </div>
             </div>
         );
+
+        return (
+            <div className="space-y-4">
+                {isPlanFree && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-amber-100 rounded-xl shrink-0">
+                                <Crown className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-bold text-amber-900">Módulo disponible en plan de pago</h2>
+                                <p className="text-xs text-amber-700 mt-0.5">El panel de administración está bloqueado en el plan gratuito. Actualiza tu suscripción para acceder a informes y métricas.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => window.location.href = '/admin/subscription'}
+                            className="shrink-0 h-9 px-4 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white text-xs shadow-lg shadow-primary/25 transition-colors"
+                        >
+                            Ver planes
+                        </button>
+                    </div>
+                )}
+                <div className="relative">
+                    {analyticsContent}
+                    {isPlanFree && <div className="absolute inset-0 z-10 bg-white/30 rounded-2xl" />}
+                </div>
+            </div>
+        );
     }
 
     // Renderizar vista de residente (sin cambios)
@@ -808,7 +871,7 @@ export default function Calendario() {
                         onChange={(e) => setSelectedAreaId(e.target.value)}
                         className="text-[10px] md:text-xs font-bold bg-transparent border-none focus:ring-0 outline-none text-gray-700 cursor-pointer"
                     >
-                        <option value="all">Todas</option>
+                        <option value="all">{isResidential ? 'Todas' : 'Todos'}</option>
                         {areasData.map((area: any) => (
                             <option key={area.id} value={area.id}>{area.name}</option>
                         ))}
@@ -822,7 +885,7 @@ export default function Calendario() {
                         <CardHeader className="border-b border-gray-50 p-3 md:p-4 hidden md:flex md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h3 className="text-lg font-bold text-gray-900">Calendario de Actividades</h3>
-                                <p className="text-xs text-gray-500">Visualización de disponibilidad por {terminology.areaLabel.toLowerCase()}</p>
+                                <p className="text-xs text-gray-500">{isResidential ? `Visualización de disponibilidad por ${terminology.areaLabel.toLowerCase()}` : 'Visualización de disponibilidad por profesional'}</p>
                             </div>
                         </CardHeader>
                         <CardContent className="p-1 sm:p-2">
@@ -928,8 +991,8 @@ export default function Calendario() {
                                                 <div className="flex justify-end w-full p-0.5">
                                                     <span className={cn(
                                                         "text-[10px] sm:text-xs font-semibold text-gray-900 px-1 transition-colors",
-                                                        arg.isToday 
-                                                            ? "bg-[#FF3B30] text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm" 
+                                                        arg.isToday
+                                                            ? "bg-[#FF3B30] text-white w-6 h-6 flex items-center justify-center rounded-full shadow-sm"
                                                             : "hover:text-[#FF3B30]"
                                                     )}>
                                                         {arg.dayNumberText}
@@ -938,17 +1001,17 @@ export default function Calendario() {
 
                                                 <div className="hidden sm:block absolute bottom-1 right-1 p-0.5 z-10 w-full justify-end">
                                                     {isBookable && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const dateStr = format(arg.date, 'yyyy-MM-dd');
-                                                            navigate(`/reservations/new?date=${dateStr}`);
-                                                        }}
-                                                        className="w-5 h-5 text-[#FF3B30] transition-all hover:bg-[#FF3B30]/10 rounded-full flex items-center justify-center"
-                                                        title={`Agregar ${terminology.reservationLabel.toLowerCase()}`}
-                                                    >
-                                                        <span className="text-sm font-semibold leading-none">+</span>
-                                                    </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const dateStr = format(arg.date, 'yyyy-MM-dd');
+                                                                navigate(`/reservations/new?date=${dateStr}`);
+                                                            }}
+                                                            className="w-5 h-5 text-[#FF3B30] transition-all hover:bg-[#FF3B30]/10 rounded-full flex items-center justify-center"
+                                                            title={`Agregar ${terminology.reservationLabel.toLowerCase()}`}
+                                                        >
+                                                            <span className="text-sm font-semibold leading-none">+</span>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </div>
@@ -1201,7 +1264,7 @@ export default function Calendario() {
                                 onClick={() => setMoreLinkModal(null)}
                                 className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                             </button>
                         </div>
 

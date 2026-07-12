@@ -152,15 +152,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     navItems = [...adminItems, { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar }, { name: terminology.noticesLabel, path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
   }
 
-  // Plan gratuito: ocultar secciones restringidas
-  if (isPlanFree) {
-    navItems = navItems.filter(
-      (item) =>
-        item.path !== '/maintenance' &&
-        item.path !== '/admin' &&
-        item.path !== '/admin/statistics'
-    );
-  }
+  // Plan gratuito: marcar módulos de pago para mostrar el icono de corona, pero no bloquear la navegación
+  const lockedPaths = isPlanFree
+    ? ['/maintenance', '/admin', '/admin/statistics']
+    : [];
+  navItems = navItems.map((item) => ({
+    ...item,
+    locked: lockedPaths.includes(item.path),
+  }));
 
   // Función para salir del modo soporte
   const handleExitSupport = () => {
@@ -250,7 +249,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
 
           <nav className="flex-1 overflow-y-auto px-4 space-y-1 mt-4 lg:mt-0 pb-safe">
-            {navItems.map((item) => (
+            {navItems.map((item: any) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -271,7 +270,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#FF3B30] rounded-r-full shadow-[2px_0_10px_rgba(255,59,48,0.3)]" />
                     )}
                     <item.icon className={cn("w-5 h-5 ml-1 transition-transform duration-200 group-hover:scale-110", isActive ? "text-[#FF3B30]" : "text-gray-400 group-hover:text-gray-600")} />
-                    <span className="truncate">{item.name}</span>
+                    <span className="truncate flex-1">{item.name}</span>
+                    {item.locked && <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                   </>
                 )}
               </NavLink>

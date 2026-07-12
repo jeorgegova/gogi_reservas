@@ -431,7 +431,7 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           filteredUsers.map((user) => (
-              <div key={user.id} className="bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden transition-all hover:shadow-md active:scale-[0.99]">
+              <div key={user.id} className="bg-white rounded-2xl border border-gray-100/80 shadow-sm transition-all hover:shadow-md active:scale-[0.99]">
                 <div className="p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">

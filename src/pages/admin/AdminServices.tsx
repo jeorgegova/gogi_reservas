@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import {
   Plus, Edit2, Clock, Trash2, Package, ListPlus, Link, Unlink,
-  Info, CheckCircle2, Layers, Tag, X, ChevronLeft
+  Info, CheckCircle2, Layers, Tag, X, ChevronLeft, Crown
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -160,6 +161,7 @@ function SlidePanel({ isOpen, onClose, title, subtitle, children, size = 'lg', h
 
 export default function AdminServicesPage() {
   const { profile } = useAuth();
+  const { isPlanFree } = useSubscriptionStatus(profile?.organization_id);
   const [orgBusinessType, setOrgBusinessType] = useState<string>('residential');
   const isResidential = orgBusinessType === 'residential';
 
@@ -235,6 +237,10 @@ export default function AdminServicesPage() {
   // Service CRUD
   const handleEdit = (service: any) => { setCurrentService(service); setIsServicePanelOpen(true); };
   const handleStartNew = () => {
+    if (isPlanFree && activeServicesCount >= 3) {
+      toast.error('Plan gratuito: máximo 3 servicios activos. Actualiza tu plan para agregar más.');
+      return;
+    }
     setCurrentService({ name: '', description: '', base_cost: 0, duration_minutes: 30, is_active: true, image_url: '' });
     setIsServicePanelOpen(true);
   };
@@ -245,6 +251,15 @@ export default function AdminServicesPage() {
     if (!profile?.organization_id || !currentService.name?.trim()) return toast.error('Nombre obligatorio');
     if (submitting) return;
     setSubmitting(true);
+    const willBeActive = currentService.is_active !== false;
+    if (isPlanFree && !currentService.id && willBeActive && activeServicesCount >= 3) {
+      setSubmitting(false);
+      return toast.error('Plan gratuito: máximo 3 servicios activos. Desactiva uno antes o actualiza tu plan.');
+    }
+    if (isPlanFree && currentService.id && willBeActive && !currentService.is_active && activeServicesCount >= 3) {
+      setSubmitting(false);
+      return toast.error('Plan gratuito: máximo 3 servicios activos. Desactiva uno antes o actualiza tu plan.');
+    }
     const payload = { name: currentService.name.trim(), description: currentService.description || null, base_cost: currentService.base_cost || 0, duration_minutes: currentService.duration_minutes || 30, is_active: currentService.is_active !== false, image_url: currentService.image_url || null, organization_id: profile.organization_id };
     try {
       if (currentService.id) {
@@ -260,6 +275,10 @@ export default function AdminServicesPage() {
   };
 
   const handleToggleActive = async (service: any) => {
+    const willActivate = !service.is_active;
+    if (isPlanFree && willActivate && activeServicesCount >= 3) {
+      return toast.error('Plan gratuito: máximo 3 servicios activos. Desactiva uno antes de activar este.');
+    }
     await supabase.from('services').update({ is_active: !service.is_active }).eq('id', service.id).eq('organization_id', profile?.organization_id);
     fetchServices();
   };
@@ -417,7 +436,12 @@ export default function AdminServicesPage() {
             <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
               <span className="text-2xl font-black text-primary">{services.length}</span>
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Servicios</span>
+            {!isResidential && (
               <span className="text-[10px] text-emerald-600 mt-0.5">{activeServicesCount} activos</span>
+            )}
+            {isPlanFree && !isResidential && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200"><Crown className="w-3 h-3" /> {activeServicesCount}/3</span>
+            )}
             </CardContent>
           </Card>
           {!isResidential && (

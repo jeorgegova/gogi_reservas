@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle2, Loader2, XCircle, Clock } from 'lucide-react';
+import { Crown, CreditCard, Calendar, AlertCircle, CheckCircle2, Loader2, XCircle, Clock, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -29,6 +29,9 @@ interface SubscriptionPlan {
   duration_in_days: number;
   description: string;
   is_active: boolean;
+  features: any;
+  max_reservations: number | null;
+  max_reservations_per_day: number | null;
 }
 
 export default function AdminSubscription() {
@@ -257,9 +260,21 @@ export default function AdminSubscription() {
 
   const isSubscriptionActive = () => {
     if (!subscription) return false;
-    // Check if subscription status is active and not expired
     const expiryStatus = getExpiryStatus(subscription.end_date);
     return expiryStatus.status === 'active';
+  };
+
+  const getFeaturesList = (plan: SubscriptionPlan): string[] => {
+    if (!plan.features) return [];
+    if (Array.isArray(plan.features)) return plan.features;
+    if (typeof plan.features === 'object') {
+      return Object.values(plan.features).filter((f) => typeof f === 'string') as string[];
+    }
+    if (typeof plan.features === 'string') {
+      try { const parsed = JSON.parse(plan.features); return Array.isArray(parsed) ? parsed : []; }
+      catch { return []; }
+    }
+    return [];
   };
 
   if (loading) {
@@ -315,13 +330,13 @@ export default function AdminSubscription() {
         </CardHeader>
         <CardContent>
           {subscription ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-xl font-bold text-gray-900">
                     {subscription.subscription_plans?.name}
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-500 mt-1">
                     {subscription.subscription_plans?.description}
                   </p>
                 </div>
@@ -343,36 +358,59 @@ export default function AdminSubscription() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm p-4 bg-gray-50 rounded-xl">
                 <div>
-                  <span className="font-medium text-gray-500">Valor del plan:</span>
-                  <div className="font-semibold">
-                    ${subscription.subscription_plans?.price?.toLocaleString('es-CO')}
-                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Valor</span>
+                  <div className="font-bold text-gray-900 mt-0.5">${(subscription as any).subscription_plans?.price?.toLocaleString('es-CO') || 0}{((subscription as any).subscription_plans?.price || 0) > 0 ? ((subscription as any).subscription_plans?.duration_in_days === 30 ? '/mes' : (subscription as any).subscription_plans?.duration_in_days === 365 ? '/año' : '') : ''}</div>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-500">Fecha de inicio:</span>
-                  <div className="font-semibold">
-                    {formatDateSimple(subscription.start_date)}
-                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Inicio</span>
+                  <div className="font-bold text-gray-900 mt-0.5">{formatDateSimple(subscription.start_date)}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Vencimiento</span>
+                  <div className="font-bold text-gray-900 mt-0.5">{formatDateSimple(subscription.end_date)}</div>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Duración</span>
+                  <div className="font-bold text-gray-900 mt-0.5">{(subscription as any).subscription_plans?.duration_in_days >= 10000 ? 'Ilimitado' : `${(subscription as any).subscription_plans?.duration_in_days || 0} días`}</div>
                 </div>
               </div>
 
+              {(subscription as any).subscription_plans?.features && (() => {
+                const plan = subscription.subscription_plans as SubscriptionPlan;
+                const features = getFeaturesList(plan);
+                if (features.length === 0) return null;
+                return (
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Características incluidas</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {features.map((feature, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm text-gray-700">
+                          <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                          {feature}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {subscription.auto_renew && (
-                <div className="flex items-center gap-2 text-sm text-green-600">
+                <div className="flex items-center gap-2 text-sm text-green-600 p-3 bg-green-50 rounded-xl">
                   <CheckCircle2 className="w-4 h-4" />
                   Renovación automática activada
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Crown className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-12">
+              <Crown className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
                 No tienes una suscripción activa
               </h3>
-              <p className="text-gray-600">
-                Selecciona uno de los planes disponibles para activar tu suscripción
+              <p className="text-gray-500 max-w-md mx-auto">
+                Selecciona uno de los planes disponibles para activar tu suscripción y desbloquear todas las funcionalidades.
               </p>
             </div>
           )}
@@ -391,50 +429,61 @@ export default function AdminSubscription() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <Card key={plan.id} className="relative">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">{plan.name}</CardTitle>
-                  <CardDescription>{plan.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-2xl font-bold text-primary">
-                    ${plan.price.toLocaleString('es-CO')}
-                  </div>
-
-                  <div className="text-sm text-gray-600">
-                    Duración: {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      setSelectedPlanId(plan.id);
-                      setShowConfirmModal(true);
-                    }}
-                    disabled={renewing || (subscription?.status === 'pending') || pendingPayments.length > 0}
-                  >
-                    {renewing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        {subscription ? 'Solicitar Renovación' : 'Activar Plan'}
-                      </>
-                    )}
-                  </Button>
-                  {(subscription?.status === 'pending') && (
-                    <p className="text-xs text-amber-600 text-center mt-2">
-                      No puedes modificar la suscripción mientras está en validación.
-                    </p>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {plans.map((plan) => {
+              const features = getFeaturesList(plan);
+              const isFree = plan.price === 0;
+              return (
+                <Card key={plan.id} className={cn("relative flex flex-col border-2", isFree ? "border-gray-200" : "border-primary/20")}>
+                  {!isFree && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20">
+                      {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
+                    </div>
                   )}
-                </CardContent>
-              </Card>
-            ))}
+                  <CardHeader className={cn("pb-4", !isFree && "pt-6")}>
+                    <CardTitle className="text-xl">{plan.name}</CardTitle>
+                    <CardDescription className="text-sm">{plan.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6 flex flex-col flex-1">
+                    <div className="text-center">
+                      <span className="text-4xl font-black text-primary">${plan.price.toLocaleString('es-CO')}</span>
+                      {!isFree && <span className="text-sm text-gray-400 ml-1">/{plan.duration_in_days === 30 ? 'mes' : plan.duration_in_days === 365 ? 'año' : `${plan.duration_in_days}días`}</span>}
+                    </div>
+
+                    {features.length > 0 && (
+                      <ul className="space-y-2.5 flex-1">
+                        {features.map((feature, idx) => (
+                          <li key={idx} className="flex items-start gap-2.5 text-sm">
+                            <Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                            <span className="text-gray-600 leading-tight">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <Button
+                      className={cn("w-full font-bold", isFree ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/25")}
+                      onClick={() => {
+                        setSelectedPlanId(plan.id);
+                        setShowConfirmModal(true);
+                      }}
+                      disabled={renewing || (subscription?.status === 'pending') || pendingPayments.length > 0}
+                    >
+                      {renewing ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
+                      ) : (
+                        <><CreditCard className="w-4 h-4 mr-2" /> {subscription ? 'Solicitar Renovación' : 'Activar Plan'}</>
+                      )}
+                    </Button>
+                    {(subscription?.status === 'pending') && (
+                      <p className="text-xs text-amber-600 text-center">
+                        No puedes modificar la suscripción mientras está en validación.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">

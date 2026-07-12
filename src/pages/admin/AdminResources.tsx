@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog } from '@/components/ui/alert-dialog';
-import { Plus, Edit2, Package, User, Trash2, Building2, GripVertical } from 'lucide-react';
+import { Plus, Edit2, Package, User, Trash2, Building2, GripVertical, Crown } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,6 +31,7 @@ interface LinkedAddon {
 
 export default function AdminResourcesPage() {
   const { profile, terminology } = useAuth();
+  const { isPlanFree } = useSubscriptionStatus(profile?.organization_id);
   const queryClient = useQueryClient();
   const [orgBusinessType, setOrgBusinessType] = useState<string>('residential');
   const isResidential = orgBusinessType === 'residential';
@@ -54,6 +56,10 @@ export default function AdminResourcesPage() {
   const [showServicePicker, setShowServicePicker] = useState(false);
   const dragIdRef = useRef<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const touchDragIdRef = useRef<string | null>(null);
+  const touchTargetIdRef = useRef<string | null>(null);
+  const touchMovedRef = useRef(false);
 
   const [allServiceAddons, setAllServiceAddons] = useState<Record<string, any[]>>({});
   const [enabledAddonIds, setEnabledAddonIds] = useState<Record<string, string[]>>({});
@@ -66,6 +72,9 @@ export default function AdminResourcesPage() {
     if (error) { toast.error('Error al cargar: ' + error.message); } else { setAreas(data || []); }
     setLoading(false);
   };
+
+  const FREE_RESOURCE_LIMIT = isResidential ? 3 : 1;
+  const countActiveResources = (excludeId?: string) => areas.filter(a => a.is_active && (!excludeId || a.id !== excludeId)).length;
 
   const fetchOrgAddons = async () => {
     if (!profile?.organization_id) return;
@@ -118,11 +127,22 @@ export default function AdminResourcesPage() {
   };
 
   const handleStartNew = () => {
+    if (isPlanFree && countActiveResources() >= FREE_RESOURCE_LIMIT) {
+      const label = isResidential ? terminology.areaLabel.toLowerCase() : 'profesional';
+      toast.error(`Plan gratuito: ya tienes ${FREE_RESOURCE_LIMIT} ${label}${FREE_RESOURCE_LIMIT > 1 ? 's' : ''} activo${FREE_RESOURCE_LIMIT > 1 ? 's' : ''}. Desactívalo${FREE_RESOURCE_LIMIT > 1 ? 's' : ''} para crear uno nuevo o actualiza tu plan.`);
+      return;
+    }
     setCurrentArea({ name: '', description: '', specialty: '', employee_photo_url: '', resource_type: isResidential ? 'facility' : 'employee', display_order: areas.length, is_active: true, image_url: '', commission_percentage: 0, is_free: false, pricing_type: 'hourly', cost_per_hour: 0, fixed_cost: 0, max_hours_per_reservation: 4, estimated_duration_minutes: 60, cost_jornada_diurna: 0, cost_jornada_nocturna: 0, cost_jornada_ambos: 0, jornada_start_diurna: '08:00', jornada_end_diurna: '18:00', jornada_start_nocturna: '18:00', jornada_end_nocturna: '23:59' });
     setLinkedAddons([]); setAllServiceAddons({}); setEnabledAddonIds({}); setShowServicePicker(false); setIsEditing(true);
   };
 
   const handleToggleActive = async (area: any) => {
+    const willActivate = !area.is_active;
+    if (isPlanFree && willActivate && countActiveResources(area.id) >= FREE_RESOURCE_LIMIT) {
+      const label = isResidential ? terminology.areaLabel.toLowerCase() : 'profesional';
+      toast.error(`Plan gratuito: solo puedes tener ${FREE_RESOURCE_LIMIT} ${label}${FREE_RESOURCE_LIMIT > 1 ? 's' : ''} activo${FREE_RESOURCE_LIMIT > 1 ? 's' : ''}. Desactiva uno para activar este.`);
+      return;
+    }
     await supabase.from('resources').update({ is_active: !area.is_active }).eq('id', area.id).eq('organization_id', profile?.organization_id);
     fetchAreas();
   };
@@ -152,6 +172,12 @@ export default function AdminResourcesPage() {
     if (!profile?.organization_id || !currentArea.name?.trim()) { toast.error('El nombre es obligatorio'); return; }
     if (submitting) return;
     setSubmitting(true);
+    const willBeActive = currentArea.is_active !== false;
+    if (isPlanFree && willBeActive && countActiveResources(currentArea.id) >= FREE_RESOURCE_LIMIT) {
+      setSubmitting(false);
+      const label = isResidential ? terminology.areaLabel.toLowerCase() : 'profesional';
+      return toast.error(`Plan gratuito: solo puedes tener ${FREE_RESOURCE_LIMIT} ${label}${FREE_RESOURCE_LIMIT > 1 ? 's' : ''} activo${FREE_RESOURCE_LIMIT > 1 ? 's' : ''}. Desactiva uno antes de activar este.`);
+    }
     const areaData: any = {
       name: currentArea.name.trim(), description: currentArea.description || null, specialty: currentArea.specialty || null,
       employee_photo_url: currentArea.employee_photo_url || null, resource_type: currentArea.resource_type || (isResidential ? 'facility' : 'employee'),
@@ -203,7 +229,10 @@ export default function AdminResourcesPage() {
           <div className="p-3 bg-gradient-to-br from-primary to-primary/70 rounded-2xl shadow-lg shadow-primary/25 ring-1 ring-white/20">{isResidential ? <Building2 className="h-5 w-5 text-white" /> : <User className="h-5 w-5 text-white" />}</div>
           <div><h1 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight">{isResidential ? `Gestión de ${terminology.areaLabel}s` : 'Gestión de Empleados'}</h1><p className="text-gray-500 text-xs md:text-sm">{isResidential ? 'Configura las áreas comunes disponibles para reservar.' : 'Configura los profesionales y los servicios que ofrecen.'}</p></div>
         </div>
-        <Button onClick={handleStartNew} className="bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 font-bold h-10 md:h-12 px-4 md:px-6 rounded-xl border-none text-xs md:text-sm shrink-0"><Plus className="w-4 h-4 mr-1.5" /> {isResidential ? `Nueva ${terminology.areaLabel}` : 'Nuevo Empleado'}</Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleStartNew} className="bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 font-bold h-10 md:h-12 px-4 md:px-6 rounded-xl border-none text-xs md:text-sm shrink-0"><Plus className="w-4 h-4 mr-1.5" /> {isResidential ? `Nueva ${terminology.areaLabel}` : 'Nuevo Empleado'}</Button>
+          {isPlanFree && <span className="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200"><Crown className="w-3 h-3" /> {countActiveResources()}/{FREE_RESOURCE_LIMIT} {isResidential ? terminology.areaLabel.toLowerCase() : 'profesional'}{countActiveResources() === 0 ? ' (puedes crear)' : ''}</span>}
+        </div>
       </div>
 
       {/* EDIT FORM */}
@@ -227,45 +256,45 @@ export default function AdminResourcesPage() {
                   </div>
                   <div className="space-y-4">
                     <div className="flex items-center gap-3"><Switch checked={currentArea.is_free || false} onCheckedChange={c => setCurrentArea({ ...currentArea, is_free: c })} /><Label className="text-sm text-gray-600 cursor-pointer">Área gratuita (sin costo)</Label></div>
-                    {!currentArea.is_free && (
-                      <>
-                        <div><Label className="text-[10px] uppercase font-bold text-gray-400">Tipo de Precio</Label>
-                          <select value={currentArea.pricing_type || 'hourly'} onChange={e => setCurrentArea({ ...currentArea, pricing_type: e.target.value })} className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 mt-1">
-                            <option value="hourly">Por Hora</option>
-                            <option value="jornada">Por Jornada (Día/Noche)</option>
-                            <option value="fixed">Precio Fijo</option>
-                          </select>
+                      <div><Label className="text-[10px] uppercase font-bold text-gray-400">{currentArea.is_free ? 'Tipo de Duración' : 'Tipo de Precio'}</Label>
+                        <select value={currentArea.pricing_type || 'hourly'} onChange={e => setCurrentArea({ ...currentArea, pricing_type: e.target.value })} className="w-full h-10 rounded-lg text-sm border border-gray-200 bg-white px-3 mt-1">
+                          <option value="hourly">Por Hora</option>
+                          <option value="jornada">Por Jornada (Día/Noche)</option>
+                          <option value="fixed">Precio Fijo</option>
+                        </select>
+                      </div>
+                      {currentArea.pricing_type === 'hourly' ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          {!currentArea.is_free && <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo por Hora</Label><CurrencyInput value={currentArea.cost_per_hour || 0} onChange={v => setCurrentArea({ ...currentArea, cost_per_hour: v })} className="h-10 rounded-lg text-sm mt-1" /></div>}
+                          <div><Label className="text-[10px] uppercase font-bold text-gray-400">Máx. Horas por Reserva</Label><Input type="number" min="1" max="24" value={currentArea.max_hours_per_reservation || 4} onChange={e => setCurrentArea({ ...currentArea, max_hours_per_reservation: parseInt(e.target.value) || 4 })} className="h-10 rounded-lg text-sm mt-1" /></div>
                         </div>
-                        {currentArea.pricing_type === 'hourly' ? (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo por Hora</Label><CurrencyInput value={currentArea.cost_per_hour || 0} onChange={v => setCurrentArea({ ...currentArea, cost_per_hour: v })} className="h-10 rounded-lg text-sm mt-1" /></div>
-                            <div><Label className="text-[10px] uppercase font-bold text-gray-400">Máx. Horas por Reserva</Label><Input type="number" min="1" max="24" value={currentArea.max_hours_per_reservation || 4} onChange={e => setCurrentArea({ ...currentArea, max_hours_per_reservation: parseInt(e.target.value) || 4 })} className="h-10 rounded-lg text-sm mt-1" /></div>
+                      ) : currentArea.pricing_type === 'jornada' ? (
+                        <div className="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                          <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Diurna</Label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_diurna || '08:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                            <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_diurna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                            {!currentArea.is_free && <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_diurna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_diurna: v })} className="h-9 rounded-lg text-xs" /></div>}
                           </div>
-                        ) : currentArea.pricing_type === 'jornada' ? (
-                          <div className="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                            <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Diurna</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_diurna || '08:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                              <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_diurna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_diurna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                              <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_diurna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_diurna: v })} className="h-9 rounded-lg text-xs" /></div>
-                            </div>
-                            <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Nocturna</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_nocturna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                              <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_nocturna || '23:59'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
-                              <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_nocturna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_nocturna: v })} className="h-9 rounded-lg text-xs" /></div>
-                            </div>
-                            <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Completa (Día + Noche)</Label>
+                          <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Nocturna</Label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div><Label className="text-[9px] text-gray-400">Desde</Label><Input type="time" value={currentArea.jornada_start_nocturna || '18:00'} onChange={e => setCurrentArea({ ...currentArea, jornada_start_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                            <div><Label className="text-[9px] text-gray-400">Hasta</Label><Input type="time" value={currentArea.jornada_end_nocturna || '23:59'} onChange={e => setCurrentArea({ ...currentArea, jornada_end_nocturna: e.target.value })} className="h-9 rounded-lg text-xs" /></div>
+                            {!currentArea.is_free && <div><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_nocturna || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_nocturna: v })} className="h-9 rounded-lg text-xs" /></div>}
+                          </div>
+                          <Label className="text-[9px] uppercase font-bold text-gray-500">Jornada Completa (Día + Noche)</Label>
+                          {!currentArea.is_free ? (
                             <div className="w-40"><Label className="text-[9px] text-gray-400">Costo</Label><CurrencyInput value={currentArea.cost_jornada_ambos || 0} onChange={v => setCurrentArea({ ...currentArea, cost_jornada_ambos: v })} className="h-9 rounded-lg text-xs" /></div>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo Fijo</Label><CurrencyInput value={currentArea.fixed_cost || 0} onChange={v => setCurrentArea({ ...currentArea, fixed_cost: v })} className="h-10 rounded-lg text-sm mt-1" /></div>
-                            <div><Label className="text-[10px] uppercase font-bold text-gray-400">Duración (minutos)</Label><Input type="number" min="15" step="15" value={currentArea.estimated_duration_minutes || 60} onChange={e => setCurrentArea({ ...currentArea, estimated_duration_minutes: parseInt(e.target.value) || 60 })} className="h-10 rounded-lg text-sm mt-1" /></div>
-                          </div>
-                        )}
-                      </>
-                    )}
+                          ) : (
+                            <p className="text-[10px] text-gray-400 italic">Gratuito · solo restricción de horario</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                          {!currentArea.is_free && <div><Label className="text-[10px] uppercase font-bold text-gray-400">Costo Fijo</Label><CurrencyInput value={currentArea.fixed_cost || 0} onChange={v => setCurrentArea({ ...currentArea, fixed_cost: v })} className="h-10 rounded-lg text-sm mt-1" /></div>}
+                          <div><Label className="text-[10px] uppercase font-bold text-gray-400">Duración (minutos)</Label><Input type="number" min="15" step="15" value={currentArea.estimated_duration_minutes || 60} onChange={e => setCurrentArea({ ...currentArea, estimated_duration_minutes: parseInt(e.target.value) || 60 })} className="h-10 rounded-lg text-sm mt-1" /></div>
+                        </div>
+                      )}
                     <div className="flex items-center gap-3 pt-1"><Switch checked={currentArea.is_active} onCheckedChange={c => setCurrentArea({ ...currentArea, is_active: c })} /><Label className="text-sm text-gray-600 cursor-pointer">Área disponible y visible</Label></div>
                   </div>
                 </div>
@@ -402,13 +431,13 @@ export default function AdminResourcesPage() {
       )}
 
       {/* CARDS */}
-      <div className={cn("grid gap-4", isResidential ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
+      <div ref={gridRef} className={cn("grid gap-4", isResidential ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
         {loading ? [1, 2, 3].map(i => <div key={i} className="h-56 bg-gray-50 animate-pulse rounded-2xl" />) : (
           areas.filter(a => !(isEditing && currentArea.id && a.id === currentArea.id)).map((area, idx) => {
             const handleDelete = () => setDeleteTarget(area);
             if (isResidential) {
               return (
-                <Card key={area.id} className={cn("border-none apple-shadow bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1 flex flex-col", !area.is_active && "opacity-50 grayscale")}>
+                <Card key={area.id} data-area-id={area.id} className={cn("border-none apple-shadow bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:apple-shadow-hover hover:-translate-y-1 flex flex-col", !area.is_active && "opacity-50 grayscale")}>
                   <div className="h-36 bg-gray-100 overflow-hidden">
                     {area.image_url ? <img src={area.image_url} alt={area.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center"><Building2 className="w-10 h-10 text-primary/20" /></div>}
                   </div>
@@ -429,12 +458,15 @@ export default function AdminResourcesPage() {
               );
             }
             return (
-              <Card key={area.id} className={cn(
+              <Card key={area.id} data-area-id={area.id} className={cn(
                 "border-none apple-shadow bg-white rounded-2xl text-center transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col overflow-hidden relative group cursor-pointer",
                 !area.is_active && "opacity-50 grayscale",
                 draggingId === area.id && "opacity-30 scale-95"
               )}
-                onClick={() => handleEdit(area)}
+                onClick={(e) => {
+                  if (touchMovedRef.current) { e.preventDefault(); e.stopPropagation(); return; }
+                  handleEdit(area);
+                }}
                 draggable
                 onDragStart={() => { dragIdRef.current = area.id; setDraggingId(area.id); }}
                 onDragOver={(e) => {
@@ -452,6 +484,42 @@ export default function AdminResourcesPage() {
                   }
                 }}
                 onDragEnd={() => { dragIdRef.current = null; setDraggingId(null); saveCurrentOrder(); }}
+                onTouchStart={(e) => {
+                  touchDragIdRef.current = area.id;
+                  touchTargetIdRef.current = area.id;
+                  touchMovedRef.current = false;
+                  setDraggingId(area.id);
+                }}
+                onTouchMove={(e) => {
+                  if (!touchDragIdRef.current || !gridRef.current) return;
+                  touchMovedRef.current = true;
+                  e.preventDefault();
+                  const touch = e.touches[0];
+                  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                  if (!el) return;
+                  const card = el.closest('[data-area-id]');
+                  if (!card) return;
+                  const targetId = card.getAttribute('data-area-id');
+                  if (!targetId || targetId === touchTargetIdRef.current || targetId === touchDragIdRef.current) return;
+                  touchTargetIdRef.current = targetId;
+                  setAreas(prev => {
+                    const fromIdx = prev.findIndex(a => a.id === touchDragIdRef.current);
+                    const toIdx = prev.findIndex(a => a.id === targetId);
+                    if (fromIdx === -1 || toIdx === -1) return prev;
+                    const list = [...prev];
+                    const [moved] = list.splice(fromIdx, 1);
+                    list.splice(toIdx, 0, moved);
+                    return list;
+                  });
+                }}
+                onTouchEnd={() => {
+                  if (!touchMovedRef.current) return;
+                  touchDragIdRef.current = null;
+                  touchTargetIdRef.current = null;
+                  touchMovedRef.current = false;
+                  setDraggingId(null);
+                  saveCurrentOrder();
+                }}
               >
                 <div onClick={(e) => e.stopPropagation()} className="absolute top-2 right-2 z-20 p-1.5 rounded-lg bg-white/80 backdrop-blur-sm shadow-sm text-gray-500 hover:text-gray-700 hover:bg-white cursor-grab active:cursor-grabbing transition-all">
                   <GripVertical className="w-4 h-4" strokeWidth={2.5} />

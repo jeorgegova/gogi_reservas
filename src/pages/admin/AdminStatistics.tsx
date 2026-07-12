@@ -2,22 +2,26 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatCurrency, cn } from '@/lib/utils';
 import { format, parseISO, isValid } from 'date-fns';
-import { TrendingUp, Users, DollarSign, Briefcase, Calendar, Percent } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Briefcase, Calendar, Percent, Crown } from 'lucide-react';
 
 export default function AdminStatisticsPage() {
   const { profile, terminology } = useAuth();
+  const { isPlanFree, loading: subscriptionLoading } = useSubscriptionStatus(profile?.organization_id);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const monthStart = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd');
+  const prevMonthStart = format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), 'yyyy-MM-dd');
+  const prevMonthEnd = format(new Date(new Date().getFullYear(), new Date().getMonth(), 0), 'yyyy-MM-dd');
 
-  const [dateFrom, setDateFrom] = useState(monthStart);
-  const [dateTo, setDateTo] = useState(today);
+  const [dateFrom, setDateFrom] = useState(isPlanFree ? prevMonthStart : monthStart);
+  const [dateTo, setDateTo] = useState(isPlanFree ? prevMonthEnd : today);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('all');
 
   const getRangeISO = () => {
@@ -72,8 +76,8 @@ export default function AdminStatisticsPage() {
     { label: 'Comisiones', value: formatCurrency(globalTotalCommission), icon: Percent, color: 'amber', valueColor: 'text-amber-600' },
   ];
 
-  return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
+  const pageContent = (
+    <div className={cn("space-y-4 md:space-y-6 animate-in fade-in duration-500", isPlanFree && "opacity-40 pointer-events-none grayscale")}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -92,16 +96,16 @@ export default function AdminStatisticsPage() {
             <div className="flex items-end gap-2 md:gap-4">
               <div className="space-y-1 flex-1">
                 <Label className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> Desde</Label>
-                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 rounded-lg text-sm w-full sm:w-36" />
+                <Input type="date" value={dateFrom} onChange={e => { if (!isPlanFree) setDateFrom(e.target.value); }} className="h-9 rounded-lg text-sm w-full sm:w-36" disabled={subscriptionLoading || isPlanFree} />
               </div>
               <div className="space-y-1 flex-1">
                 <Label className="text-[10px] uppercase font-bold text-gray-400">Hasta</Label>
-                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 rounded-lg text-sm w-full sm:w-36" />
+                <Input type="date" value={dateTo} onChange={e => { if (!isPlanFree) setDateTo(e.target.value); }} className="h-9 rounded-lg text-sm w-full sm:w-36" disabled={subscriptionLoading || isPlanFree} />
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setDateFrom(monthStart); setDateTo(today); }} className="h-9 text-xs rounded-lg flex-1 sm:flex-none">Mes actual</Button>
-              <Button variant="outline" size="sm" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() - 1); setDateFrom(format(new Date(d.getFullYear(), d.getMonth(), 1), 'yyyy-MM-dd')); setDateTo(format(new Date(d.getFullYear(), d.getMonth() + 1, 0), 'yyyy-MM-dd')); }} className="h-9 text-xs rounded-lg flex-1 sm:flex-none">Mes anterior</Button>
+              <Button variant="outline" size="sm" onClick={() => { if (!isPlanFree) { setDateFrom(monthStart); setDateTo(today); } }} className="h-9 text-xs rounded-lg flex-1 sm:flex-none" disabled={subscriptionLoading || isPlanFree}>Mes actual</Button>
+              <Button variant="outline" size="sm" onClick={() => { if (!isPlanFree) { const d = new Date(); d.setMonth(d.getMonth() - 1); setDateFrom(format(new Date(d.getFullYear(), d.getMonth(), 1), 'yyyy-MM-dd')); setDateTo(format(new Date(d.getFullYear(), d.getMonth() + 1, 0), 'yyyy-MM-dd')); } }} className="h-9 text-xs rounded-lg flex-1 sm:flex-none" disabled={subscriptionLoading || isPlanFree}>Mes anterior</Button>
             </div>
           </div>
         </CardContent>
@@ -189,6 +193,34 @@ export default function AdminStatisticsPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {isPlanFree && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 rounded-xl shrink-0">
+              <Crown className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-amber-900">Módulo disponible en plan de pago</h2>
+              <p className="text-xs text-amber-700 mt-0.5">El rendimiento y estadísticas están bloqueados en el plan gratuito. Actualiza tu suscripción para acceder a métricas detalladas.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.href = '/admin/subscription'}
+            className="shrink-0 h-9 px-4 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white text-xs shadow-lg shadow-primary/25 transition-colors"
+          >
+            Ver planes
+          </button>
+        </div>
+      )}
+      <div className="relative">
+        {pageContent}
+        {isPlanFree && <div className="absolute inset-0 z-10 bg-white/30 rounded-2xl" />}
+      </div>
     </div>
   );
 }

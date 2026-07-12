@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard, Clock } from 'lucide-react';
+import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard, Clock, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatTime } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ interface ScheduleEntry {
 
 export default function AdminSettingsPage() {
   const { profile, terminology } = useAuth();
+  const { isPlanFree } = useSubscriptionStatus(profile?.organization_id);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [requiresAuth, setRequiresAuth] = useState(true);
@@ -113,7 +115,8 @@ export default function AdminSettingsPage() {
         setOrgPhone(data.phone || '');
         setOrgAddress(data.address || '');
         setAutoApprovePayments(data.auto_approve_payments ?? false);
-        setMaxReservationDays(data.max_reservation_days_ahead ?? null);
+        const daysVal = data.max_reservation_days_ahead ?? null;
+        setMaxReservationDays(isPlanFree ? 8 : daysVal);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -150,12 +153,12 @@ export default function AdminSettingsPage() {
           requires_auth: requiresAuth,
           guest_user_id: finalGuestId,
           logo_url: logoUrl,
-          login_photo_url: loginPhotoUrl,
+          login_photo_url: isPlanFree ? null : loginPhotoUrl,
           name: orgName,
           phone: orgPhone,
           address: orgAddress,
           auto_approve_payments: autoApprovePayments,
-          max_reservation_days_ahead: maxReservationDays,
+          max_reservation_days_ahead: isPlanFree ? 8 : maxReservationDays,
         })
         .eq('id', profile.organization_id);
 
@@ -317,11 +320,12 @@ export default function AdminSettingsPage() {
         </Card>
 
         {/* Limite de Días para Reservas */}
-        <Card className="border-none shadow-sm overflow-hidden">
+        <Card className={cn("border-none shadow-sm overflow-hidden", isPlanFree && "opacity-80")}>
           <CardHeader className="bg-gray-50/50 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-gray-400" />
               <CardTitle className="text-lg">Límite de Días para {terminology.reservationLabel}s</CardTitle>
+              {isPlanFree && <span className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200"><Crown className="w-3 h-3" /> Plan gratuito · 8 días fijo</span>}
             </div>
             <CardDescription>
               Define cuántos días hacia adelante puede un {terminology.userLabel.toLowerCase()} crear {terminology.reservationLabel.toLowerCase()}s.
@@ -334,13 +338,15 @@ export default function AdminSettingsPage() {
                 id="maxDays"
                 type="number"
                 min={1}
-                value={maxReservationDays ?? ''}
+                value={isPlanFree ? 8 : (maxReservationDays ?? '')}
                 onChange={(e) => {
+                  if (isPlanFree) return;
                   const val = e.target.value;
                   setMaxReservationDays(val ? parseInt(val) : null);
                 }}
-                placeholder="Sin límite (dejar vacío)"
+                placeholder={isPlanFree ? '8 días (plan gratuito)' : "Sin límite (dejar vacío)"}
                 className="h-10 rounded-xl"
+                disabled={isPlanFree}
               />
               <div className="flex flex-wrap gap-2">
                 {[8, 15, 30, 180, 365].map(days => (
@@ -349,10 +355,12 @@ export default function AdminSettingsPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setMaxReservationDays(days)}
+                    onClick={() => { if (!isPlanFree) setMaxReservationDays(days); }}
+                    disabled={isPlanFree}
                     className={cn(
                       "h-8 px-3 text-[10px] font-bold rounded-lg transition-all",
-                      maxReservationDays === days ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                      maxReservationDays === days ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50",
+                      isPlanFree && "opacity-60 cursor-not-allowed"
                     )}
                   >
                     {days >= 30 ? (days >= 365 ? '1 Año' : `${Math.floor(days/30)} ${Math.floor(days/30) === 1 ? 'Mes' : 'Meses'}`) : `${days} Días`}
@@ -362,17 +370,19 @@ export default function AdminSettingsPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setMaxReservationDays(null)}
+                  onClick={() => { if (!isPlanFree) setMaxReservationDays(null); }}
+                  disabled={isPlanFree}
                   className={cn(
                     "h-8 px-3 text-[10px] font-bold rounded-lg transition-all",
-                    maxReservationDays === null ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                    maxReservationDays === null ? "bg-primary/10 border-primary text-primary" : "border-gray-200 text-gray-500 hover:bg-gray-50",
+                    isPlanFree && "opacity-60 cursor-not-allowed"
                   )}
                 >
                   Sin Límite
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                Si configuras 30 días, los {terminology.userLabel.toLowerCase()}s solo verán disponibles fechas hasta 30 días desde hoy. Dejar vacío para sin límite.
+                {isPlanFree ? 'En el plan gratuito el límite es de 8 días fijo. Actualiza tu plan para personalizarlo.' : `Si configuras 30 días, los ${terminology.userLabel.toLowerCase()}s solo verán disponibles fechas hasta 30 días desde hoy. Dejar vacío para sin límite.`}
               </p>
             </div>
           </CardContent>
@@ -384,6 +394,7 @@ export default function AdminSettingsPage() {
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-gray-400" />
               <CardTitle className="text-lg">Identidad Visual</CardTitle>
+              {isPlanFree && <span className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200"><Crown className="w-3 h-3" /> Solo logo en plan gratuito</span>}
             </div>
             <CardDescription>
               Personaliza el logo y las imágenes de fondo de tu portal.
@@ -408,14 +419,18 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <Label className="text-sm font-bold text-gray-700">Fondo de Inicio de Sesión (URL)</Label>
+              <div className={cn("space-y-3", isPlanFree && "opacity-70")}>
+                <div className="flex items-center justify-between">
+                  <Label className={cn("text-sm font-bold", isPlanFree ? "text-gray-500" : "text-gray-700")}>Fondo de Inicio de Sesión (URL)</Label>
+                  {isPlanFree && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200"><Crown className="w-3 h-3" /> Plan gratuito</span>}
+                </div>
                 <div className="flex flex-col gap-3">
                   <Input
                     value={loginPhotoUrl}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoginPhotoUrl(e.target.value)}
-                    placeholder="https://ejemplo.com/fondo.jpg"
+                    placeholder={isPlanFree ? 'Disponible en plan de pago' : "https://ejemplo.com/fondo.jpg"}
                     className="h-10 rounded-xl"
+                    disabled={isPlanFree}
                   />
                   {loginPhotoUrl && (
                     <div className="aspect-video bg-gray-50 rounded-xl border border-dashed border-gray-200 overflow-hidden">
@@ -425,6 +440,15 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
             </div>
+            {isPlanFree && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                <Crown className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-amber-800">Personalización limitada en plan gratuito</p>
+                  <p className="text-[11px] text-amber-700 mt-0.5">El fondo de inicio de sesión está bloqueado. Actualiza tu plan para personalizarlo.</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

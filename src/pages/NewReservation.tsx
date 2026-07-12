@@ -1295,9 +1295,9 @@ export default function NewReservationPage() {
 
               {/* Time slots */}
               <div className="space-y-4">
-                {isResidential && selectedArea?.pricing_type === 'jornada' && !selectedArea?.is_free ? (
+                {isResidential && selectedArea?.pricing_type === 'jornada' ? (
                   <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-gray-700">Seleccionar Jornada</Label>
+                    <Label className="text-sm font-semibold text-gray-700">{selectedArea?.is_free ? 'Seleccionar Duración (Jornada)' : 'Seleccionar Jornada'}</Label>
                     {[
                       { key: 'diurna', label: 'Diurna', time: `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_diurna || '18:00'}`, cost: selectedArea.cost_jornada_diurna },
                       { key: 'nocturna', label: 'Nocturna', time: `${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`, cost: selectedArea.cost_jornada_nocturna },
@@ -1309,15 +1309,15 @@ export default function NewReservationPage() {
                             <span className="font-bold text-gray-900">{j.label}</span>
                             <p className="text-xs text-gray-500 mt-0.5">{j.time}</p>
                           </div>
-                          <span className="font-black text-primary text-lg">{formatCurrency(j.cost)}</span>
+                          {!selectedArea?.is_free && <span className="font-black text-primary text-lg">{formatCurrency(j.cost)}</span>}
                         </div>
                       </button>
                     ))}
                   </div>
-                ) : isResidential && selectedArea?.pricing_type === 'hourly' && !selectedArea?.is_free ? (
+                ) : isResidential && selectedArea?.pricing_type === 'hourly' ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-semibold text-gray-700">Seleccionar Horas ({selectedDate})</Label>
+                      <Label className="text-sm font-semibold text-gray-700">{selectedArea?.is_free ? `Seleccionar Duración (${selectedDate})` : `Seleccionar Horas (${selectedDate})`}</Label>
                       <span className="text-xs text-gray-400">{selectedHourSlots.length > 0 ? `${selectedHourSlots.length}h seleccionadas` : 'Sin selección'}</span>
                     </div>
                     <div className="grid grid-cols-6 gap-1.5 max-h-48 overflow-y-auto p-1">
@@ -1461,7 +1461,7 @@ export default function NewReservationPage() {
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-200/50">
                   <span className="text-xs font-bold text-gray-500 uppercase">Tipo</span>
                   <span className="text-sm font-bold text-gray-800">
-                    {isResidential && selectedArea?.is_free ? 'Gratuito' : selectedArea?.pricing_type === 'hourly' ? `Por Hora (${selectedHourSlots.length}h)` : selectedArea?.pricing_type === 'jornada' ? `Jornada ${selectedJornada === 'diurna' ? 'Diurna' : selectedJornada === 'nocturna' ? 'Nocturna' : 'Completa'}` : `Precio Fijo`}
+                    {isResidential && selectedArea?.is_free ? (selectedArea?.pricing_type === 'hourly' ? `Gratuito · ${selectedHourSlots.length}h` : selectedArea?.pricing_type === 'jornada' ? `Gratuito · Jornada ${selectedJornada === 'diurna' ? 'Diurna' : selectedJornada === 'nocturna' ? 'Nocturna' : 'Completa'}` : 'Gratuito') : selectedArea?.pricing_type === 'hourly' ? `Por Hora (${selectedHourSlots.length}h)` : selectedArea?.pricing_type === 'jornada' ? `Jornada ${selectedJornada === 'diurna' ? 'Diurna' : selectedJornada === 'nocturna' ? 'Nocturna' : 'Completa'}` : `Precio Fijo`}
                   </span>
                 </div>
               )}

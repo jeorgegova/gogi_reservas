@@ -5,8 +5,6 @@ import { Toaster } from 'sonner';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import ForgotPasswordPage from './pages/ForgotPassword';
-import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
-
 import DashboardLayout from './components/layout/DashboardLayout';
 import Calendario from './pages/Calendario';
 import NewReservationPage from './pages/NewReservation';
@@ -116,15 +114,6 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const FreePlanGuard = ({ children }: { children: React.ReactNode }) => {
-  const { profile } = useAuth();
-  const { isPlanFree, loading } = useSubscriptionStatus(profile?.organization_id);
-
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
-  if (isPlanFree) return <Navigate to="/dashboard" />;
-
-  return <>{children}</>;
-};
 
 // Componente que redirige a usuarios autenticados y muestra landing a visitantes
 const RootLoader = () => {
@@ -238,11 +227,9 @@ function App() {
             path="/admin"
             element={
               <PrivateRoute adminOnly>
-                <FreePlanGuard>
-                  <DashboardLayout>
-                    <Calendario />
-                  </DashboardLayout>
-                </FreePlanGuard>
+                <DashboardLayout>
+                  <Calendario />
+                </DashboardLayout>
               </PrivateRoute>
             }
           />
@@ -280,11 +267,9 @@ function App() {
             path="/admin/statistics"
             element={
               <PrivateRoute adminOnly>
-                <FreePlanGuard>
-                  <DashboardLayout>
-                    <AdminStatisticsPage />
-                  </DashboardLayout>
-                </FreePlanGuard>
+                <DashboardLayout>
+                  <AdminStatisticsPage />
+                </DashboardLayout>
               </PrivateRoute>
             }
           />
@@ -372,11 +357,9 @@ function App() {
             path="/maintenance"
             element={
               <PrivateRoute>
-                <FreePlanGuard>
-                  <DashboardLayout>
-                    <MaintenancePage />
-                  </DashboardLayout>
-                </FreePlanGuard>
+                <DashboardLayout>
+                  <MaintenancePage />
+                </DashboardLayout>
               </PrivateRoute>
             }
           />

@@ -18,10 +18,11 @@ import {
   X,
   Wrench,
   Edit,
-  HelpCircle
+  HelpCircle,
+  Crown
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { formatDate } from '@/lib/utils';
+import { formatDate, cn } from '@/lib/utils';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 
 interface Notice {
@@ -42,7 +43,7 @@ interface Notice {
 export default function MaintenancePage() {
   const { profile, terminology } = useAuth();
   const navigate = useNavigate();
-  const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days } = useSubscriptionStatus(profile?.organization_id);
+  const { status: subscriptionStatus, daysUntilExpiry, loading: subscriptionLoading, previousSubscriptionExpiredBeyond20Days, isPlanFree } = useSubscriptionStatus(profile?.organization_id);
   const [blockingError, setBlockingError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -391,8 +392,8 @@ export default function MaintenancePage() {
     );
   }
 
-  return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+  const pageContent = (
+    <div className={cn("space-y-8 animate-in fade-in duration-500", isPlanFree && "opacity-40 pointer-events-none grayscale")}>
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">
@@ -411,7 +412,8 @@ export default function MaintenancePage() {
         {isAdmin && (
           <Button
             onClick={() => setIsAdding(true)}
-            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 px-5 rounded-xl shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            disabled={subscriptionLoading || isPlanFree}
+            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 px-5 rounded-xl shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="mr-2 h-4 w-4" /> Nuevo Aviso
           </Button>
@@ -671,7 +673,8 @@ export default function MaintenancePage() {
             {isAdmin && (
               <Button
                 onClick={() => setIsAdding(true)}
-                className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-10 px-5 rounded-xl shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                disabled={subscriptionLoading || isPlanFree}
+                className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-10 px-5 rounded-xl shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="mr-2 h-4 w-4" /> Crear Primer Aviso
               </Button>
@@ -779,6 +782,34 @@ export default function MaintenancePage() {
         onConfirm={handleConfirmDelete}
         variant="destructive"
       />
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {isPlanFree && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 rounded-xl shrink-0">
+              <Crown className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-amber-900">Módulo disponible en plan de pago</h2>
+              <p className="text-xs text-amber-700 mt-0.5">Los avisos están bloqueados en el plan gratuito. Actualiza tu suscripción para comunicarte con los usuarios.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.href = '/admin/subscription'}
+            className="shrink-0 h-9 px-4 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white text-xs shadow-lg shadow-primary/25 transition-colors"
+          >
+            Ver planes
+          </button>
+        </div>
+      )}
+      <div className="relative">
+        {pageContent}
+        {isPlanFree && <div className="absolute inset-0 z-10 bg-white/30 rounded-2xl" />}
+      </div>
     </div>
   );
 }
