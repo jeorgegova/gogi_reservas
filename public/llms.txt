@@ -1,0 +1,40 @@
+# GoGi Reservas
+> Sistema de gestión de reservas inteligente para negocios en Colombia. Automatiza citas, reduce ausencias con recordatorios automáticos y administra tu negocio desde un panel unificado.
+
+## Links
+- [Página principal](https://gogireservas.com): Landing page con planes y características
+- [Portal de organizaciones](https://gogireservas.com/organizaciones): Explora organizaciones que usan GoGi Reservas
+- [Iniciar sesión](https://gogireservas.com/login): Acceso al panel de administración
+- [WhatsApp de contacto](https://wa.me/573128470944): Contacto comercial vía WhatsApp
+
+## ¿Qué es GoGi Reservas?
+Plataforma web colombiana de gestión de reservas y agenda online para:
+- Barberías y peluquerías
+- Salones de belleza y spas
+- Clínicas y consultorios
+- Conjuntos residenciales (áreas comunes)
+- Salas de ensayo y estudio
+- Coworkings y espacios compartidos
+- Cualquier negocio que requiera gestión de turnos
+
+## Características principales
+- Reservas en tiempo real 24/7 con disponibilidad sincronizada al instante
+- Recordatorios automáticos por correo y WhatsApp
+- Panel de administración con métricas de ocupación
+- Pasarela de pago integrada (Wompi)
+- Múltiples sedes y profesionales
+- Políticas de cancelación personalizables
+- Reportes y analíticas de ocupación
+- Modo invitado para reservas sin registro
+- Soporte técnico prioritario 24/7
+
+## Precios
+- Plan Gratuito: Sin costo, hasta 5 reservas diarias
+- Plan Emprendedor: $49,000/mes, hasta 300 reservas mensuales
+- Plan Profesional: $99,000/mes, reservas ilimitadas, 3 sedes
+- Plan Corporativo: $189,000/mes, reservas y sedes ilimitadas, branding personalizado
+
+## Contacto
+- Email: gogicolombia@gmail.com
+- WhatsApp: +57 312 847 0944
+- Disponibilidad: 24/7

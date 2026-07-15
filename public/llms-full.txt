@@ -1,0 +1,157 @@
+# GoGi Reservas — Documentación completa para asistentes IA
+
+## Descripción general
+
+GoGi Reservas es una plataforma web colombiana de gestión de reservas y agenda online. Permite a negocios de todos los tamaños automatizar la toma de citas, reducir las ausencias de clientes mediante recordatorios automáticos, y administrar sus operaciones desde un panel de control centralizado.
+
+**URL base:** https://gogireservas.com
+**Idioma:** Español (Colombia)
+**Moneda:** COP (Peso colombiano)
+**Disponibilidad:** 24/7, SaaS basado en web
+
+---
+
+## Estructura del sitio
+
+### Páginas públicas (indexables)
+| Ruta | Descripción |
+|---|---|
+| `/` | Landing page principal con hero, características, funcionalidades, industrias, precios |
+| `/organizaciones` | Listado de organizaciones activas con buscador |
+| `/:slug/login` | Inicio de sesión por organización |
+| `/:slug/register` | Registro de usuarios por organización |
+| `/:slug/forgot-password` | Recuperación de contraseña |
+
+### Páginas privadas (no indexables)
+| Ruta | Descripción |
+|---|---|
+| `/dashboard` | Calendario principal del usuario |
+| `/reservations/new` | Crear nueva reserva |
+| `/reservations/my` | Mis reservas |
+| `/admin/*` | Panel de administración (gestión de recursos, servicios, usuarios, estadísticas, suscripción) |
+| `/super-admin/*` | Panel de super administrador (organizaciones, planes, pagos) |
+| `/profile` | Perfil de usuario |
+| `/payment/:id` | Página de pago |
+
+---
+
+## Funcionalidades detalladas
+
+### 1. Gestión de reservas en tiempo real
+- Los clientes agendan citas o espacios desde cualquier dispositivo
+- La disponibilidad se sincroniza al instante
+- Elimina llamadas perdidas y cruces de horarios
+- Soporta múltiples profesionales y recursos simultáneamente
+
+### 2. Recordatorios automáticos
+- Envía recordatorios automáticos por correo electrónico
+- Envía recordatorios por WhatsApp (planes Profesional y Corporativo)
+- Confirmaciones oportunas que reducen hasta 90% las inasistencias
+- Personalización de tiempos de recordatorio
+
+### 3. Panel de administración
+- Dashboard con métricas clave de ocupación
+- Gestión de recursos (espacios, equipos, profesionales)
+- Administración de servicios con precios y duración
+- Control de usuarios y roles
+- Reportes y analíticas de rendimiento
+- Configuración de horarios y políticas de cancelación
+
+### 4. Pasarela de pago
+- Integración con Wompi (pasarela de pagos colombiana)
+- Pagos en línea para reservas
+- Transferencias bancarias para suscripciones
+- Historial de transacciones
+
+### 5. Multi-sede y multi-profesional
+- Soporte para múltiples sedes por organización
+- Cada sede con sus propios recursos, servicios y horarios
+- Asignación de profesionales a servicios específicos
+
+### 6. Personalización por industria
+- Políticas de cancelación configurables
+- Horarios especiales y días festivos
+- Términos personalizados según el tipo de negocio
+- Branding personalizado (plan Corporativo)
+
+---
+
+## Planes de suscripción
+
+### Plan Gratuito
+- **Precio:** $0 COP
+- **Duración:** Ilimitado
+- **Límite:** 5 reservas diarias
+- **Características:** 1 sede, recordatorios por correo, panel móvil
+
+### Plan Emprendedor
+- **Precio:** $49,000 COP/mes
+- **Límite:** 300 reservas mensuales
+- **Características:** 1 sede, recordatorios por correo, soporte por correo, panel móvil
+
+### Plan Profesional (Recomendado)
+- **Precio:** $99,000 COP/mes
+- **Reservas:** Ilimitadas
+- **Características:** Hasta 3 sedes, recordatorios por WhatsApp, pasarela de pago, reportes, soporte prioritario 24/7
+
+### Plan Corporativo
+- **Precio:** $189,000 COP/mes
+- **Reservas:** Ilimitadas
+- **Características:** Sedes ilimitadas, branding personalizado, dominio propio, API de integración, asistente dedicado, SLA garantizado
+
+---
+
+## Industrias compatibles
+
+GoGi Reservas está diseñado para adaptarse a cualquier negocio que requiera gestión de turnos:
+
+1. **Conjuntos residenciales** — Áreas comunes (piscinas, gimnasios, salones comunales)
+2. **Barberías y peluquerías** — Citas con precisión y gestión de barberos
+3. **Salones de belleza y spas** — Experiencias de bienestar con múltiples servicios
+4. **Salas de ensayo y estudio** — Turnos sin espera para músicos y creadores
+5. **Coworkings y oficinas** — Espacios compartidos con reserva de salas
+6. **Clínicas y consultorios** — Gestión de pacientes y citas médicas
+7. **Cualquier negocio** — Adaptable a cualquier modelo de reserva
+
+---
+
+## Tecnología
+
+- **Frontend:** React 19, TypeScript, Tailwind CSS, Vite
+- **Backend:** Supabase (PostgreSQL, Auth, Storage)
+- **Animaciones:** GSAP (ScrollTrigger)
+- **Pagos:** Wompi
+- **Hosting:** Vercel/Netlify (SPA)
+
+---
+
+## Datos de contacto
+
+| Canal | Información |
+|---|---|
+| Email | gogicolombia@gmail.com |
+| WhatsApp | +57 312 847 0944 (comercial) |
+| WhatsApp soporte | +57 312 847 0944 |
+| Horario | 24/7 (plataforma), | respuesta comercial en horario laboral |
+
+---
+
+## Preguntas frecuentes
+
+### ¿Cómo empezar a usar GoGi Reservas?
+Puedes registrarte gratis en el Plan Gratuito sin necesidad de tarjeta de crédito. Solo crea tu cuenta y configura tu organización.
+
+### ¿Qué métodos de pago aceptan?
+Aceptamos pagos a través de Wompi (tarjetas de crédito/débito, Nequi, Bancolombia, PSE) para reservas, y transferencia bancaria para suscripciones.
+
+### ¿Puedo probar la plataforma antes de pagar?
+Sí, el Plan Gratuito te permite probar todas las funcionalidades básicas sin costo, con hasta 5 reservas diarias.
+
+### ¿Cómo funcionan los recordatorios automáticos?
+Cuando un cliente agenda una cita, el sistema envía automáticamente recordatorios por correo (todos los planes) y WhatsApp (planes Profesional y Corporativo) antes de la cita.
+
+### ¿Puedo tener múltiples sedes o sucursales?
+Sí. El Plan Profesional incluye hasta 3 sedes y el Plan Corporativo tiene sedes ilimitadas.
+
+### ¿Ofrecen soporte para implementación?
+Sí, el Plan Corporativo incluye un asistente de implementación dedicado. Los demás planes incluyen soporte técnico por correo o prioritario 24/7.

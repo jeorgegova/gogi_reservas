@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Building2, Scissors, Sparkles, Wrench, Laptop, ArrowRight, Search, Loader2 } from 'lucide-react';
@@ -86,7 +87,12 @@ export default function OrganizacionesPage() {
   }, [search, organizations]);
 
   return (
-    <div className="min-h-screen bg-white pt-16">
+    <>
+      <SEOHead
+        title="Organizaciones"
+        description="Explora las organizaciones que usan GoGi Reservas. Agenda tus citas y reservas en barberías, salones de belleza, coworkings y más."
+      />
+      <div className="min-h-screen bg-white pt-16">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-5 md:px-6 py-8 md:py-20">
@@ -191,5 +197,6 @@ export default function OrganizacionesPage() {
       </main>
       <Footer />
     </div>
+    </>
   );
 }

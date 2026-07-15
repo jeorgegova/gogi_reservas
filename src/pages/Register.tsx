@@ -3,6 +3,7 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { translateAuthError } from '@/lib/utils';
 import { useOrganizationImages } from '@/hooks/useOrganizationImages';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -147,7 +148,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+    <>
+      <SEOHead
+        title="Crear Cuenta"
+        description="Regístrate en GoGi Reservas para agendar y gestionar tus reservas de manera fácil y rápida."
+        noindex
+      />
+      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background Image with Overlay */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat animate-slow-zoom transition-all duration-1000"
@@ -335,6 +342,7 @@ export default function RegisterPage() {
           </div>
         </CardFooter>
       </Card>
+    </div>
 
       <AlertDialog
         open={isSuccessAlertOpen}
@@ -348,6 +356,6 @@ export default function RegisterPage() {
         showCancel={false}
         onConfirm={() => navigate(slug ? `/${slug}/login` : "/")}
       />
-    </div>
+    </>
   );
 }

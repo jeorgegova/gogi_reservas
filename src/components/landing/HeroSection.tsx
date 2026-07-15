@@ -70,19 +70,21 @@ export function HeroSection() {
   }, [reducedMotion]);
 
   return (
-    <section
-      ref={sectionRef}
-      id="hero"
-      className="relative min-h-screen md:min-h-[150vh] flex flex-col items-center justify-start overflow-hidden bg-white"
-    >
-      {/* Fondo superior */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src={fondoSuperior}
-          alt=""
-          className="w-full h-full object-cover"
-          loading="eager"
-        />
+      <section
+        ref={sectionRef}
+        id="hero"
+        className="relative min-h-screen md:min-h-[150vh] flex flex-col items-center justify-start overflow-hidden bg-white"
+        aria-label="Hero principal"
+      >
+        {/* Fondo superior */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src={fondoSuperior}
+            alt=""
+            role="presentation"
+            className="w-full h-full object-cover"
+            loading="eager"
+          />
         <div className="absolute inset-0 bg-white/30" />
       </div>
 

@@ -180,7 +180,7 @@ export function FeaturesSection() {
           <div className="grid md:grid-cols-2 gap-4 md:gap-8">
             {FEATURES.map((feature) => (
               <div key={feature.id} className="p-5 md:p-8 rounded-3xl bg-slate-50">
-                <img src={feature.iconImage} alt="" className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-4" />
+                <img src={feature.iconImage} alt={feature.title} className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-4" />
                 <h3 className="text-lg md:text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
                 <p className="text-slate-500 leading-relaxed text-sm md:text-base">{feature.description}</p>
               </div>
@@ -231,7 +231,7 @@ export function FeaturesSection() {
                     'mb-6 md:mb-12 lg:mb-0 last:mb-0'
                   )}
                 >
-                  <img src={feature.iconImage} alt="" className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-6" />
+                  <img src={feature.iconImage} alt={feature.title} className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-6" />
                   <h3 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-semibold text-slate-900 tracking-tight mb-3 md:mb-4">
                     {feature.title}
                   </h3>

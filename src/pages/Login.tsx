@@ -3,6 +3,7 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganizationImages } from '@/hooks/useOrganizationImages';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -115,7 +116,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+    <>
+      <SEOHead
+        title={slug ? `Iniciar Sesión - ${organization?.name || ''}` : 'Iniciar Sesión'}
+        description="Accede a tu cuenta de GoGi Reservas para gestionar tus reservas, agenda y preferencias."
+        noindex
+      />
+      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background Image with Overlay */}
       <div
         className={cn(
@@ -298,5 +305,6 @@ export default function LoginPage() {
         )}
       </Card>
     </div>
+    </>
   );
 }

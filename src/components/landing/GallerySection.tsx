@@ -184,7 +184,7 @@ export function GallerySection() {
       >
         {hasImage && item.image ? (
           <>
-            <img src={item.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors duration-700" />
           </>
         ) : (

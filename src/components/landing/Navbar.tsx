@@ -70,11 +70,13 @@ export function Navbar() {
   const scrollTo = (hash: string) => {
     if (!hash) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.history.replaceState(null, '', window.location.pathname);
       return;
     }
     const el = document.querySelector(hash);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
+      window.history.replaceState(null, '', hash);
     }
   };
 
@@ -109,7 +111,7 @@ export function Navbar() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+        <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Navegación principal">
           {navLinks.map((link) =>
             link.external ? (
               <Link

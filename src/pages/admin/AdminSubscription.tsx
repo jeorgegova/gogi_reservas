@@ -430,25 +430,61 @@ export default function AdminSubscription() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => {
-              const features = getFeaturesList(plan);
-              const isFree = plan.price === 0;
-              return (
-                <Card key={plan.id} className={cn("relative flex flex-col border-2", isFree ? "border-gray-200" : "border-primary/20")}>
-                  {!isFree && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20">
-                      {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
-                    </div>
-                  )}
-                  <CardHeader className={cn("pb-4", !isFree && "pt-6")}>
-                    <CardTitle className="text-xl">{plan.name}</CardTitle>
-                    <CardDescription className="text-sm">{plan.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6 flex flex-col flex-1">
-                    <div className="text-center">
-                      <span className="text-4xl font-black text-primary">${plan.price.toLocaleString('es-CO')}</span>
-                      {!isFree && <span className="text-sm text-gray-400 ml-1">/{plan.duration_in_days === 30 ? 'mes' : plan.duration_in_days === 365 ? 'año' : `${plan.duration_in_days}días`}</span>}
-                    </div>
+            {(() => {
+              const monthlyPlanMap = new Map<string, number>();
+              plans.forEach(p => {
+                if (p.duration_in_days === 30 && p.price > 0) {
+                  const baseName = p.name.replace(/\s*(Trimestral|Anual|Mensual|Semestral)$/i, '').trim();
+                  monthlyPlanMap.set(baseName, p.price);
+                }
+              });
+
+              const getPlanDiscount = (plan: SubscriptionPlan) => {
+                if (plan.duration_in_days <= 30 || plan.price === 0) return null;
+                const months = plan.duration_in_days === 365 ? 12 : Math.round(plan.duration_in_days / 30);
+                const monthlyEquivalent = plan.price / months;
+                const baseName = plan.name.replace(/\s*(Trimestral|Anual|Mensual|Semestral)$/i, '').trim();
+                const monthlyRefPrice = monthlyPlanMap.get(baseName);
+                if (!monthlyRefPrice) return { monthlyEquivalent, discount: 0 };
+                const discount = Math.round((1 - monthlyEquivalent / monthlyRefPrice) * 100);
+                return { monthlyEquivalent, discount };
+              };
+
+              return plans.map((plan) => {
+                const features = getFeaturesList(plan);
+                const isFree = plan.price === 0;
+                const planDiscount = getPlanDiscount(plan);
+                const showPerMonth = planDiscount && plan.duration_in_days > 30;
+                return (
+                  <Card key={plan.id} className={cn("relative flex flex-col border-2", isFree ? "border-gray-200" : "border-primary/20")}>
+                    {!isFree && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20 z-10">
+                        {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
+                      </div>
+                    )}
+                    {planDiscount && planDiscount.discount > 0 && (
+                      <div className="absolute -top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                        -{planDiscount.discount}%
+                      </div>
+                    )}
+                    <CardHeader className={cn("pb-4", !isFree && "pt-6")}>
+                      <CardTitle className="text-xl">{plan.name}</CardTitle>
+                      <CardDescription className="text-sm">{plan.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6 flex flex-col flex-1">
+                      <div className="text-center">
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-4xl font-black text-primary">${plan.price.toLocaleString('es-CO')}</span>
+                          {!isFree && (
+                            <span className="text-xs text-gray-400 font-medium whitespace-nowrap">/{plan.duration_in_days === 30 ? 'mes' : plan.duration_in_days === 365 ? 'año' : `${plan.duration_in_days} días`}</span>
+                          )}
+                        </div>
+                        {showPerMonth && (
+                          <div className="text-sm text-emerald-600 font-bold mt-0.5">
+                            ${Math.round(planDiscount.monthlyEquivalent).toLocaleString('es-CO')}/mes
+                          </div>
+                        )}
+                      </div>
 
                     {features.length > 0 && (
                       <ul className="space-y-2.5 flex-1">
@@ -483,7 +519,8 @@ export default function AdminSubscription() {
                   </CardContent>
                 </Card>
               );
-            })}
+            });
+          })()}
           </div>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">

@@ -21,13 +21,13 @@ const STATIC_PLANS: SubscriptionPlan[] = [
   {
     id: 'static-gratuito',
     name: 'Plan Gratuito',
-    description: 'Perfecto para probar la plataforma sin compromiso. Gestiona hasta 5 reservas diarias.',
+    description: 'Perfecto para probar la plataforma sin compromiso. Gestiona hasta 3 reservas diarias.',
     price: 0,
     duration_in_days: 36500,
     max_reservations: null,
     is_active: true,
     features: [
-      'Hasta 5 reservas diarias',
+      'Hasta 3 reservas diarias',
       '1 Sede / Organización',
       'Recordatorios por correo',
       'Panel de administración móvil',
@@ -172,7 +172,7 @@ export function PricingSection() {
       try {
         const parsed = JSON.parse(plan.features);
         if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
+      } catch (e) { }
     }
     return [];
   };
@@ -217,11 +217,10 @@ export function PricingSection() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col justify-between rounded-3xl p-8 transition-all duration-300 border bg-white ${
-                    isPopular
-                      ? 'border-indigo-600 shadow-2xl md:scale-105 z-10'
-                      : 'border-slate-200/80 shadow-sm hover:border-slate-300 hover:shadow-md'
-                  }`}
+                  className={`relative flex flex-col justify-between rounded-3xl p-8 transition-all duration-300 border bg-white ${isPopular
+                    ? 'border-indigo-600 shadow-2xl md:scale-105 z-10'
+                    : 'border-slate-200/80 shadow-sm hover:border-slate-300 hover:shadow-md'
+                    }`}
                 >
                   {isPopular && (
                     <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1 shadow-md">
@@ -238,13 +237,48 @@ export function PricingSection() {
                       </p>
                     </div>
 
-                    <div className="flex items-baseline mb-6 border-b border-slate-100 pb-6">
-                      <span className="text-3xl md:text-4xl font-extrabold text-slate-900">
-                        {formatPrice(plan.price)}
-                      </span>
-                      <span className="text-sm text-slate-400 font-medium ml-2">
-                        / {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
-                      </span>
+                    <div className="mb-6 border-b border-slate-100 pb-6">
+                      <div className="flex items-baseline justify-center gap-x-1.5">
+                        <span className="text-3xl md:text-4xl font-extrabold text-slate-900">
+                          {formatPrice(plan.price)}
+                        </span>
+                        <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                          / {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
+                        </span>
+                      </div>
+                      {(() => {
+                        const monthlyPlans = plans.filter(p => p.duration_in_days === 30 && p.price > 0 && p.id !== plan.id);
+                        const months = plan.duration_in_days === 365 ? 12 : Math.round(plan.duration_in_days / 30);
+                        if (plan.duration_in_days > 30 && plan.duration_in_days < 10000 && plan.price > 0 && monthlyPlans.length > 0) {
+                          const monthlyEquivalent = plan.price / months;
+                          const refPlan = monthlyPlans.find(p => {
+                            const baseName = p.name.replace(/\s*(Trimestral|Anual|Mensual|Semestral)$/i, '').trim();
+                            const planBase = plan.name.replace(/\s*(Trimestral|Anual|Mensual|Semestral)$/i, '').trim();
+                            return baseName === planBase;
+                          });
+                          if (refPlan) {
+                            const discount = Math.round((1 - monthlyEquivalent / refPlan.price) * 100);
+                            if (discount > 0) {
+                              return (
+                                <>
+                                  <div className="text-sm text-emerald-600 font-bold mt-1">
+                                    {formatPrice(Math.round(monthlyEquivalent))}/mes
+                                  </div>
+                                  <span className="absolute -top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg">
+                                    -{discount}%
+                                  </span>
+                                </>
+                              );
+                            }
+                          }
+                          return (
+                            <div className="text-sm text-slate-500 mt-1">
+                              {formatPrice(Math.round(monthlyEquivalent))}/mes
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     <ul className="space-y-4 mb-8">
@@ -259,11 +293,10 @@ export function PricingSection() {
 
                   <Button
                     onClick={() => handleWhatsappRedirect(plan.name)}
-                    className={`w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:scale-[1.02] ${
-                      isPopular
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
-                        : 'bg-slate-900 text-white hover:bg-slate-800'
-                    }`}
+                    className={`w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
+                      : 'bg-slate-900 text-white hover:bg-slate-800'
+                      }`}
                   >
                     <MessageSquare className="h-4 w-4" />
                     Contratar Plan

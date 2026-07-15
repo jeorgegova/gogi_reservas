@@ -1,0 +1,37 @@
+# Allow all AI and search crawlers to access public content
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /dashboard/
+Disallow: /reservations/
+Disallow: /profile/
+Disallow: /maintenance/
+Disallow: /payment/
+
+# Explicitly allow AI assistant crawlers
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: Claude-Web
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://gogireservas.com/sitemap.xml

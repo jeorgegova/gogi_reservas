@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useOrganizationImages } from '@/hooks/useOrganizationImages';
 import { translateAuthError } from '@/lib/utils';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -107,7 +108,9 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+    <>
+      <SEOHead title="Recuperar Contraseña" description="Recupera el acceso a tu cuenta de GoGi Reservas." noindex />
+      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background Image with Overlay */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat animate-slow-zoom"
@@ -190,5 +193,6 @@ export default function ForgotPasswordPage() {
         </CardFooter>
       </Card>
     </div>
+    </>
   );
 }

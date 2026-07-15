@@ -19,7 +19,7 @@ export function Footer() {
           Empieza a gestionar tus reservas hoy.
         </h2>
         <p className="text-sm md:text-lg lg:text-xl text-slate-400 max-w-2xl mx-auto mb-6 md:mb-12">
-          Únete a las organizaciones que ya confían en GoGi Reservas para ofrecer una experiencia premium.
+          Únete a las organizaciones que ya confían en GoGi Reservas para ofrecer una experiencia premium de gestión de reservas online.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
           <Button

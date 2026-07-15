@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
@@ -8,7 +8,194 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>GoGi Reservas</title>
+    <meta name="description" content="GoGi Reservas: Sistema de gestión de reservas inteligente para barberías, salones, clínicas, conjuntos residenciales y más. Automatiza citas, reduce ausencias y administra tu negocio desde un solo panel." />
+    <meta name="keywords" content="gestión de reservas, sistema de citas, software de reservas, agenda online, barbería, salón de belleza, reservas Colombia, agendamiento web, booking system Colombia" />
+    <meta property="og:title" content="GoGi Reservas - Gestión Inteligente de Reservas" />
+    <meta property="og:description" content="Organiza tu agenda, automatiza tus reservas y brinda una experiencia profesional desde el primer clic." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo.png" />
+    <meta property="og:site_name" content="GoGi Reservas" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GoGi Reservas - Gestión Inteligente de Reservas" />
+    <meta name="twitter:description" content="Organiza tu agenda, automatiza tus reservas y brinda una experiencia profesional desde el primer clic." />
+    <link rel="llms" href="/llms.txt" type="text/plain" title="LLMs summary" />
+    <link rel="llms-full" href="/llms-full.txt" type="text/plain" title="LLMs full documentation" />
+    <title>GoGi Reservas - Gestión Inteligente de Reservas</title>
+
+    <!-- Structured data: SoftwareApplication (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "GoGi Reservas",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "description": "Sistema de gestión de reservas inteligente para barberías, salones de belleza, clínicas, conjuntos residenciales y coworkings. Ofrece agenda online, recordatorios automáticos y panel de administración.",
+      "url": "https://gogireservas.com",
+      "sameAs": [
+        "https://wa.me/573128470944"
+      ],
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Plan Gratuito",
+          "price": "0",
+          "priceCurrency": "COP",
+          "description": "Plan gratuito con hasta 5 reservas diarias"
+        },
+        {
+          "@type": "Offer",
+          "name": "Plan Emprendedor",
+          "price": "49000",
+          "priceCurrency": "COP",
+          "priceInterval": "P1M",
+          "description": "Hasta 300 reservas mensuales, 1 sede"
+        },
+        {
+          "@type": "Offer",
+          "name": "Plan Profesional",
+          "price": "99000",
+          "priceCurrency": "COP",
+          "priceInterval": "P1M",
+          "description": "Reservas ilimitadas, hasta 3 sedes, recordatorios WhatsApp"
+        },
+        {
+          "@type": "Offer",
+          "name": "Plan Corporativo",
+          "price": "189000",
+          "priceCurrency": "COP",
+          "priceInterval": "P1M",
+          "description": "Sedes ilimitadas, branding personalizado, API"
+        }
+      ],
+      "author": {
+        "@type": "Organization",
+        "name": "GoGi Reservas",
+        "url": "https://gogireservas.com",
+        "contactPoint": [
+          {
+            "@type": "ContactPoint",
+            "telephone": "+57-3128470944",
+            "contactType": "customer service",
+            "email": "gogicolombia@gmail.com",
+            "availableLanguage": [" Español"]
+          }
+        ]
+      }
+    }
+    </script>
+
+    <!-- Structured data: WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "GoGi Reservas",
+      "url": "https://gogireservas.com",
+      "description": "Plataforma colombiana de gestión de reservas online",
+      "inLanguage": "es-CO",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://gogireservas.com/organizaciones?search={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Structured data: FAQ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "¿Qué es GoGi Reservas?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "GoGi Reservas es una plataforma web colombiana de gestión de reservas y agenda online que permite a negocios como barberías, salones de belleza, clínicas y conjuntos residenciales automatizar la toma de citas, reducir ausencias con recordatorios automáticos y administrar sus operaciones desde un panel centralizado."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Cuánto cuesta GoGi Reservas?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Ofrecemos cuatro planes: Plan Gratuito ($0), Plan Emprendedor ($49.000/mes), Plan Profesional ($99.000/mes) y Plan Corporativo ($189.000/mes). Todos los planes incluyen funcionalidades básicas de gestión de reservas."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Cómo funcionan los recordatorios automáticos?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cuando un cliente agenda una cita, GoGi Reservas envía automáticamente recordatorios por correo electrónico en todos los planes, y por WhatsApp en los planes Profesional y Corporativo. Esto reduce las inasistencias hasta en un 90%."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Qué tipo de negocios pueden usar GoGi Reservas?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "GoGi Reservas está diseñado para barberías, salones de belleza, spas, clínicas y consultorios, conjuntos residenciales, salas de ensayo, coworkings, oficinas y cualquier negocio que requiera gestión de turnos o citas."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Puedo probar GoGi Reservas gratis?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sí, ofrecemos un Plan Gratuito sin costo con hasta 5 reservas diarias, 1 sede y recordatorios por correo. No requiere tarjeta de crédito."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Structured data: HowTo - Cómo hacer una reserva -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "Cómo hacer una reserva en GoGi Reservas",
+      "description": "Pasos para agendar una cita o reserva usando GoGi Reservas",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "Selecciona la organización",
+          "text": "Ingresa al portal de la organización que ofrece el servicio que necesitas."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "Elige el servicio y profesional",
+          "text": "Selecciona el tipo de servicio que deseas y el profesional o recurso disponible."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "Escoge fecha y hora",
+          "text": "Revisa el calendario con disponibilidad en tiempo real y elige el horario que mejor te acomode."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 4,
+          "name": "Confirma tus datos",
+          "text": "Ingresa tu nombre y datos de contacto para recibir la confirmación y recordatorios."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 5,
+          "name": "Recibe confirmación",
+          "text": "Recibirás una confirmación inmediata y recordatorios automáticos antes de tu cita."
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

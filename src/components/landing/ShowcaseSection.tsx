@@ -80,7 +80,7 @@ export function ShowcaseSection() {
                 { img: oprimizaciones, text: 'Reportes de reservas realizadas' },
               ].map((item, index) => (
                 <div key={index} className="flex items-center gap-4 md:gap-5">
-                  <img src={item.img} alt="" className="h-8 w-8 md:h-10 md:w-10 object-contain shrink-0" />
+                  <img src={item.img} alt={item.text} className="h-8 w-8 md:h-10 md:w-10 object-contain shrink-0" />
                   <span className="text-sm md:text-base text-slate-700 font-medium">{item.text}</span>
                 </div>
               ))}
