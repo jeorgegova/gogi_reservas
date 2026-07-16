@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import logoSinFondo from '@/assets/LogoConTextoSinfondo.png';
@@ -124,13 +124,12 @@ export function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        theme === 'dark'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${theme === 'dark'
           ? 'bg-slate-900/80 backdrop-blur-md border-b border-white/5'
           : scrolled
             ? 'bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm'
             : 'bg-transparent'
-      }`}
+        }`}
     >
       <div className="max-w-7xl mx-auto px-5 md:px-6 h-16 flex items-center justify-between">
         <Link
@@ -144,17 +143,16 @@ export function Navbar() {
             alt="GoGi Reservas - Software de reservas y agenda online"
             width="134"
             height="200"
-            className={`h-14 md:h-[62px] w-auto transition-all duration-300 ${
-              scrolled ? 'opacity-100' : 'opacity-95'
-            } ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
+            className={`h-14 md:h-[62px] w-auto transition-all duration-300 ${scrolled ? 'opacity-100' : 'opacity-95'
+              } ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
             loading="eager"
             decoding="async"
           />
         </Link>
 
         {/* Desktop nav */}
-        <nav 
-          className="hidden md:flex items-center gap-1.5 relative py-2" 
+        <nav
+          className="hidden md:flex items-center gap-1.5 relative py-2"
           aria-label="Navegación principal"
           onMouseLeave={handleMouseLeave}
         >
@@ -166,17 +164,16 @@ export function Navbar() {
 
           {navLinks.map((link) => {
             const active = isActiveLink(link.hash);
-            
+
             if (link.external) {
               return (
                 <Link
                   key={link.hash}
                   to={link.hash}
-                  className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 z-10 ${
-                    scrolled
+                  className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 z-10 ${scrolled
                       ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
                       : 'bg-white/90 text-slate-900 hover:bg-white shadow-lg backdrop-blur-sm'
-                  }`}
+                    }`}
                 >
                   {link.label}
                 </Link>
@@ -188,11 +185,10 @@ export function Navbar() {
                 <button
                   key={link.hash}
                   onClick={() => handleNav(link.hash)}
-                  className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 z-10 ${
-                    scrolled
+                  className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 z-10 ${scrolled
                       ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
                       : 'bg-white/90 text-slate-900 hover:bg-white shadow-lg backdrop-blur-sm'
-                  }`}
+                    }`}
                 >
                   {link.label}
                 </button>
@@ -229,9 +225,8 @@ export function Navbar() {
         {/* Mobile toggle */}
         <button
           onClick={() => setOpen(!open)}
-          className={`md:hidden p-2 rounded-lg transition-colors ${
-            theme === 'dark' && !scrolled ? 'text-white/80' : 'text-slate-800'
-          }`}
+          className={`md:hidden p-2 rounded-lg transition-colors ${theme === 'dark' && !scrolled ? 'text-white/80' : 'text-slate-800'
+            }`}
           aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
         >
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
