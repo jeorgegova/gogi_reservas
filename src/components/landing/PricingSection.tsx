@@ -139,17 +139,19 @@ export function PricingSection() {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         cards,
-        { opacity: 0, y: 50 },
+        { opacity: 0, scale: 0.85, y: 30 },
         {
           opacity: 1,
+          scale: 1,
           y: 0,
           duration: 0.8,
-          stagger: 0.15,
-          ease: 'power3.out',
+          stagger: 0.12,
+          ease: 'back.out(1.2)',
           scrollTrigger: {
             trigger: cardsRef.current,
             start: 'top 85%',
-            toggleActions: 'play none none none',
+            end: 'bottom 15%',
+            toggleActions: 'play reverse restart reverse',
           },
         }
       );

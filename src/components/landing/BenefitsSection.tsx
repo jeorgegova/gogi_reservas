@@ -64,32 +64,47 @@ export function BenefitsSection() {
 
     const cards = gridRef.current.querySelectorAll('[data-benefit-card]');
     const ctx = gsap.context(() => {
-      cards.forEach((card) => {
-        gsap.fromTo(
-          card,
-          { opacity: 0, y: 60, scale: 0.85 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.8,
-            ease: 'elastic.out(1, 0.5)',
-            scrollTrigger: {
-              trigger: card as HTMLElement,
-              start: 'top 88%',
-              toggleActions: 'play none none none',
-            },
-          }
-        );
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: gridRef.current,
+          start: 'top 95%',
+          end: 'bottom 70%',
+          scrub: 1,
+        }
       });
 
-      gsap.to(cards, {
-        y: -3,
-        duration: 1.8,
-        stagger: { each: 0.12, from: 'random' },
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
+      cards.forEach((card, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        
+        let xOffset = 0;
+        let yOffset = 0;
+        
+        if (col === 0) xOffset = -100;
+        else if (col === 2) xOffset = 100;
+        
+        if (row === 0) yOffset = -60;
+        else if (row === 2) yOffset = 60;
+
+        tl.fromTo(
+          card,
+          {
+            opacity: 0.1,
+            scale: 0.8,
+            x: xOffset,
+            y: yOffset,
+            filter: 'blur(3px)'
+          },
+          {
+            opacity: 1,
+            scale: 1,
+            x: 0,
+            y: 0,
+            filter: 'blur(0px)',
+            ease: 'power2.out'
+          },
+          0
+        );
       });
     }, sectionRef);
 

@@ -56,17 +56,18 @@ export function FAQSection() {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         items,
-        { opacity: 0, y: 20 },
+        { opacity: 0, y: 30 },
         {
           opacity: 1,
           y: 0,
           duration: 0.8,
-          stagger: 0.06,
+          stagger: 0.08,
           ease: 'power3.out',
           scrollTrigger: {
             trigger: listRef.current,
             start: 'top 85%',
-            toggleActions: 'play none none none',
+            end: 'bottom 15%',
+            toggleActions: 'play reverse restart reverse',
           },
         }
       );
@@ -79,91 +80,141 @@ export function FAQSection() {
     <section
       ref={sectionRef}
       id="faq"
-      className="relative py-20 md:py-32 px-5 md:px-6 bg-[#fafafa] overflow-hidden border-t border-slate-100"
+      className="relative py-24 md:py-36 px-5 md:px-8 bg-white overflow-hidden border-t border-slate-100"
     >
-      <FloatingIcons />
-      <div className="max-w-3xl mx-auto relative z-10">
-        <div className="text-center mb-16 md:mb-24">
-          <span className="text-xs font-bold tracking-widest text-indigo-650 uppercase bg-indigo-50 px-3.5 py-1.5 rounded-full border border-indigo-100/50">
-            Preguntas frecuentes
-          </span>
-          <TextReveal
-            as="h2"
-            splitBy="word"
-            className="text-3xl md:text-5xl font-semibold text-slate-900 tracking-tight mt-6 mb-4 md:mb-6"
-            start="top 80%"
-            end="top 55%"
-            scrub={0.7}
-          >
-            Resolvemos tus dudas antes de que aparezcan.
-          </TextReveal>
-        </div>
+      {/* Background blobs for depth */}
+      <div className="absolute inset-0 pointer-events-none opacity-40">
+        <div className="absolute top-0 right-10 w-[400px] h-[400px] bg-slate-50 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-10 w-[500px] h-[500px] bg-indigo-50/30 rounded-full blur-3xl" />
+      </div>
 
-        <div ref={listRef} className="border-t border-slate-200">
-          {FAQS.map((faq, index) => {
-            const isOpen = openIndex === index;
-            return (
-              <div
-                key={index}
-                data-faq-item
-                className="border-b border-slate-200 py-6 transition-colors duration-300"
+      <FloatingIcons />
+
+      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+          
+          {/* Left Column: Sticky Header */}
+          <div className="lg:col-span-5 flex flex-col justify-between lg:sticky lg:top-28 lg:h-[calc(100vh-200px)]">
+            <div>
+              <span className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+                PREGUNTAS FRECUENTES
+              </span>
+              <TextReveal
+                as="h2"
+                splitBy="word"
+                className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mt-4 mb-6 leading-[1.15]"
+                start="top 80%"
+                end="top 55%"
+                scrub={0.7}
               >
-                <button
-                  type="button"
-                  onClick={() => setOpenIndex(isOpen ? null : index)}
-                  className="w-full flex items-center justify-between text-left group py-2"
-                  aria-expanded={isOpen}
+                Resolvemos tus dudas antes de que aparezcan.
+              </TextReveal>
+              <p className="text-base md:text-lg text-slate-500 leading-relaxed max-w-md">
+                ¿Tienes preguntas sobre el funcionamiento, planes o seguridad? Aquí tienes las respuestas más comunes.
+              </p>
+            </div>
+            
+            {/* Desktop WhatsApp Box */}
+            <div className="hidden lg:block mt-8 p-8 rounded-3xl bg-[#f5f5f7] border border-slate-150/40">
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">¿Aún tienes preguntas?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Si no encuentras lo que buscas, nuestro equipo comercial y de soporte está disponible vía WhatsApp para ayudarte en minutos.
+              </p>
+              <Button
+                asChild
+                className="w-full h-12 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-all duration-300 hover:scale-[1.02]"
+              >
+                <a
+                  href="https://wa.me/573128470944?text=%C2%A1Hola!%20Tengo%20dudas%20sobre%20GoGi%20Reservas."
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  <span className={cn(
-                    "text-base md:text-lg font-medium text-slate-800 transition-colors duration-300 pr-6",
-                    isOpen ? "text-indigo-600" : "group-hover:text-indigo-600"
-                  )}>
-                    {faq.question}
-                  </span>
-                  <span
+                  Hablar con soporte
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            </div>
+          </div>
+
+          {/* Right Column: FAQ Accordion items */}
+          <div className="lg:col-span-7">
+            <div ref={listRef} className="space-y-4">
+              {FAQS.map((faq, index) => {
+                const isOpen = openIndex === index;
+                return (
+                  <div
+                    key={index}
+                    data-faq-item
                     className={cn(
-                      'shrink-0 h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]',
-                      isOpen ? 'rotate-180 text-indigo-650 bg-indigo-50' : 'text-slate-400 group-hover:text-slate-650'
+                      'group rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]',
+                      isOpen
+                        ? 'bg-white shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-slate-100'
+                        : 'bg-[#f5f5f7] hover:bg-[#eaeaea] hover:scale-[1.005]'
                     )}
                   >
-                    <ChevronDown className="h-5 w-5 stroke-[1.5]" aria-hidden="true" />
-                  </span>
-                </button>
-                <div
-                  className={cn(
-                    'grid overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]',
-                    isOpen ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0'
-                  )}
-                >
-                  <div className="overflow-hidden">
-                    <p className="text-sm md:text-base text-slate-500 leading-relaxed pr-8">
-                      {faq.answer}
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setOpenIndex(isOpen ? null : index)}
+                      className="w-full flex items-center justify-between p-6 md:p-8 text-left transition-colors"
+                      aria-expanded={isOpen}
+                    >
+                      <span className={cn(
+                        'text-base md:text-lg font-semibold tracking-tight pr-6 transition-colors duration-200',
+                        isOpen ? 'text-indigo-600' : 'text-slate-800 group-hover:text-slate-950'
+                      )}>
+                        {faq.question}
+                      </span>
+                      <span
+                        className={cn(
+                          'shrink-0 h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]',
+                          isOpen 
+                            ? 'rotate-180 text-white bg-slate-900 shadow-md' 
+                            : 'text-slate-500 bg-white shadow-sm group-hover:text-slate-800 group-hover:scale-105'
+                        )}
+                      >
+                        <ChevronDown className="h-4 w-4 stroke-[2]" aria-hidden="true" />
+                      </span>
+                    </button>
+                    
+                    <div
+                      className={cn(
+                        'grid overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]',
+                        isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                      )}
+                    >
+                      <div className="overflow-hidden">
+                        <p className="px-6 md:px-8 pb-6 md:pb-8 text-sm md:text-base text-slate-500 leading-relaxed">
+                          {faq.answer}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
 
-        <div className="mt-16 md:mt-24 text-center">
-          <p className="text-sm md:text-base text-slate-500 mb-6">
-            ¿Aún tienes dudas? Empieza gratis y descubre la plataforma por ti mismo.
-          </p>
-          <Button
-            asChild
-            size="lg"
-            className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105"
-          >
-            <a
-              href="https://wa.me/573128470944?text=%C2%A1Hola!%20Quiero%20probar%20GoGi%20Reservas%20gratis%20para%20mi%20negocio."
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Comenzar ahora gratis
-              <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
-            </a>
-          </Button>
+            {/* Mobile Footer Call to Action */}
+            <div className="mt-10 lg:hidden p-6 rounded-2xl bg-[#f5f5f7] border border-slate-100 text-center">
+              <h3 className="text-base font-semibold text-slate-900 mb-1">¿Aún tienes preguntas?</h3>
+              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                Nuestro equipo comercial y de soporte está disponible vía WhatsApp para ayudarte.
+              </p>
+              <Button
+                asChild
+                className="w-full h-11 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-all duration-300"
+              >
+                <a
+                  href="https://wa.me/573128470944?text=%C2%A1Hola!%20Tengo%20dudas%20sobre%20GoGi%20Reservas."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Hablar con soporte
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>

@@ -45,26 +45,24 @@ export function HowItWorksSection() {
     const cards = cardsRef.current.querySelectorAll('[data-step-card]');
     const lines = cardsRef.current.querySelectorAll('[data-step-line]');
     const ctx = gsap.context(() => {
-      cards.forEach((card, i) => {
-        const fromX = i % 2 === 0 ? -80 : 80;
-        gsap.fromTo(
-          card,
-          { opacity: 0, x: fromX, scale: 0.8, rotationY: 15 },
-          {
-            opacity: 1,
-            x: 0,
-            scale: 1,
-            rotationY: 0,
-            duration: 0.9,
-            ease: 'back.out(1.7)',
-            scrollTrigger: {
-              trigger: card as HTMLElement,
-              start: 'top 85%',
-              toggleActions: 'play none none none',
-            },
-          }
-        );
-      });
+      gsap.fromTo(
+        cards,
+        { opacity: 0, scale: 0.85, y: 40 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.8,
+          stagger: 0.12,
+          ease: 'back.out(1.2)',
+          scrollTrigger: {
+            trigger: cardsRef.current,
+            start: 'top 85%',
+            end: 'bottom 15%',
+            toggleActions: 'play reverse restart reverse',
+          },
+        }
+      );
 
       gsap.fromTo(
         lines,
@@ -77,19 +75,11 @@ export function HowItWorksSection() {
           scrollTrigger: {
             trigger: cardsRef.current,
             start: 'top 75%',
-            toggleActions: 'play none none none',
+            end: 'bottom 25%',
+            toggleActions: 'play reverse restart reverse',
           },
         }
       );
-
-      gsap.to(cards, {
-        y: -5,
-        duration: 2.5,
-        stagger: { each: 0.2, from: 'start' },
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
     }, sectionRef);
 
     return () => ctx.revert();

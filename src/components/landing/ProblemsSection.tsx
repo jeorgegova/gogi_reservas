@@ -58,37 +58,28 @@ export function ProblemsSection() {
 
     const cards = gridRef.current.querySelectorAll('[data-problem-card]');
     const ctx = gsap.context(() => {
-      cards.forEach((card, i) => {
-        const direction = i % 2 === 0 ? -60 : 60;
-        gsap.fromTo(
-          card,
-          { opacity: 0, x: direction, scale: 0.9, rotate: i % 2 === 0 ? -3 : 3 },
-          {
-            opacity: 1,
-            x: 0,
-            scale: 1,
-            rotate: 0,
-            duration: 0.8,
-            ease: 'back.out(1.5)',
-            scrollTrigger: {
-              trigger: card as HTMLElement,
-              start: 'top 85%',
-              toggleActions: 'play none none none',
-            },
-          }
-        );
-      });
-
       gsap.fromTo(
         cards,
-        { y: 0 },
         {
-          y: -4,
-          duration: 2,
-          stagger: { each: 0.15, from: 'random' },
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
+          opacity: 0,
+          scale: 0.85,
+          x: (i) => (i % 2 === 0 ? -60 : 60),
+          rotate: (i) => (i % 2 === 0 ? -2 : 2)
+        },
+        {
+          opacity: 1,
+          scale: 1,
+          x: 0,
+          rotate: 0,
+          duration: 0.8,
+          stagger: 0.12,
+          ease: 'back.out(1.3)',
+          scrollTrigger: {
+            trigger: gridRef.current,
+            start: 'top 85%',
+            end: 'bottom 15%',
+            toggleActions: 'play reverse restart reverse',
+          },
         }
       );
     }, sectionRef);

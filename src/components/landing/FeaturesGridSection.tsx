@@ -76,35 +76,47 @@ export function FeaturesGridSection() {
 
     const cards = gridRef.current.querySelectorAll('[data-feature-grid-card]');
     const ctx = gsap.context(() => {
-      cards.forEach((card, i) => {
-        const col = i % 3;
-        const fromX = col === 0 ? -80 : col === 2 ? 80 : 0;
-        gsap.fromTo(
-          card,
-          { opacity: 0, x: fromX, scale: 0.9, rotate: col === 1 ? -2 : 2 },
-          {
-            opacity: 1,
-            x: 0,
-            scale: 1,
-            rotate: 0,
-            duration: 0.8,
-            ease: 'back.out(1.4)',
-            scrollTrigger: {
-              trigger: card as HTMLElement,
-              start: 'top 88%',
-              toggleActions: 'play none none none',
-            },
-          }
-        );
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: gridRef.current,
+          start: 'top 95%',
+          end: 'bottom 75%',
+          scrub: 1,
+        }
       });
 
-      gsap.to(cards, {
-        y: -3,
-        duration: 2,
-        stagger: { each: 0.1, from: 'random' },
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
+      cards.forEach((card, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        
+        let xOffset = 0;
+        let yOffset = 0;
+        
+        if (col === 0) xOffset = -120;
+        else if (col === 2) xOffset = 120;
+        
+        if (row === 0) yOffset = -80;
+        else if (row === 2) yOffset = 80;
+
+        tl.fromTo(
+          card,
+          {
+            opacity: 0.1,
+            scale: 0.75,
+            x: xOffset,
+            y: yOffset,
+            filter: 'blur(3px)'
+          },
+          {
+            opacity: 1,
+            scale: 1,
+            x: 0,
+            y: 0,
+            filter: 'blur(0px)',
+            ease: 'power2.out'
+          },
+          0
+        );
       });
     }, sectionRef);
 
