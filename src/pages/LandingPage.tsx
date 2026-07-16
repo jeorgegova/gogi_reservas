@@ -7,13 +7,20 @@
 import { useEffect } from 'react';
 import { ScrollTrigger } from '@/lib/gsap';
 import { SEOHead } from '@/components/seo/SEOHead';
-import { HeroSection } from '@/components/landing/HeroSection';
-import { FeaturesSection } from '@/components/landing/FeaturesSection';
-import { ShowcaseSection } from '@/components/landing/ShowcaseSection';
-import { GallerySection } from '@/components/landing/GallerySection';
-
-import { PricingSection } from '@/components/landing/PricingSection';
 import { Navbar } from '@/components/landing/Navbar';
+import { HeroSection } from '@/components/landing/HeroSection';
+import { ProblemsSection } from '@/components/landing/ProblemsSection';
+import { FeaturesSection } from '@/components/landing/FeaturesSection';
+import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
+import { ShowcaseSection } from '@/components/landing/ShowcaseSection';
+import { BenefitsSection } from '@/components/landing/BenefitsSection';
+import { GallerySection } from '@/components/landing/GallerySection';
+import { FeaturesGridSection } from '@/components/landing/FeaturesGridSection';
+import { DevicesSection } from '@/components/landing/DevicesSection';
+import { TrustSection } from '@/components/landing/TrustSection';
+import { PricingSection } from '@/components/landing/PricingSection';
+import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
+import { FAQSection } from '@/components/landing/FAQSection';
 import { Footer } from '@/components/landing/Footer';
 
 export default function LandingPage() {
@@ -56,17 +63,26 @@ export default function LandingPage() {
   return (
     <>
       <SEOHead
-        title="Gestión Inteligente de Reservas"
-        description="Sistema de gestión de reservas online para barberías, salones, clínicas y coworkings. Automatiza citas, reduce ausencias con recordatorios automáticos y administra tu negocio desde un solo panel."
+        title="GoGi Reservas | Software de Reservas y Agenda Online para tu Negocio"
+        description="Plataforma de software de reservas y agenda online para barberías, salones de belleza, centros deportivos, coworkings y conjuntos residenciales. Automatiza citas, reduce ausencias y gestiona tu negocio desde un solo panel."
+        pathname="/"
         ogType="website"
       />
       <Navbar />
-      <main className="relative bg-white overflow-x-hidden">
+      <main id="main-content" className="relative bg-white overflow-x-hidden">
         <HeroSection />
+        <ProblemsSection />
         <FeaturesSection />
+        <HowItWorksSection />
         <ShowcaseSection />
+        <BenefitsSection />
         <GallerySection />
+        <FeaturesGridSection />
+        <DevicesSection />
+        <TrustSection />
         <PricingSection />
+        <TestimonialsSection />
+        <FAQSection />
         <Footer />
       </main>
     </>

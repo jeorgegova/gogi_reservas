@@ -18,7 +18,9 @@ Plataforma web colombiana de gestión de reservas y agenda online para:
 - Cualquier negocio que requiera gestión de turnos
 
 ## Características principales
-- Reservas en tiempo real 24/7 con disponibilidad sincronizada al instante
+- Software de reservas y plataforma de reservas en línea
+- Agenda online con disponibilidad sincronizada al instante
+- Sistema de gestión de citas para múltiples industrias
 - Recordatorios automáticos por correo y WhatsApp
 - Panel de administración con métricas de ocupación
 - Pasarela de pago integrada (Wompi)

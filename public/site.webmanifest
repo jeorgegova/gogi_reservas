@@ -1,0 +1,36 @@
+{
+  "name": "GoGi Reservas - Software de gestión de reservas",
+  "short_name": "GoGi Reservas",
+  "description": "Plataforma de gestión de reservas y agenda online para barberías, salones, clínicas, coworkings y más. Automatiza citas y reduce ausencias.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e293b",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "es-CO",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Panel de gestión de reservas GoGi Reservas"
+    }
+  ]
+}

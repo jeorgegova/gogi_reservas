@@ -1,28 +1,103 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-CO">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Primary metadata -->
+    <title>GoGi Reservas | Software de Reservas y Agenda Online para tu Negocio</title>
+    <meta name="description" content="GoGi Reservas es la plataforma de gestión de reservas y agenda online que automatiza citas, reduce ausencias con recordatorios y administra tu negocio desde un solo panel. Ideal para barberías, salones de belleza, centros deportivos, coworkings y conjuntos residenciales." />
+    <meta name="keywords" content="software de reservas, plataforma de reservas, sistema de reservas, agenda online, gestión de citas, reservas en línea, agenda para empresas, software para barberías, software para salones de belleza, software para centros deportivos, software para coworking, software para conjuntos residenciales, gimnasios, consultorios, Colombia" />
+    <meta name="author" content="GoGi Reservas" />
+    <meta name="robots" content="index, follow, max-snippet:160, max-image-preview:large" />
+    <meta name="googlebot" content="index, follow" />
+    <link rel="canonical" href="https://gogireservas.com/" />
+
+    <!-- Theme and PWA -->
+    <meta name="theme-color" content="#1e293b" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="description" content="GoGi Reservas: Sistema de gestión de reservas inteligente para barberías, salones, clínicas, conjuntos residenciales y más. Automatiza citas, reduce ausencias y administra tu negocio desde un solo panel." />
-    <meta name="keywords" content="gestión de reservas, sistema de citas, software de reservas, agenda online, barbería, salón de belleza, reservas Colombia, agendamiento web, booking system Colombia" />
-    <meta property="og:title" content="GoGi Reservas - Gestión Inteligente de Reservas" />
-    <meta property="og:description" content="Organiza tu agenda, automatiza tus reservas y brinda una experiencia profesional desde el primer clic." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="GoGi Reservas" />
+    <meta name="application-name" content="GoGi Reservas" />
+    <meta name="msapplication-TileColor" content="#1e293b" />
+    <meta name="msapplication-TileImage" content="/icon-192x192.png" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Preconnect / DNS-prefetch -->
+    <link rel="preconnect" href="https://gogireservas.com" />
+    <link rel="dns-prefetch" href="https://gogireservas.com" />
+    <link rel="preconnect" href="https://wa.me" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:locale" content="es_CO" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/logo.png" />
+    <meta property="og:url" content="https://gogireservas.com/" />
     <meta property="og:site_name" content="GoGi Reservas" />
+    <meta property="og:title" content="GoGi Reservas | Software de Reservas y Agenda Online para tu Negocio" />
+    <meta property="og:description" content="Automatiza citas, reduce ausencias con recordatorios y administra tu negocio desde un solo panel. La plataforma de reservas ideal para barberías, salones, centros deportivos y más." />
+    <meta property="og:image" content="https://gogireservas.com/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="GoGi Reservas - Software de gestión de reservas y agenda online" />
+
+    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="GoGi Reservas - Gestión Inteligente de Reservas" />
-    <meta name="twitter:description" content="Organiza tu agenda, automatiza tus reservas y brinda una experiencia profesional desde el primer clic." />
+    <meta name="twitter:site" content="@gogireservas" />
+    <meta name="twitter:creator" content="@gogireservas" />
+    <meta name="twitter:url" content="https://gogireservas.com/" />
+    <meta name="twitter:title" content="GoGi Reservas | Software de Reservas y Agenda Online para tu Negocio" />
+    <meta name="twitter:description" content="Automatiza citas, reduce ausencias con recordatorios y administra tu negocio desde un solo panel. La plataforma de reservas ideal para barberías, salones, centros deportivos y más." />
+    <meta name="twitter:image" content="https://gogireservas.com/og-image.jpg" />
+    <meta name="twitter:image:alt" content="GoGi Reservas - Software de gestión de reservas y agenda online" />
+
+    <!-- AI / LLMs -->
     <link rel="llms" href="/llms.txt" type="text/plain" title="LLMs summary" />
     <link rel="llms-full" href="/llms-full.txt" type="text/plain" title="LLMs full documentation" />
-    <title>GoGi Reservas - Gestión Inteligente de Reservas</title>
 
-    <!-- Structured data: SoftwareApplication (Schema.org) -->
+    <!-- Structured Data: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "GoGi Reservas",
+      "alternateName": "GoGi",
+      "url": "https://gogireservas.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://gogireservas.com/logo.png",
+        "width": 5734,
+        "height": 5733
+      },
+      "image": "https://gogireservas.com/og-image.jpg",
+      "description": "Plataforma colombiana de software de reservas, agenda online y gestión de citas para negocios de todos los tamaños.",
+      "slogan": "Más reservas, menos complicaciones.",
+      "sameAs": [
+        "https://wa.me/573128470944"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+57-312-847-0944",
+        "contactType": "customer service",
+        "email": "gogicolombia@gmail.com",
+        "availableLanguage": ["Español", "Spanish"],
+        "areaServed": "CO",
+        "url": "https://gogireservas.com"
+      }
+    }
+    </script>
+
+    <!-- Structured Data: SoftwareApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -30,11 +105,6 @@
       "name": "GoGi Reservas",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
-      "description": "Sistema de gestión de reservas inteligente para barberías, salones de belleza, clínicas, conjuntos residenciales y coworkings. Ofrece agenda online, recordatorios automáticos y panel de administración.",
-      "url": "https://gogireservas.com",
-      "sameAs": [
-        "https://wa.me/573128470944"
-      ],
       "offers": [
         {
           "@type": "Offer",
@@ -68,32 +138,41 @@
           "description": "Sedes ilimitadas, branding personalizado, API"
         }
       ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "120",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "featureList": "Reservas en tiempo real 24/7, recordatorios automáticos por correo y WhatsApp, panel de administración, múltiples sedes, pasarela de pagos, reportes de ocupación, modo invitado",
+      "softwareVersion": "2026.1",
+      "url": "https://gogireservas.com",
+      "image": "https://gogireservas.com/og-image.jpg",
+      "description": "Software de reservas y agenda online que automatiza citas, reduce ausencias con recordatorios y administra tu negocio desde un solo panel.",
+      "inLanguage": "es-CO",
       "author": {
         "@type": "Organization",
         "name": "GoGi Reservas",
-        "url": "https://gogireservas.com",
-        "contactPoint": [
-          {
-            "@type": "ContactPoint",
-            "telephone": "+57-3128470944",
-            "contactType": "customer service",
-            "email": "gogicolombia@gmail.com",
-            "availableLanguage": [" Español"]
-          }
-        ]
+        "url": "https://gogireservas.com"
       }
     }
     </script>
 
-    <!-- Structured data: WebSite -->
+    <!-- Structured Data: WebSite -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "GoGi Reservas",
       "url": "https://gogireservas.com",
-      "description": "Plataforma colombiana de gestión de reservas online",
+      "description": "Plataforma colombiana de gestión de reservas y agenda online",
       "inLanguage": "es-CO",
+      "publisher": {
+        "@type": "Organization",
+        "name": "GoGi Reservas",
+        "url": "https://gogireservas.com"
+      },
       "potentialAction": {
         "@type": "SearchAction",
         "target": {
@@ -105,7 +184,55 @@
     }
     </script>
 
-    <!-- Structured data: FAQ -->
+    <!-- Structured Data: WebPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "GoGi Reservas | Software de Reservas y Agenda Online para tu Negocio",
+      "description": "Plataforma de gestión de reservas y agenda online para barberías, salones, centros deportivos, coworkings y conjuntos residenciales.",
+      "url": "https://gogireservas.com/",
+      "inLanguage": "es-CO",
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "GoGi Reservas",
+        "url": "https://gogireservas.com"
+      },
+      "primaryImageOfPage": {
+        "@type": "ImageObject",
+        "url": "https://gogireservas.com/og-image.jpg"
+      },
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Inicio",
+            "item": "https://gogireservas.com/"
+          }
+        ]
+      }
+    }
+    </script>
+
+    <!-- Structured Data: BreadcrumbList -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Inicio",
+          "item": "https://gogireservas.com/"
+        }
+      ]
+    }
+    </script>
+
+    <!-- Structured Data: FAQPage -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -116,7 +243,7 @@
           "name": "¿Qué es GoGi Reservas?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "GoGi Reservas es una plataforma web colombiana de gestión de reservas y agenda online que permite a negocios como barberías, salones de belleza, clínicas y conjuntos residenciales automatizar la toma de citas, reducir ausencias con recordatorios automáticos y administrar sus operaciones desde un panel centralizado."
+            "text": "GoGi Reservas es una plataforma web colombiana de gestión de reservas y agenda online que permite a negocios como barberías, salones de belleza, clínicas, centros deportivos, coworkings y conjuntos residenciales automatizar la toma de citas, reducir ausencias con recordatorios automáticos y administrar sus operaciones desde un panel centralizado."
           }
         },
         {
@@ -124,7 +251,7 @@
           "name": "¿Cuánto cuesta GoGi Reservas?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Ofrecemos cuatro planes: Plan Gratuito ($0), Plan Emprendedor ($49.000/mes), Plan Profesional ($99.000/mes) y Plan Corporativo ($189.000/mes). Todos los planes incluyen funcionalidades básicas de gestión de reservas."
+            "text": "Ofrecemos cuatro planes: Plan Gratuito ($0), Plan Emprendedor ($49.000/mes), Plan Profesional ($99.000/mes) y Plan Corporativo ($189.000/mes). Todos incluyen funcionalidades básicas de gestión de reservas y agenda online."
           }
         },
         {
@@ -140,7 +267,7 @@
           "name": "¿Qué tipo de negocios pueden usar GoGi Reservas?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "GoGi Reservas está diseñado para barberías, salones de belleza, spas, clínicas y consultorios, conjuntos residenciales, salas de ensayo, coworkings, oficinas y cualquier negocio que requiera gestión de turnos o citas."
+            "text": "GoGi Reservas está diseñado para barberías, salones de belleza, spas, clínicas, consultorios, centros deportivos, gimnasios, conjuntos residenciales, salas de ensayo, coworkings, oficinas y cualquier negocio que requiera gestión de turnos o reservas en línea."
           }
         },
         {
@@ -155,13 +282,19 @@
     }
     </script>
 
-    <!-- Structured data: HowTo - Cómo hacer una reserva -->
+    <!-- Structured Data: HowTo - Cómo hacer una reserva -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "HowTo",
       "name": "Cómo hacer una reserva en GoGi Reservas",
       "description": "Pasos para agendar una cita o reserva usando GoGi Reservas",
+      "totalTime": "PT5M",
+      "estimatedCost": {
+        "@type": "MonetaryAmount",
+        "currency": "COP",
+        "value": "0"
+      },
       "step": [
         {
           "@type": "HowToStep",

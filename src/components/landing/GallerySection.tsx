@@ -31,37 +31,37 @@ const GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 'residential',
     title: 'Conjuntos residenciales',
-    subtitle: 'Áreas comunes organizadas',
+    subtitle: 'Software para conjuntos residenciales y áreas comunes',
     image: conjuntosImg,
   },
   {
     id: 'barbershop',
     title: 'Barberías',
-    subtitle: 'Citas con precisión',
+    subtitle: 'Software para barberías con citas precisas',
     image: barberiaImg,
   },
   {
     id: 'beauty',
     title: 'Salones de belleza',
-    subtitle: 'Experiencias de bienestar',
+    subtitle: 'Software para salones de belleza y spas',
     image: salonImg,
   },
   {
     id: 'workshop',
     title: 'Salas de ensayo',
-    subtitle: 'Turnos sin espera',
+    subtitle: 'Turnos sin espera para estudios creativos',
     image: salaEnsayoImg,
   },
   {
     id: 'office',
     title: 'Oficinas y coworking',
-    subtitle: 'Espacios compartidos',
+    subtitle: 'Software para coworking y espacios compartidos',
     image: coworkingImg,
   },
   {
     id: 'other',
-    title: 'Cualquier negocio',
-    subtitle: 'Adaptable a tu ritmo',
+    title: 'Consultorios, gimnasios y más',
+    subtitle: 'Sistema de reservas adaptable a cualquier industria',
     image: otrosImg,
   },
 ];
@@ -184,7 +184,15 @@ export function GallerySection() {
       >
         {hasImage && item.image ? (
           <>
-            <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
+            <img
+              src={item.image}
+              alt={`${item.title} - ${item.subtitle}`}
+              width="1086"
+              height="1448"
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors duration-700" />
           </>
         ) : (
@@ -225,7 +233,7 @@ export function GallerySection() {
       <section ref={sectionRef} id="industrias" className="relative py-16 md:py-32 px-6 bg-slate-950">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-white tracking-tight mb-12 md:mb-16">
-            Diseñado para cada industria.
+            Software de reservas diseñado para cada industria.
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {GALLERY_ITEMS.map((item, index) => renderCard(item, index, true))}
@@ -253,7 +261,7 @@ export function GallerySection() {
             end="top 60%"
             scrub={0.6}
           >
-          Diseñado para cada industria.
+          Software de reservas para cada industria.
         </TextReveal>
       </div>
 

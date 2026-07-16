@@ -59,7 +59,7 @@ export function ShowcaseSection() {
               end="top 55%"
               scrub={0.7}
             >
-              Una interfaz que respira tranquilidad.
+              Una interfaz de agenda online pensada para ti.
             </TextReveal>
 
             <TextReveal
@@ -70,7 +70,7 @@ export function ShowcaseSection() {
               end="top 58%"
               scrub={0.8}
             >
-              Cada interacción fue diseñada para reducir la fricción. Desde la reserva hasta la confirmación, todo fluye con naturalidad.
+              Cada interacción de nuestro sistema de reservas fue diseñada para reducir la fricción. Desde la reserva en línea hasta la confirmación, tu agenda online fluye con naturalidad.
             </TextReveal>
 
           <div className="space-y-4 md:space-y-8">
@@ -80,7 +80,15 @@ export function ShowcaseSection() {
                 { img: oprimizaciones, text: 'Reportes de reservas realizadas' },
               ].map((item, index) => (
                 <div key={index} className="flex items-center gap-4 md:gap-5">
-                  <img src={item.img} alt={item.text} className="h-8 w-8 md:h-10 md:w-10 object-contain shrink-0" />
+                  <img
+                  src={item.img}
+                  alt={item.text}
+                  width="40"
+                  height="40"
+                  className="h-8 w-8 md:h-10 md:w-10 object-contain shrink-0"
+                  loading="lazy"
+                  decoding="async"
+                />
                   <span className="text-sm md:text-base text-slate-700 font-medium">{item.text}</span>
                 </div>
               ))}
@@ -96,7 +104,15 @@ export function ShowcaseSection() {
                 end="top 40%"
                 containerClassName="rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-slate-900/10"
               >
-                <img src={interfazImg} alt="Interfaz GoGi Reservas" className="w-full h-auto object-cover" loading="lazy" />
+                <img
+                  src={interfazImg}
+                  alt="Panel de agenda online y calendario de reservas de GoGi Reservas"
+                  width="1672"
+                  height="941"
+                  className="w-full h-auto object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
               </ImageReveal>
             </div>
 
@@ -107,7 +123,15 @@ export function ShowcaseSection() {
                 end="top 45%"
                 containerClassName="rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-slate-900/10 w-[85%]"
               >
-                <img src={loginImg} alt="Inicio de sesión GoGi Reservas" className="w-full h-auto object-cover" loading="lazy" />
+                <img
+                  src={loginImg}
+                  alt="Portal de inicio de sesión de GoGi Reservas para gestión de reservas"
+                  width="1104"
+                  height="1016"
+                  className="w-full h-auto object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
               </ImageReveal>
             </div>
 

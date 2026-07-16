@@ -118,8 +118,9 @@ export default function LoginPage() {
   return (
     <>
       <SEOHead
-        title={slug ? `Iniciar Sesión - ${organization?.name || ''}` : 'Iniciar Sesión'}
+        title={slug ? `Iniciar Sesión - ${organization?.name || 'Portal'}` : 'Iniciar Sesión'}
         description="Accede a tu cuenta de GoGi Reservas para gestionar tus reservas, agenda y preferencias."
+        pathname={slug ? `/${slug}/login` : '/login'}
         noindex
       />
       <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">

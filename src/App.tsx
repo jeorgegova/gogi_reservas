@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { useEffect, useRef, useState } from 'react';
 import { Toaster } from 'sonner';
+import { SEOHead } from '@/components/seo/SEOHead';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import ForgotPasswordPage from './pages/ForgotPassword';
@@ -33,6 +34,7 @@ const RESERVED_SLUGS = ['super-admin', 'admin', 'dashboard', 'profile', 'reserva
 const OrganizationHome = () => {
   const { profile, loading, fetchOrgSettings, setGuestMode, signOut, restoreGuestSession } = useAuth();
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const [settingsLoading, setSettingsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,10 +51,10 @@ const OrganizationHome = () => {
       fetchOrgSettings(slug).then(async (settings) => {
         if (settings && !settings.requires_auth && settings.guest_user_id) {
           if (profile && profile.organization_slug !== slug) {
-            try { await signOut(); } catch { }
-            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch { } finally { setSettingsLoading(false); }
+            try { await signOut(); } catch { /* ignore sign-out errors */ }
+            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch { /* ignore guest-mode errors */ } finally { setSettingsLoading(false); }
           } else {
-            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch { } finally { setSettingsLoading(false); }
+            try { await setGuestMode(settings.guest_user_id, slug, settings.id); } catch { /* ignore guest-mode errors */ } finally { setSettingsLoading(false); }
           }
         } else {
           setSettingsLoading(false);
@@ -70,26 +72,40 @@ const OrganizationHome = () => {
     }
   }, [slug, loading, profile, fetchOrgSettings, setGuestMode, signOut, restoreGuestSession]);
 
+  const orgTitle = slug ? `Portal de ${slug}` : 'Portal de organización';
+  const seoPathname = location.pathname;
+
   if (loading || settingsLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="text-sm font-medium text-gray-500 animate-pulse text-center">
-          Iniciando portal...
-        </p>
-      </div>
+      <>
+        <SEOHead title={orgTitle} description="Portal de reservas de organización en GoGi Reservas." pathname={seoPathname} noindex />
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-sm font-medium text-gray-500 animate-pulse text-center">
+            Iniciando portal...
+          </p>
+        </div>
+      </>
     );
   }
 
   if (profile?.organization_slug === slug) {
     return (
-      <DashboardLayout>
-        <Calendario />
-      </DashboardLayout>
+      <>
+        <SEOHead title={orgTitle} description="Panel de reservas de tu organización en GoGi Reservas." pathname={seoPathname} noindex />
+        <DashboardLayout>
+          <Calendario />
+        </DashboardLayout>
+      </>
     );
   }
 
-  return <LoginPage />;
+  return (
+    <>
+      <SEOHead title={orgTitle} description="Accede al portal de reservas de tu organización en GoGi Reservas." pathname={seoPathname} noindex />
+      <LoginPage />
+    </>
+  );
 };
 
 const PrivateRoute = ({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) => {

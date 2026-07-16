@@ -24,7 +24,7 @@ const FEATURES = [
     id: 'realtime',
     title: 'Reservas en tiempo real 24/7',
     description:
-      'Permite a tus clientes agendar citas o espacios desde cualquier dispositivo en segundos. La disponibilidad se sincroniza al instante, eliminando las llamadas perdidas y los cruces de horarios.',
+      'Permite a tus clientes agendar citas o espacios desde cualquier dispositivo en segundos. Nuestro sistema de reservas sincroniza la disponibilidad al instante, eliminando llamadas perdidas y cruces de horarios en tu agenda online.',
     color: 'from-indigo-500 to-blue-600',
     image: imgRealtime,
     iconImage: iconCalendario,
@@ -33,7 +33,7 @@ const FEATURES = [
     id: 'control',
     title: 'Control total de tu negocio',
     description:
-      'Administra turnos de tu personal, gestiona pagos y controla la ocupación desde un panel unificado. Accede a métricas clave para optimizar tus horas más rentables y hacer crecer tus ingresos.',
+      'Administra turnos de tu personal, gestiona pagos y controla la ocupación desde un panel unificado de gestión de citas. Accede a métricas clave para optimizar tus horas más rentables y hacer crecer tus ingresos.',
     color: 'from-emerald-500 to-teal-600',
     image: imgControl,
     iconImage: iconControl,
@@ -42,7 +42,7 @@ const FEATURES = [
     id: 'automation',
     title: 'Cero ausencias con avisos automáticos',
     description:
-      'Envía recordatorios automáticos y confirmaciones oportunas. Reduce hasta en un 90% las inasistencias de clientes y asegura que tus espacios o profesionales siempre estén facturando.',
+      'Envía recordatorios automáticos y confirmaciones oportunas para tus reservas en línea. Reduce hasta en un 90% las inasistencias de clientes y asegura que tus espacios o profesionales siempre estén facturando.',
     color: 'from-amber-500 to-orange-600',
     image: imgAutomation,
     iconImage: iconAutomation,
@@ -51,7 +51,7 @@ const FEATURES = [
     id: 'experience',
     title: 'Diseñado para tu industria',
     description:
-      'Ya sea una barbería, centro deportivo, consultorio o salón; personaliza las políticas de cancelación, horarios especiales y métodos de pago según el ritmo único de tu sector.',
+      'Ya sea una barbería, centro deportivo, consultorio, gimnasio o salón; personaliza las políticas de cancelación, horarios especiales y métodos de pago según el ritmo único de tu sector. Un software de reservas flexible para cualquier tipo de negocio.',
     color: 'from-rose-500 to-pink-600',
     image: imgExperience,
     iconImage: iconIndustry,
@@ -180,7 +180,15 @@ export function FeaturesSection() {
           <div className="grid md:grid-cols-2 gap-4 md:gap-8">
             {FEATURES.map((feature) => (
               <div key={feature.id} className="p-5 md:p-8 rounded-3xl bg-slate-50">
-                <img src={feature.iconImage} alt={feature.title} className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-4" />
+                <img
+                  src={feature.iconImage}
+                  alt={feature.title}
+                  width="64"
+                  height="64"
+                  className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-4"
+                  loading="lazy"
+                  decoding="async"
+                />
                 <h3 className="text-lg md:text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
                 <p className="text-slate-500 leading-relaxed text-sm md:text-base">{feature.description}</p>
               </div>
@@ -212,7 +220,11 @@ export function FeaturesSection() {
                     <img
                       src={feature.image}
                       alt={feature.title}
+                      width="1536"
+                      height="1024"
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                 ))}
@@ -231,7 +243,15 @@ export function FeaturesSection() {
                     'mb-6 md:mb-12 lg:mb-0 last:mb-0'
                   )}
                 >
-                  <img src={feature.iconImage} alt={feature.title} className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-6" />
+                  <img
+                    src={feature.iconImage}
+                    alt={feature.title}
+                    width="64"
+                    height="64"
+                    className="h-10 w-10 md:h-16 md:w-16 object-contain mb-3 md:mb-6"
+                    loading="lazy"
+                    decoding="async"
+                  />
                   <h3 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-semibold text-slate-900 tracking-tight mb-3 md:mb-4">
                     {feature.title}
                   </h3>

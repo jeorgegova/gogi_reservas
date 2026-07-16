@@ -15,12 +15,40 @@ GoGi Reservas es una plataforma web colombiana de gestión de reservas y agenda 
 
 ### Páginas públicas (indexables)
 | Ruta | Descripción |
-|---|---|
+|---|---|---|
 | `/` | Landing page principal con hero, características, funcionalidades, industrias, precios |
 | `/organizaciones` | Listado de organizaciones activas con buscador |
+
+### Páginas públicas futuras (estructura preparada)
+| Ruta | Nicho |
+|---|---|
+| `/barberias` | Software para barberías |
+| `/salones-de-belleza` | Software para salones de belleza |
+| `/coworking` | Software para coworking |
+| `/consultorios` | Software para consultorios |
+| `/gimnasios` | Software para gimnasios |
+| `/centros-deportivos` | Software para centros deportivos |
+| `/conjuntos-residenciales` | Software para conjuntos residenciales |
+| `/agenda-online` | Agenda online |
+| `/reservas-en-linea` | Reservas en línea |
+| `/gestion-de-clientes` | Gestión de clientes |
+| `/calendario` | Calendario de reservas |
+| `/recordatorios` | Recordatorios automáticos |
+
+### Páginas privadas / no indexables
+| Ruta | Descripción |
+|---|---|---|
 | `/:slug/login` | Inicio de sesión por organización |
 | `/:slug/register` | Registro de usuarios por organización |
 | `/:slug/forgot-password` | Recuperación de contraseña |
+| `/:slug/verify-email` | Verificación de correo electrónico |
+| `/dashboard` | Calendario principal del usuario |
+| `/reservations/new` | Crear nueva reserva |
+| `/reservations/my` | Mis reservas |
+| `/admin/*` | Panel de administración (gestión de recursos, servicios, usuarios, estadísticas, suscripción) |
+| `/super-admin/*` | Panel de super administrador (organizaciones, planes, pagos) |
+| `/profile` | Perfil de usuario |
+| `/payment/:id` | Página de pago |
 
 ### Páginas privadas (no indexables)
 | Ruta | Descripción |
@@ -115,13 +143,15 @@ GoGi Reservas está diseñado para adaptarse a cualquier negocio que requiera ge
 
 ---
 
-## Tecnología
+## Tecnología y SEO
 
-- **Frontend:** React 19, TypeScript, Tailwind CSS, Vite
+- **Frontend:** React 19, TypeScript, Tailwind CSS, Vite (SPA)
 - **Backend:** Supabase (PostgreSQL, Auth, Storage)
 - **Animaciones:** GSAP (ScrollTrigger)
 - **Pagos:** Wompi
 - **Hosting:** Vercel/Netlify (SPA)
+- **SEO técnico:** Meta tags estáticos en index.html, sitemap.xml, robots.txt, JSON-LD (Organization, SoftwareApplication, WebSite, WebPage, FAQPage, BreadcrumbList, HowTo), manifest.webmanifest, favicon multi-resolución, Open Graph y Twitter Cards con URLs absolutas.
+- **Nota:** Para un SEO avanzado con renderizado de contenido específico por URL se recomienda migrar a Next.js con SSR/SSG.
 
 ---
 

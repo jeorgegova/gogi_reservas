@@ -13,9 +13,10 @@ interface NavLink {
 const navLinks: NavLink[] = [
   { label: 'Inicio', hash: '' },
   { label: 'Características', hash: '#caracteristicas' },
-  { label: 'Funcionalidades', hash: '#funcionalidades' },
+  { label: 'Cómo funciona', hash: '#como-funciona' },
   { label: 'Industrias', hash: '#industrias' },
   { label: 'Precios', hash: '#precios' },
+  { label: 'FAQ', hash: '#faq' },
   { label: 'Portal Reservas', hash: '/organizaciones', button: true, external: true },
 ];
 
@@ -23,6 +24,7 @@ type Theme = 'light' | 'dark';
 
 const sectionThemes: Record<string, Theme> = {
   industrias: 'dark',
+  confianza: 'dark',
 };
 
 export function Navbar() {
@@ -89,6 +91,13 @@ export function Navbar() {
     }
   };
 
+  const isActiveLink = (hash: string): boolean => {
+    if (hash.startsWith('/')) return location.pathname === hash;
+    if (location.pathname !== '/') return false;
+    if (!hash) return !window.location.hash;
+    return window.location.hash === hash;
+  };
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -100,13 +109,22 @@ export function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-5 md:px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <Link
+          to="/"
+          className="shrink-0"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="GoGi Reservas - Inicio"
+        >
           <img
             src={logoSinFondo}
-            alt="GoGi Reservas"
+            alt="GoGi Reservas - Software de reservas y agenda online"
+            width="134"
+            height="200"
             className={`h-14 md:h-[62px] w-auto transition-all duration-300 ${
               scrolled ? 'opacity-100' : 'opacity-95'
             } ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
+            loading="eager"
+            decoding="async"
           />
         </Link>
 
@@ -141,7 +159,8 @@ export function Navbar() {
               <button
                 key={link.hash}
                 onClick={() => handleNav(link.hash)}
-                className={`text-sm font-medium transition-colors duration-200 ${
+                aria-current={isActiveLink(link.hash) ? 'page' : undefined}
+                className={`text-sm font-medium transition-colors duration-200 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 px-1 ${
                   scrolled
                     ? 'text-slate-600 hover:text-slate-900'
                     : theme === 'dark'

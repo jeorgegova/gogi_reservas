@@ -150,8 +150,9 @@ export default function RegisterPage() {
   return (
     <>
       <SEOHead
-        title="Crear Cuenta"
+        title={slug ? `Crear Cuenta - ${currentOrg?.name || 'Portal'}` : 'Crear Cuenta'}
         description="Regístrate en GoGi Reservas para agendar y gestionar tus reservas de manera fácil y rápida."
+        pathname={slug ? `/${slug}/register` : '/register'}
         noindex
       />
       <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">

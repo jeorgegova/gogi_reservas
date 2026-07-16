@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { useOrganizationImages } from '@/hooks/useOrganizationImages';
 import { translateAuthError } from '@/lib/utils';
@@ -117,19 +118,34 @@ export default function VerifyEmailPage() {
   // State: Loading / Verifying
   if (verifying) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center p-4">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
-          <h2 className="text-xl font-medium text-gray-600">Verificando tu cuenta...</h2>
+      <>
+        <SEOHead
+          title="Verificando correo electrónico"
+          description="Verificamos tu correo electrónico para activar tu cuenta de GoGi Reservas."
+          pathname={slug ? `/${slug}/verify-email` : '/verify-email'}
+          noindex
+        />
+        <div className="relative min-h-screen flex items-center justify-center p-4">
+          <div className="text-center space-y-4">
+            <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+            <h2 className="text-xl font-medium text-gray-600">Verificando tu cuenta...</h2>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // State: Error
   if (error && !isRecovery) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <>
+        <SEOHead
+          title="Error de verificación"
+          description="El enlace de verificación es inválido o ha expirado. Solicita un nuevo enlace en GoGi Reservas."
+          pathname={slug ? `/${slug}/verify-email` : '/verify-email'}
+          noindex
+        />
+        <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
         <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: cachedImages.login_photo_url ? `url("${cachedImages.login_photo_url}")` : 'none' }}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
         </div>
@@ -152,13 +168,21 @@ export default function VerifyEmailPage() {
           </CardFooter>
         </Card>
       </div>
+      </>
     );
   }
 
   // State: Confirmed (Signup/Verification success)
   if (confirmed) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <>
+        <SEOHead
+          title="Verificación exitosa"
+          description="Tu cuenta de GoGi Reservas ha sido verificada correctamente. Ahora puedes iniciar sesión."
+          pathname={slug ? `/${slug}/verify-email` : '/verify-email'}
+          noindex
+        />
+        <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
         <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: cachedImages.login_photo_url ? `url("${cachedImages.login_photo_url}")` : 'none' }}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
         </div>
@@ -186,6 +210,7 @@ export default function VerifyEmailPage() {
           </CardFooter>
         </Card>
       </div>
+      </>
     );
   }
 
@@ -193,7 +218,14 @@ export default function VerifyEmailPage() {
   if (isRecovery) {
     if (successUpdate) {
       return (
-        <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+        <>
+          <SEOHead
+            title="Contraseña actualizada"
+            description="Tu contraseña de GoGi Reservas ha sido actualizada correctamente."
+            pathname={slug ? `/${slug}/verify-email` : '/verify-email'}
+            noindex
+          />
+          <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
           <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: cachedImages.login_photo_url ? `url("${cachedImages.login_photo_url}")` : 'none' }}>
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
           </div>
@@ -206,14 +238,22 @@ export default function VerifyEmailPage() {
               <CardDescription className="text-blue-100/90 mt-2">
                 Tu contraseña ha sido cambiada con éxito. Redirigiendo al inicio de sesión...
               </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
+          </CardHeader>
+        </Card>
+      </div>
+        </>
       );
     }
 
     return (
-      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <>
+        <SEOHead
+          title="Restablecer contraseña"
+          description="Ingresa tu nueva contraseña para recuperar el acceso a tu cuenta de GoGi Reservas."
+          pathname={slug ? `/${slug}/verify-email` : '/verify-email'}
+          noindex
+        />
+        <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
         <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: cachedImages.login_photo_url ? `url("${cachedImages.login_photo_url}")` : 'none' }}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
         </div>
@@ -285,8 +325,16 @@ export default function VerifyEmailPage() {
           </CardContent>
         </Card>
       </div>
+      </>
     );
   }
 
-  return null;
+  return (
+    <SEOHead
+      title="Verificando correo electrónico"
+      description="Verificamos tu correo electrónico para activar tu cuenta de GoGi Reservas."
+      pathname={slug ? `/${slug}/verify-email` : '/verify-email'}
+      noindex
+    />
+  );
 }

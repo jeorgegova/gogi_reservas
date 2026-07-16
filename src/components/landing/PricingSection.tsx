@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Check, Loader2, Sparkles, MessageSquare } from 'lucide-react';
+import { Check, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { gsap } from '@/lib/gsap';
+import { cn } from '@/lib/utils';
 
 interface SubscriptionPlan {
   id: string;
@@ -21,7 +23,7 @@ const STATIC_PLANS: SubscriptionPlan[] = [
   {
     id: 'static-gratuito',
     name: 'Plan Gratuito',
-    description: 'Perfecto para probar la plataforma sin compromiso. Gestiona hasta 3 reservas diarias.',
+    description: 'Empieza sin riesgo. Ideal para conocer la plataforma, gestionar tu agenda online y recibir tus primeras reservas.',
     price: 0,
     duration_in_days: 36500,
     max_reservations: null,
@@ -31,13 +33,13 @@ const STATIC_PLANS: SubscriptionPlan[] = [
       '1 Sede / Organización',
       'Recordatorios por correo',
       'Panel de administración móvil',
-      'Sin costo, para siempre'
+      'Sin tarjeta de crédito'
     ]
   },
   {
     id: 'static-basico',
-    name: 'Plan Emprendedor',
-    description: 'Perfecto para profesionales independientes y locales pequeños que inician su digitalización.',
+    name: 'Plan Mensual',
+    description: 'La forma flexible de digitalizar tu negocio. Paga mes a mes mientras creces con un sistema de reservas profesional.',
     price: 49000,
     duration_in_days: 30,
     max_reservations: 300,
@@ -52,10 +54,10 @@ const STATIC_PLANS: SubscriptionPlan[] = [
   },
   {
     id: 'static-pro',
-    name: 'Plan Profesional',
-    description: 'La opción más popular para negocios en crecimiento que necesitan automatización y reservas ilimitadas.',
+    name: 'Plan Trimestral',
+    description: 'El equilibrio perfecto entre inversión y ahorro. La opción recomendada para negocios que ya toman reservas todos los días.',
     price: 99000,
-    duration_in_days: 30,
+    duration_in_days: 90,
     max_reservations: null,
     is_active: true,
     features: [
@@ -69,15 +71,15 @@ const STATIC_PLANS: SubscriptionPlan[] = [
   },
   {
     id: 'static-premium',
-    name: 'Plan Corporativo',
-    description: 'Solución integral para franquicias y grandes establecimientos con necesidades avanzadas.',
+    name: 'Plan Anual',
+    description: 'La mejor inversión para tu negocio. Ahorra mes a mes con la tranquilidad de tener tu operación asegurada todo el año.',
     price: 189000,
-    duration_in_days: 30,
+    duration_in_days: 365,
     max_reservations: null,
     is_active: true,
     features: [
       'Reservas y sedes ilimitadas',
-      'Todo lo del Plan Profesional',
+      'Todo lo del Plan Trimestral',
       'Dominio y branding personalizado',
       'Asistente de implementación dedicado',
       'API de integración personalizada',
@@ -85,6 +87,16 @@ const STATIC_PLANS: SubscriptionPlan[] = [
     ]
   }
 ];
+
+const PLAN_LABELS: Record<string, { cta: string; note?: string }> = {
+  'Plan Gratuito': { cta: 'Crear cuenta gratis', note: 'Sin compromiso' },
+  'Plan Mensual': { cta: 'Contratar mensual', note: 'Ideal para comenzar' },
+  'Plan Trimestral': { cta: 'Contratar trimestral', note: 'Recomendado' },
+  'Plan Anual': { cta: 'Contratar anual', note: 'Mayor ahorro' },
+  'Plan Emprendedor': { cta: 'Contratar plan', note: 'Ideal para comenzar' },
+  'Plan Profesional': { cta: 'Contratar plan', note: 'Recomendado' },
+  'Plan Corporativo': { cta: 'Hablar con ventas', note: 'Para grandes equipos' },
+};
 
 export function PricingSection() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -153,6 +165,10 @@ export function PricingSection() {
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const getPlanMeta = (planName: string) => {
+    return PLAN_LABELS[planName] || { cta: 'Contratar plan' };
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -172,7 +188,9 @@ export function PricingSection() {
       try {
         const parsed = JSON.parse(plan.features);
         if (Array.isArray(parsed)) return parsed;
-      } catch (e) { }
+      } catch {
+        // JSON parsing failed; return empty list below
+      }
     }
     return [];
   };
@@ -193,10 +211,10 @@ export function PricingSection() {
             Planes flexibles
           </span>
           <h2 className="text-2xl md:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6">
-            Precios simples y transparentes
+            Elige el plan que haga crecer tu negocio.
           </h2>
           <p className="text-base md:text-lg text-slate-500 leading-relaxed">
-            Impulsa la ocupación de tu local, automatiza los recordatorios y ofrece una experiencia de reservas excepcional sin complicaciones técnicas.
+            Desde una prueba gratuita hasta una operación profesional. Cada plan está pensado para acompañarte en la etapa actual de tu negocio.
           </p>
         </div>
 
@@ -210,9 +228,11 @@ export function PricingSection() {
             ref={cardsRef}
             className="grid md:grid-cols-4 gap-8 items-stretch max-w-6xl mx-auto"
           >
-            {plans.map((plan, index) => {
-              const isPopular = index === 2; // Profesional es el recomendado
+            {plans.map((plan) => {
+              const isPopular = /trimestral|profesional/i.test(plan.name);
+              const isFree = plan.price === 0;
               const features = getFeaturesList(plan);
+              const meta = getPlanMeta(plan.name);
 
               return (
                 <div
@@ -231,7 +251,17 @@ export function PricingSection() {
 
                   <div>
                     <div className="mb-6">
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{plan.name}</h3>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+                        {meta.note && (
+                          <span className={cn(
+                            'text-[10px] md:text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap',
+                            isPopular ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'
+                          )}>
+                            {meta.note}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-slate-500 min-h-[40px] leading-relaxed">
                         {plan.description}
                       </p>
@@ -243,7 +273,7 @@ export function PricingSection() {
                           {formatPrice(plan.price)}
                         </span>
                         <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                          / {plan.duration_in_days >= 10000 ? 'Ilimitado' : `${plan.duration_in_days} días`}
+                          / {plan.duration_in_days >= 10000 ? 'para siempre' : `${plan.duration_in_days} días`}
                         </span>
                       </div>
                       {(() => {
@@ -264,8 +294,8 @@ export function PricingSection() {
                                   <div className="text-sm text-emerald-600 font-bold mt-1">
                                     {formatPrice(Math.round(monthlyEquivalent))}/mes
                                   </div>
-                                  <span className="absolute -top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg">
-                                    -{discount}%
+                                  <span className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg">
+                                    Ahorra {discount}%
                                   </span>
                                 </>
                               );
@@ -291,16 +321,31 @@ export function PricingSection() {
                     </ul>
                   </div>
 
-                  <Button
-                    onClick={() => handleWhatsappRedirect(plan.name)}
-                    className={`w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
-                      : 'bg-slate-900 text-white hover:bg-slate-800'
-                      }`}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    Contratar Plan
-                  </Button>
+                  {isFree ? (
+                    <Button
+                      asChild
+                      className={`w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
+                        : 'bg-slate-900 text-white hover:bg-slate-800'
+                        }`}
+                    >
+                      <Link to="/register">
+                        {meta.cta}
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleWhatsappRedirect(plan.name)}
+                      className={`w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
+                        : 'bg-slate-900 text-white hover:bg-slate-800'
+                        }`}
+                    >
+                      {meta.cta}
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               );
             })}

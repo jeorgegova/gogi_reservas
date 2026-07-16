@@ -109,7 +109,12 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <SEOHead title="Recuperar Contraseña" description="Recupera el acceso a tu cuenta de GoGi Reservas." noindex />
+      <SEOHead
+        title={slug ? `Recuperar Contraseña - ${organization?.name || 'Portal'}` : 'Recuperar Contraseña'}
+        description="Recupera el acceso a tu cuenta de GoGi Reservas."
+        pathname={slug ? `/${slug}/forgot-password` : '/forgot-password'}
+        noindex
+      />
       <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background Image with Overlay */}
       <div

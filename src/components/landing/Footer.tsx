@@ -16,10 +16,10 @@ export function Footer() {
       {/* CTA */}
       <div className="max-w-7xl mx-auto px-5 md:px-6 py-12 md:py-32 text-center">
         <h2 className="text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-semibold text-white tracking-tight mb-3 md:mb-6">
-          Empieza a gestionar tus reservas hoy.
+          Empieza a gestionar tus reservas con GoGi Reservas.
         </h2>
         <p className="text-sm md:text-lg lg:text-xl text-slate-400 max-w-2xl mx-auto mb-6 md:mb-12">
-          Únete a las organizaciones que ya confían en GoGi Reservas para ofrecer una experiencia premium de gestión de reservas online.
+          Únete a las organizaciones que ya confían en nuestra plataforma de software de reservas y agenda online para ofrecer una experiencia premium de gestión de citas.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
           <Button
@@ -52,7 +52,15 @@ export function Footer() {
             {/* Brand */}
             <div className="space-y-4">
               <Link to="/" className="inline-block">
-                <img src={logoConTextoSinfondo} alt="GoGi Reservas" className="h-14 md:h-20 w-auto brightness-0 invert" />
+                <img
+                  src={logoConTextoSinfondo}
+                  alt="GoGi Reservas - Software de reservas y agenda online"
+                  width="134"
+                  height="200"
+                  className="h-14 md:h-20 w-auto brightness-0 invert"
+                  loading="lazy"
+                  decoding="async"
+                />
               </Link>
               <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
                 La plataforma donde cada espacio, servicio y momento se gestiona con la elegancia de una experiencia premium.
@@ -85,15 +93,16 @@ export function Footer() {
               </h3>
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 text-sm text-slate-400">
-                  <Clock className="h-4 w-4 text-slate-500 shrink-0" />
+                  <Clock className="h-4 w-4 text-slate-500 shrink-0" aria-hidden="true" />
                   <span>Disponible 24/7</span>
                 </li>
                 <li>
                   <a
-                    href="mailto:contacto@gogireservas.com"
+                    href="mailto:gogicolombia@gmail.com"
                     className="flex items-center gap-3 text-sm text-slate-400 hover:text-white transition-colors duration-200"
+                    aria-label="Enviar correo a gogicolombia@gmail.com"
                   >
-                    <Mail className="h-4 w-4 text-slate-500 shrink-0" />
+                    <Mail className="h-4 w-4 text-slate-500 shrink-0" aria-hidden="true" />
                     <span>gogicolombia@gmail.com</span>
                   </a>
                 </li>
@@ -105,8 +114,9 @@ export function Footer() {
                   <a
                     href="tel:+573128470944"
                     className="flex items-center gap-3 text-sm text-slate-400 hover:text-white transition-colors duration-200"
+                    aria-label="Llamar al 312 847 0944"
                   >
-                    <Phone className="h-4 w-4 text-slate-500 shrink-0" />
+                    <Phone className="h-4 w-4 text-slate-500 shrink-0" aria-hidden="true" />
                     <span>312 847 0944</span>
                   </a>
                 </li>

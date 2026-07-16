@@ -10,7 +10,9 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
 import { TextReveal } from './TextReveal';
 import { ParallaxLayer } from './ParallaxLayer';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import logoConTexto from '@/assets/LogoConTexto.png';
 import fondoSuperior from '@/assets/FondoSuperior.png';
 
@@ -84,6 +86,9 @@ export function HeroSection() {
             role="presentation"
             className="w-full h-full object-cover"
             loading="eager"
+            decoding="async"
+            width="1983"
+            height="793"
           />
         <div className="absolute inset-0 bg-white/30" />
       </div>
@@ -106,8 +111,13 @@ export function HeroSection() {
           <div className="flex justify-center mb-2 md:mb-3">
             <img
               src={logoConTexto}
-              alt="GoGi Reservas"
+              alt="GoGi Reservas - Software de reservas y agenda online"
+              width="205"
+              height="308"
               className={`h-32 md:h-52 w-auto object-contain ${!reducedMotion ? 'animate-float' : ''}`}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
             />
           </div>
 
@@ -122,19 +132,78 @@ export function HeroSection() {
             Más reservas, Menos complicaciones.
           </TextReveal>
 
-          <div className="mt-4 md:mt-10 max-w-xl md:max-w-2xl mx-auto px-2 md:px-0">
+          <div className="mt-4 md:mt-10 max-w-xl md:max-w-3xl mx-auto px-2 md:px-0">
             <p ref={subtitleRef} className="text-sm sm:text-lg md:text-xl lg:text-2xl text-slate-500 leading-relaxed">
-              Organiza tu agenda, automatiza tus reservas y brinda una experiencia profesional desde el primer clic.
+              La plataforma de <strong className="text-slate-700 font-semibold">software de reservas</strong> y <strong className="text-slate-700 font-semibold">agenda online</strong> que automatiza citas, reduce ausencias con recordatorios y administra tu negocio desde un solo panel.
             </p>
+          </div>
+
+          <div className="mt-6 md:mt-10 flex flex-wrap items-center justify-center gap-2 md:gap-3">
+            {['Software de reservas', 'Agenda online', 'Gestión de clientes', 'Gestión de empleados', 'Servicios', 'Automatización'].map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/80 backdrop-blur-sm border border-slate-200/60 text-[10px] md:text-xs font-medium text-slate-600 shadow-sm"
+              >
+                <CheckCircle2 className="h-3 w-3 md:h-3.5 md:w-3.5 text-emerald-500" aria-hidden="true" />
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-8 md:mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
+            <Button
+              asChild
+              size="lg"
+              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 w-full sm:w-auto"
+            >
+              <a
+                href="https://wa.me/573128470944?text=%C2%A1Hola!%20Quiero%20crear%20una%20cuenta%20gratis%20en%20GoGi%20Reservas."
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Crear cuenta gratis
+                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+              </a>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base border-slate-300 text-slate-700 bg-white/80 hover:bg-white hover:border-slate-400 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 w-full sm:w-auto"
+            >
+              <Link to="/organizaciones">
+                Ver organizaciones
+              </Link>
+            </Button>
+          </div>
+
+          <div className="mt-5 md:mt-7 flex flex-wrap items-center justify-center gap-3 md:gap-5 text-[10px] md:text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
+              Sin tarjeta de crédito
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
+              Configuración en minutos
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
+              Plan gratuito para siempre
+            </span>
           </div>
 
         </div>
 
         {/* Indicador de scroll */}
-        <div className="absolute bottom-6 md:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 md:gap-3 text-slate-400">
+        <button
+          type="button"
+          onClick={() => document.getElementById('problemas')?.scrollIntoView({ behavior: 'smooth' })}
+          className="absolute bottom-6 md:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 md:gap-3 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 rounded-lg"
+          aria-label="Desplazarse a la sección de problemas que resuelve"
+        >
           <span className="text-[10px] md:text-xs tracking-widest uppercase font-medium">Scroll</span>
-          <ArrowDown className="w-4 h-4 md:w-5 md:h-5 animate-bounce-soft" />
-        </div>
+          <ArrowDown className="w-4 h-4 md:w-5 md:h-5 animate-bounce-soft" aria-hidden="true" />
+        </button>
       </div>
 
       <style>{`

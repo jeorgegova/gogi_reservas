@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { SEOHead } from '@/components/seo/SEOHead';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Building2, Scissors, Sparkles, Wrench, Laptop, ArrowRight, Search, Loader2 } from 'lucide-react';
@@ -89,13 +90,19 @@ export default function OrganizacionesPage() {
   return (
     <>
       <SEOHead
-        title="Organizaciones"
-        description="Explora las organizaciones que usan GoGi Reservas. Agenda tus citas y reservas en barberías, salones de belleza, coworkings y más."
+        title="Portal de Organizaciones | Encuentra tu Negocio en GoGi Reservas"
+        description="Explora las organizaciones que usan GoGi Reservas. Encuentra barberías, salones de belleza, centros deportivos, coworkings, consultorios y conjuntos residenciales para agendar tu cita o reserva en línea."
+        pathname="/organizaciones"
+        ogType="website"
       />
+      <BreadcrumbJsonLd items={[
+        { name: 'Inicio', item: 'https://gogireservas.com/' },
+        { name: 'Organizaciones', item: 'https://gogireservas.com/organizaciones' },
+      ]} />
       <div className="min-h-screen bg-white pt-16">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-5 md:px-6 py-8 md:py-20">
+      <main id="main-content" className="max-w-7xl mx-auto px-5 md:px-6 py-8 md:py-20">
         {/* Title */}
         <div className="text-center mb-8 md:mb-12">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mb-3">

@@ -1,5 +1,37 @@
-# Allow all AI and search crawlers to access public content
+# GoGi Reservas - robots.txt
+# https://gogireservas.com/robots.txt
+
+# Allow all major crawlers to access public content
 User-agent: *
+Allow: /
+
+# Private / administrative areas
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /dashboard/
+Disallow: /reservations/
+Disallow: /profile/
+Disallow: /maintenance/
+Disallow: /payment/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /verify-email
+
+# Dynamic organization portals (login, register, forgot-password) should not be indexed individually
+Disallow: /*/login
+Disallow: /*/register
+Disallow: /*/forgot-password
+Disallow: /*/verify-email
+
+# Utility / asset files not meant for indexing
+Disallow: /llms.txt
+Disallow: /llms-full.txt
+Disallow: /browserconfig.xml
+Disallow: /site.webmanifest
+
+# AI assistant crawlers - explicitly allow public content
+User-agent: GPTBot
 Allow: /
 Disallow: /admin/
 Disallow: /super-admin/
@@ -9,29 +41,55 @@ Disallow: /profile/
 Disallow: /maintenance/
 Disallow: /payment/
 
-# Explicitly allow AI assistant crawlers
-User-agent: GPTBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-
 User-agent: Claude-Web
 Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /dashboard/
+Disallow: /reservations/
+Disallow: /profile/
+Disallow: /maintenance/
+Disallow: /payment/
 
 User-agent: PerplexityBot
 Allow: /
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /dashboard/
+Disallow: /reservations/
+Disallow: /profile/
+Disallow: /maintenance/
+Disallow: /payment/
 
 User-agent: Google-Extended
 Allow: /
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /dashboard/
+Disallow: /reservations/
+Disallow: /profile/
+Disallow: /maintenance/
+Disallow: /payment/
 
 User-agent: anthropic-ai
 Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /dashboard/
+Disallow: /reservations/
+Disallow: /profile/
+Disallow: /maintenance/
+Disallow: /payment/
 
 User-agent: CCBot
 Allow: /
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /dashboard/
+Disallow: /reservations/
+Disallow: /profile/
+Disallow: /maintenance/
+Disallow: /payment/
 
+# Sitemap
 Sitemap: https://gogireservas.com/sitemap.xml
