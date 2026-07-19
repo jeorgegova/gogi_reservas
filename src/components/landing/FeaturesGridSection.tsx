@@ -76,48 +76,29 @@ export function FeaturesGridSection() {
 
     const cards = gridRef.current.querySelectorAll('[data-feature-grid-card]');
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: gridRef.current,
-          start: 'top 95%',
-          end: 'bottom 75%',
-          scrub: 1,
+      gsap.fromTo(
+        cards,
+        {
+          opacity: 0,
+          y: 30,
+          scale: 0.96,
+          filter: 'blur(4px)',
+        },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: 'blur(0px)',
+          duration: 0.5,
+          stagger: 0.06,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: gridRef.current,
+            start: 'top 85%',
+            toggleActions: 'play none none none',
+          },
         }
-      });
-
-      cards.forEach((card, i) => {
-        const col = i % 3;
-        const row = Math.floor(i / 3);
-        
-        let xOffset = 0;
-        let yOffset = 0;
-        
-        if (col === 0) xOffset = -120;
-        else if (col === 2) xOffset = 120;
-        
-        if (row === 0) yOffset = -80;
-        else if (row === 2) yOffset = 80;
-
-        tl.fromTo(
-          card,
-          {
-            opacity: 0.1,
-            scale: 0.75,
-            x: xOffset,
-            y: yOffset,
-            filter: 'blur(3px)'
-          },
-          {
-            opacity: 1,
-            scale: 1,
-            x: 0,
-            y: 0,
-            filter: 'blur(0px)',
-            ease: 'power2.out'
-          },
-          0
-        );
-      });
+      );
     }, sectionRef);
 
     return () => ctx.revert();
@@ -127,12 +108,12 @@ export function FeaturesGridSection() {
     <section
       ref={sectionRef}
       id="caracteristicas-grid"
-      className="relative py-16 md:py-32 px-5 md:px-6 bg-slate-50 overflow-hidden"
+      className="relative py-16 md:py-32 px-5 md:px-6 bg-white overflow-hidden"
     >
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200/40 shadow-sm">
             Características
           </span>
           <TextReveal
@@ -153,7 +134,7 @@ export function FeaturesGridSection() {
             end="top 58%"
             scrub={0.8}
           >
-            Cada función de GoGi Reservas está diseñada para ahorrarte tiempo, reducir fricciones y mejorar la experiencia de tus clientes.
+             Cada función de GoGi Reservas está diseñada para ahorrarte tiempo, reducir fricciones y mejorar la experiencia de tus clientes.
           </TextReveal>
         </div>
 
@@ -165,9 +146,9 @@ export function FeaturesGridSection() {
             <div
               key={index}
               data-feature-grid-card
-              className="group p-6 md:p-8 rounded-[1.75rem] md:rounded-[2rem] bg-white border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300"
+              className="group p-6 md:p-8 rounded-[2rem] bg-slate-50/50 border border-slate-200/50 shadow-sm hover:bg-white hover:border-slate-300/80 hover:shadow-xl hover:shadow-slate-200/30 transition-all duration-500 hover:-translate-y-1"
             >
-              <div className="h-11 w-11 md:h-12 md:w-12 rounded-xl md:rounded-2xl bg-slate-50 flex items-center justify-center text-slate-700 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors duration-300 mb-5">
+              <div className="h-11 w-11 md:h-12 md:w-12 rounded-xl md:rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-700 group-hover:text-white group-hover:bg-slate-900 transition-all duration-300 mb-5">
                 <feature.icon className="h-5 w-5 md:h-6 md:w-6" strokeWidth={1.5} />
               </div>
               <h3 className="text-lg md:text-xl font-semibold text-slate-900 mb-2">
@@ -184,7 +165,7 @@ export function FeaturesGridSection() {
           <Button
             asChild
             size="lg"
-            className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105"
+            className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-950 hover:shadow-xl hover:shadow-slate-900/10 border border-slate-900 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
           >
             <a
               href="https://wa.me/573128470944?text=%C2%A1Hola!%20Quiero%20activar%20todas%20las%20funciones%20de%20GoGi%20Reservas."

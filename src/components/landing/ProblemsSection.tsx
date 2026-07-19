@@ -129,10 +129,10 @@ export function ProblemsSection() {
             <div
               key={index}
               data-problem-card
-              className="group relative p-6 md:p-8 rounded-[1.75rem] md:rounded-[2rem] bg-slate-50 hover:bg-slate-100 transition-colors duration-300"
+              className="group relative p-6 md:p-8 rounded-[2rem] bg-white border border-slate-200/60 shadow-sm hover:shadow-xl hover:shadow-slate-200/30 hover:border-slate-300/80 transition-all duration-500 hover:-translate-y-1"
             >
-              <div className="flex items-start gap-4">
-                <div className="shrink-0 h-11 w-11 md:h-12 md:w-12 rounded-xl md:rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-700 group-hover:text-indigo-600 transition-colors duration-300">
+              <div className="flex flex-col gap-4">
+                <div className="shrink-0 h-11 w-11 md:h-12 md:w-12 rounded-xl md:rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 group-hover:bg-slate-900 group-hover:text-white transition-all duration-300">
                   <problem.icon className="h-5 w-5 md:h-6 md:w-6" strokeWidth={1.5} />
                 </div>
                 <div>
@@ -152,7 +152,7 @@ export function ProblemsSection() {
           <Button
             asChild
             size="lg"
-            className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105"
+            className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-950 hover:shadow-xl hover:shadow-slate-900/10 border border-slate-900 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
           >
             <a
               href="https://wa.me/573128470944?text=%C2%A1Hola!%20Quiero%20resolver%20los%20problemas%20de%20gesti%C3%B3n%20de%20mi%20negocio%20con%20GoGi%20Reservas."

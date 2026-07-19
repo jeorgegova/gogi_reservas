@@ -33,6 +33,8 @@ import { supabase } from '@/lib/supabase';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { getTerminology } from '@/lib/terminology';
 import { AuthModal } from '../auth/AuthModal';
+import { PwaInstallProvider } from '../pwa/PwaInstallContext';
+import { PwaInstallButton } from '../pwa/PwaInstallButton';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, isGuest, openAuthModal, businessType } = useAuth();
@@ -190,6 +192,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isMoreActive = !isGuest && bottomNavItems.length > 0 && !bottomNavItems.some(item => location.pathname === item.path);
 
   return (
+    <PwaInstallProvider>
     <div className="min-h-screen bg-gray-50 flex relative overflow-hidden">
       {/* Global Animated Background */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -335,6 +338,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                   </div>
                 </div>
+                <PwaInstallButton />
+
                 {isGuest ? (
                   <button
                     onClick={() => openAuthModal('login')}
@@ -551,5 +556,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AuthModal />
 
     </div>
+    </PwaInstallProvider>
   );
 }

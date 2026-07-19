@@ -239,14 +239,14 @@ export function PricingSection() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col justify-between rounded-3xl p-8 transition-all duration-300 border bg-white ${isPopular
-                    ? 'border-indigo-600 shadow-2xl md:scale-105 z-10'
-                    : 'border-slate-200/80 shadow-sm hover:border-slate-300 hover:shadow-md'
+                  className={`relative flex flex-col justify-between rounded-[2rem] p-8 transition-all duration-500 border bg-white ${isPopular
+                    ? 'border-slate-900 ring-1 ring-slate-900 shadow-xl md:scale-105 z-10'
+                    : 'border-slate-200/60 shadow-sm hover:border-slate-350/80 hover:shadow-md'
                     }`}
                 >
                   {isPopular && (
-                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1 shadow-md">
-                      <Sparkles className="h-3.5 w-3.5" />
+                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1 shadow-md border border-slate-800">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
                       Recomendado
                     </span>
                   )}
@@ -257,8 +257,8 @@ export function PricingSection() {
                         <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
                         {meta.note && (
                           <span className={cn(
-                            'text-[10px] md:text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap',
-                            isPopular ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'
+                            'text-[10px] md:text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
+                            isPopular ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
                           )}>
                             {meta.note}
                           </span>
@@ -326,9 +326,9 @@ export function PricingSection() {
                   {isFree ? (
                     <Button
                       asChild
-                      className={`w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
-                        : 'bg-slate-900 text-white hover:bg-slate-800'
+                      className={`w-full h-12 rounded-full flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${isPopular
+                        ? 'bg-slate-900 text-white hover:bg-slate-950 shadow-md border border-slate-900'
+                        : 'bg-white text-slate-900 hover:bg-slate-50 border border-slate-200'
                         }`}
                     >
                       <Link to="/register">
@@ -339,9 +339,9 @@ export function PricingSection() {
                   ) : (
                     <Button
                       onClick={() => handleWhatsappRedirect(plan.name)}
-                      className={`w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
-                        : 'bg-slate-900 text-white hover:bg-slate-800'
+                      className={`w-full h-12 rounded-full flex items-center justify-center gap-2 font-semibold transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${isPopular
+                        ? 'bg-slate-900 text-white hover:bg-slate-950 shadow-lg shadow-slate-900/10 border border-slate-900'
+                        : 'bg-white text-slate-900 hover:bg-slate-50 border border-slate-200'
                         }`}
                     >
                       {meta.cta}

@@ -94,8 +94,7 @@ export function FeaturesSection() {
               prevCard,
               {
                 opacity: 0,
-                y: -30,
-                filter: 'blur(4px)',
+                y: -15,
                 duration: 0.15,
                 ease: 'power2.inOut',
               },
@@ -107,13 +106,11 @@ export function FeaturesSection() {
             card,
             {
               opacity: isFirst ? 1 : 0,
-              y: isFirst ? 0 : 30,
-              filter: isFirst ? 'blur(0px)' : 'blur(4px)',
+              y: isFirst ? 0 : 15,
             },
             {
               opacity: 1,
               y: 0,
-              filter: 'blur(0px)',
               duration: 0.15,
               ease: 'power2.out',
             },

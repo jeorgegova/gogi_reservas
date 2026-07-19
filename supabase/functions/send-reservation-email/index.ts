@@ -1,12 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer";
+import webpush from "npm:web-push";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
+
+// Configuración VAPID para Web Push
+const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY");
+const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY");
+const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:gogicolombia@gmail.com";
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
 
 const STATUS_LABELS: Record<string, string> = {
   approved: "aprobada",
@@ -45,33 +55,142 @@ function formatTime(dateStr: string): string {
   });
 }
 
-function getStatusMessage(status: string): { title: string; subtitle: string; message: string } {
+function getStatusMessage(status: string): { title: string; subtitle: string; message: string; pushTitle: string; pushBody: string } {
   switch (status) {
     case "approved":
       return {
         title: "Reserva confirmada",
         subtitle: "detalles de tu cita",
         message: "Tu reserva ha sido aprobada. A continuación te compartimos los detalles.",
+        pushTitle: "Tu reserva fue aprobada",
+        pushBody: "La reserva fue aprobada correctamente.",
       };
     case "rejected":
       return {
         title: "Reserva rechazada",
         subtitle: "estado actualizado",
         message: "Lamentablemente tu reserva no pudo ser aprobada. Si tienes dudas, comunícate con la administración.",
+        pushTitle: "Reserva rechazada",
+        pushBody: "Tu solicitud de reserva fue rechazada.",
       };
     case "cancelled":
       return {
         title: "Reserva cancelada",
         subtitle: "estado actualizado",
         message: "Tu reserva ha sido cancelada. Si fue un error o necesitas reagendar, contáctanos.",
+        pushTitle: "Reserva cancelada",
+        pushBody: "La reserva fue cancelada.",
+      };
+    case "finished":
+      return {
+        title: "Reserva finalizada",
+        subtitle: "estado actualizado",
+        message: "Gracias por utilizar nuestra plataforma.",
+        pushTitle: "Reserva finalizada",
+        pushBody: "Gracias por utilizar nuestra plataforma.",
       };
     default:
       return {
         title: "Estado de reserva actualizado",
         subtitle: "notificación",
         message: `El estado de tu reserva cambió a: ${STATUS_LABELS[status] || status}.`,
+        pushTitle: "Estado de reserva actualizado",
+        pushBody: `El estado de tu reserva cambió a: ${STATUS_LABELS[status] || status}.`,
       };
   }
+}
+
+function getPushPayload(
+  statusInfo: ReturnType<typeof getStatusMessage>,
+  reservation: any,
+  org: any,
+  status: string
+): { notification: object; data: object } {
+  const resourceName = reservation.resources?.name || "tu reserva";
+  const dateStr = formatDate(reservation.start_datetime);
+  const timeStr = formatTime(reservation.start_datetime);
+
+  // Incluimos el nombre del recurso en el cuerpo cuando sea aprobada para coincidir con el ejemplo del usuario
+  let body = statusInfo.pushBody;
+  if (status === "approved") {
+    body = `La reserva de ${resourceName} fue aprobada correctamente.`;
+  } else if (status === "cancelled") {
+    body = `La reserva de ${resourceName} fue cancelada.`;
+  }
+
+  const siteUrl = org.slug ? `https://gogireservas.com/${org.slug}/mis-reservas` : "https://gogireservas.com";
+  // URL real de la app donde el usuario puede ver sus reservas
+  const pushUrl = "https://gogireservas.com/reservations/my";
+
+  return {
+    notification: {
+      title: statusInfo.pushTitle,
+      body,
+      icon: "/icon-192x192.png",
+      badge: "/favicon-32x32.png",
+      tag: `gogi-reserva-${reservation.id}`,
+      requireInteraction: false,
+      renotify: false,
+    },
+    data: {
+      url: pushUrl,
+      reservationId: reservation.id,
+      organizationSlug: org.slug,
+      status,
+      resourceName,
+      date: dateStr,
+      time: timeStr,
+    },
+  };
+}
+
+async function sendPushNotifications(
+  supabase: any,
+  userId: string,
+  payload: { notification: object; data: object }
+): Promise<{ sent: number; removed: number; errors: string[] }> {
+  const result = { sent: 0, removed: 0, errors: [] as string[] };
+
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    return result;
+  }
+
+  const { data: subscriptions, error } = await supabase
+    .from("user_push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .eq("user_id", userId);
+
+  if (error || !subscriptions || subscriptions.length === 0) {
+    return result;
+  }
+
+  await Promise.all(
+    subscriptions.map(async (sub: any) => {
+      try {
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.p256dh,
+            auth: sub.auth,
+          },
+        };
+
+        await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+        result.sent += 1;
+      } catch (err: any) {
+        const statusCode = err.statusCode;
+        // 404: suscripción expirada, 410: ya no existe, 403: inválida
+        if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
+          await supabase.from("user_push_subscriptions").delete().eq("id", sub.id);
+          result.removed += 1;
+        } else {
+          result.errors.push(String(err.message || err));
+        }
+      }
+    })
+  );
+
+  return result;
 }
 
 function getTemplate({
@@ -116,11 +235,10 @@ function getTemplate({
           <!-- HEADER -->
           <tr>
             <td style="padding:32px 24px 16px 24px;text-align:center;">
-              ${
-                logoUrl
-                  ? `<img src="${logoUrl}" alt="${orgName}" style="max-width:120px;margin-bottom:12px;" />`
-                  : `<div style="font-size:20px;font-weight:600;color:#1d1d1f;margin-bottom:12px;">${orgName}</div>`
-              }
+              ${logoUrl
+      ? `<img src="${logoUrl}" alt="${orgName}" style="max-width:120px;margin-bottom:12px;" />`
+      : `<div style="font-size:20px;font-weight:600;color:#1d1d1f;margin-bottom:12px;">${orgName}</div>`
+    }
             </td>
           </tr>
 
@@ -177,7 +295,7 @@ function getTemplate({
           <tr>
             <td style="padding:20px;text-align:center;font-size:11px;color:#8e8e93;line-height:1.6;">
               Este es un correo automático de ${orgName}.<br />
-              © ${new Date().getFullYear()} ${orgName}. Todos los derechos reservados.
+              © ${new Date().getFullYear()} GoGi Reservas. Todos los derechos reservados.
             </td>
           </tr>
 
@@ -332,7 +450,11 @@ serve(async (req) => {
       html,
     });
 
-    return new Response(JSON.stringify({ success: true }), {
+    // Reutilizamos la misma información de la reserva para enviar notificaciones push
+    const pushPayload = getPushPayload(statusInfo, reservation, org, new_status);
+    const pushResult = await sendPushNotifications(supabase, reservation.user_id, pushPayload);
+
+    return new Response(JSON.stringify({ success: true, push: pushResult }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

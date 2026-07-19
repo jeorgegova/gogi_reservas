@@ -84,14 +84,15 @@ export function HeroSection() {
             src={fondoSuperior}
             alt=""
             role="presentation"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover opacity-80"
             loading="eager"
             decoding="async"
             width="1983"
             height="793"
           />
-        <div className="absolute inset-0 bg-white/30" />
-      </div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a08_1px,transparent_1px),linear-gradient(to_bottom,#0f172a08_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_70%,transparent_100%)]" />
+        </div>
 
       {/* Capas parallax de fondo sutiles */}
       <ParallaxLayer
@@ -154,7 +155,7 @@ export function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 w-full sm:w-auto"
+              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-950 hover:shadow-xl hover:shadow-slate-900/10 border border-slate-900 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] w-full sm:w-auto"
             >
               <a
                 href="https://wa.me/573128470944?text=%C2%A1Hola!%20Quiero%20crear%20una%20cuenta%20gratis%20en%20GoGi%20Reservas."
@@ -162,14 +163,14 @@ export function HeroSection() {
                 rel="noopener noreferrer"
               >
                 Crear cuenta gratis
-                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:translate-x-1" />
               </a>
             </Button>
             <Button
               asChild
               variant="outline"
               size="lg"
-              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base border-slate-300 text-slate-700 bg-white/80 hover:bg-white hover:border-slate-400 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 w-full sm:w-auto"
+              className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base border-slate-200 text-slate-700 bg-white/40 hover:bg-white/80 hover:text-slate-950 backdrop-blur-md shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] w-full sm:w-auto"
             >
               <Link to="/organizaciones">
                 Ver organizaciones

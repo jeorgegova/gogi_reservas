@@ -3,6 +3,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getTerminology, type BusinessTerminology, type BusinessType } from '../lib/terminology';
 import { queryClient } from '../lib/query-client';
+import { initializePushNotifications, cleanupPushSubscriptions } from '../lib/pushNotifications';
 
 interface Profile {
   id: string;
@@ -307,8 +308,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id, true);
-      else restoreGuestSession().finally(() => setLoading(false));
+      if (session?.user) {
+        fetchProfile(session.user.id, true).finally(() => {
+          initializePushNotifications().catch(() => {
+            // No bloquear la carga inicial si las notificaciones fallan
+          });
+        });
+      } else {
+        restoreGuestSession().finally(() => setLoading(false));
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -319,7 +327,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (currentUser) {
         setIsGuest(false);
         isGuestRef.current = false;
-        if (event === 'SIGNED_IN') fetchProfile(currentUser.id, false);
+        if (event === 'SIGNED_IN') {
+          fetchProfile(currentUser.id, false).then(() => {
+            initializePushNotifications().catch(() => {
+              // No bloquear la sesión si las notificaciones fallan
+            });
+          });
+        } else if (event === 'TOKEN_REFRESHED') {
+          initializePushNotifications().catch(() => {
+            // No bloquear la sesión si las notificaciones fallan
+          });
+        }
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
         profileRef.current = null;
@@ -332,6 +350,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
     const signOut = useCallback(async () => {
+      try {
+        // 0. Eliminar suscripciones push antes de cerrar sesión
+        await cleanupPushSubscriptions();
+      } catch {
+        // Ignorar errores de limpieza push
+      }
+
       try {
         // 1. Sign out from Supabase (this handles session clearing)
         await supabase.auth.signOut();
