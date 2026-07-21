@@ -24,7 +24,6 @@ const navLinks: NavLink[] = [
 type Theme = 'light' | 'dark';
 
 const sectionThemes: Record<string, Theme> = {
-  industrias: 'dark',
   confianza: 'dark',
 };
 
@@ -143,7 +142,7 @@ export function Navbar() {
     if (location.pathname === '/') {
       scrollTo(hash);
     } else {
-      window.location.href = '/' + hash;
+      window.location.assign('/' + hash);
     }
   };
 
@@ -174,8 +173,8 @@ export function Navbar() {
       className={`fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-50 transition-all duration-500 rounded-2xl ${theme === 'dark'
           ? 'bg-slate-900/70 border border-white/10 backdrop-blur-lg shadow-xl shadow-slate-950/20'
           : scrolled
-            ? 'bg-white/70 border border-slate-200/50 backdrop-blur-lg shadow-lg shadow-slate-200/20'
-            : 'bg-transparent border border-transparent'
+            ? 'bg-white/[0.18] border border-white/60 backdrop-blur-2xl shadow-md shadow-indigo-100/20 supports-[backdrop-filter]:bg-white/[0.12]'
+            : 'bg-transparent border border-transparent shadow-none'
         }`}
     >
       <div className="px-4 md:px-6 h-14 md:h-16 flex items-center justify-between">
@@ -205,7 +204,7 @@ export function Navbar() {
         >
           {/* Sliding Pill Background */}
           <div
-            className="absolute h-8 rounded-full bg-slate-100/70 dark:bg-white/10 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pointer-events-none z-0"
+            className="absolute h-8 rounded-full border border-indigo-200/70 bg-indigo-100/55 backdrop-blur-xl shadow-[0_6px_18px_rgba(129,140,248,0.16)] transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pointer-events-none z-0 dark:border-white/10 dark:bg-white/10 dark:shadow-none"
             style={pillStyle}
           />
 
@@ -252,14 +251,14 @@ export function Navbar() {
                   "text-sm font-medium transition-colors duration-300 rounded-full px-3.5 py-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 z-10 relative",
                   theme === 'dark'
                     ? active
-                      ? "text-white font-bold"
+                      ? "text-white font-extrabold"
                       : "text-white/80 hover:text-white"
                     : scrolled
                       ? active
-                        ? "text-indigo-650 font-semibold"
+                        ? "text-slate-950 font-extrabold"
                         : "text-slate-650 hover:text-slate-900"
                       : active
-                        ? "text-indigo-600 font-semibold"
+                        ? "text-slate-950 font-extrabold"
                         : "text-slate-700 hover:text-slate-900"
                 )}
               >

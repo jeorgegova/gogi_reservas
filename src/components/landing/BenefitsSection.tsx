@@ -119,14 +119,14 @@ export function BenefitsSection() {
     >
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-indigo-50 px-3 py-1.5 rounded-full">
+        <div className="max-w-3xl mx-auto mb-8 md:mb-20 text-left md:text-center">
+          <span className="text-[11px] md:text-xs font-bold tracking-widest text-indigo-600 uppercase bg-indigo-50 px-3 py-1.5 rounded-full">
             Beneficios
           </span>
           <TextReveal
             as="h2"
             splitBy="word"
-            className="text-2xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
+            className="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6 leading-tight"
             start="top 80%"
             end="top 55%"
             scrub={0.7}
@@ -136,7 +136,7 @@ export function BenefitsSection() {
           <TextReveal
             as="p"
             splitBy="word"
-            className="text-base md:text-lg text-slate-500 leading-relaxed"
+            className="text-sm md:text-lg text-slate-500 leading-relaxed"
             start="top 78%"
             end="top 58%"
             scrub={0.8}
@@ -145,9 +145,38 @@ export function BenefitsSection() {
           </TextReveal>
         </div>
 
+        <div className="md:hidden -mx-5 overflow-x-auto px-5 pb-5 snap-x snap-mandatory scrollbar-hide">
+          <div className="flex w-max gap-3 pr-5">
+            {BENEFITS.map((benefit, index) => (
+              <article
+                key={benefit.title}
+                className="w-[82vw] max-w-[21rem] shrink-0 snap-center rounded-[1.5rem] border border-slate-100 bg-slate-50 p-5 shadow-sm"
+              >
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div className="h-11 w-11 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-800">
+                    <benefit.icon className="h-5 w-5" strokeWidth={1.5} />
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-400 shadow-sm">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <h3 className="text-lg font-semibold text-slate-950 mb-2">
+                  {benefit.title}
+                </h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  {benefit.description}
+                </p>
+              </article>
+            ))}
+          </div>
+          <p className="mt-3 text-center text-[11px] font-medium text-slate-400">
+            Desliza para ver más beneficios
+          </p>
+        </div>
+
         <div
           ref={gridRef}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
+          className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
         >
           {BENEFITS.map((benefit, index) => (
             <div
@@ -168,11 +197,11 @@ export function BenefitsSection() {
           ))}
         </div>
 
-        <div className="mt-12 md:mt-16 text-center">
+        <div className="mt-6 md:mt-16 text-center">
           <Button
             asChild
             size="lg"
-            className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105"
+            className="h-12 md:h-14 px-6 md:px-8 rounded-full text-sm md:text-base bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 w-full sm:w-auto"
           >
             <a
               href="https://wa.me/573128470944?text=%C2%A1Hola!%20Quiero%20probar%20GoGi%20Reservas%20gratis%20para%20mi%20negocio."

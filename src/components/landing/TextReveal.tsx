@@ -49,12 +49,14 @@ export function TextReveal({
         {
           opacity: 1,
           y: 0,
+          duration: isMobile ? 0.65 : undefined,
           stagger: isMobile ? 0.02 : 0.03,
           scrollTrigger: {
             trigger: containerRef.current,
-            start,
+            start: isMobile ? 'top 92%' : start,
             end: isMobile ? 'top 50%' : end,
-            scrub: isMobile ? 0.5 : scrub,
+            scrub: isMobile ? false : scrub,
+            toggleActions: isMobile ? 'play none none reverse' : undefined,
           },
         }
       );

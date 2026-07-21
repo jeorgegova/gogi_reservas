@@ -4,7 +4,7 @@
  * Combina scroll horizontal (desktop) / scroll horizontal nativo (móvil)
  * con animaciones reveal escalonadas y efectos hover en cada tarjeta.
  */
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { gsap } from '@/lib/gsap';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useIsomorphicLayoutEffect } from '@/hooks/useIsomorphicLayoutEffect';
@@ -24,7 +24,7 @@ interface GalleryItem {
   image?: string;
   gradient?: string;
   accent?: string;
-  icon?: React.ComponentType<any>;
+  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 
 const GALLERY_ITEMS: GalleryItem[] = [
@@ -69,13 +69,58 @@ const GALLERY_ITEMS: GalleryItem[] = [
 export function GallerySection() {
   const sectionRef = useRef<HTMLElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion || !mobileScrollRef.current || window.innerWidth >= 768) return;
+
+    const scroller = mobileScrollRef.current;
+    let resumeTimeoutId: number;
+    let paused = false;
+
+    const getStep = () => {
+      const firstCard = scroller.querySelector('[data-gallery-card]') as HTMLElement | null;
+      return firstCard ? firstCard.offsetWidth + 16 : Math.round(window.innerWidth * 0.82);
+    };
+
+    const scrollNext = () => {
+      if (paused) return;
+
+      const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+      const nextLeft = scroller.scrollLeft + getStep();
+
+      scroller.scrollTo({
+        left: nextLeft >= maxScroll - 8 ? 0 : nextLeft,
+        behavior: 'smooth',
+      });
+    };
+
+    const pauseThenResume = () => {
+      paused = true;
+      window.clearTimeout(resumeTimeoutId);
+      resumeTimeoutId = window.setTimeout(() => {
+        paused = false;
+      }, 3500);
+    };
+
+    const intervalId = window.setInterval(scrollNext, 2800);
+    scroller.addEventListener('touchstart', pauseThenResume, { passive: true });
+    scroller.addEventListener('pointerdown', pauseThenResume, { passive: true });
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(resumeTimeoutId);
+      scroller.removeEventListener('touchstart', pauseThenResume);
+      scroller.removeEventListener('pointerdown', pauseThenResume);
+    };
+  }, [reducedMotion]);
 
   useIsomorphicLayoutEffect(() => {
     if (reducedMotion || !sectionRef.current || !trackRef.current) return;
 
     const track = trackRef.current;
-    const totalWidth = track.scrollWidth - window.innerWidth;
+    const getScrollDistance = () => Math.max(1, track.scrollWidth - window.innerWidth);
     const cards = track.querySelectorAll('[data-gallery-card]');
     const isDesktop = window.innerWidth >= 768;
 
@@ -86,16 +131,17 @@ export function GallerySection() {
           scrollTrigger: {
             trigger: sectionRef.current,
             start: 'top top',
-            end: () => `+=${totalWidth}`,
+            end: () => `+=${getScrollDistance()}`,
             pin: true,
             scrub: 0.8,
             anticipatePin: 1,
+            invalidateOnRefresh: true,
           },
         });
 
         // Movimiento horizontal del track durante todo el recorrido
         tl.to(track, {
-          x: -totalWidth,
+          x: () => -getScrollDistance(),
           ease: 'none',
           duration: 1,
         }, 0);
@@ -169,8 +215,8 @@ export function GallerySection() {
         key={item.id}
         data-gallery-card={isGrid ? undefined : true}
         className={cn(
-          'relative rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden',
-          !hasImage && 'bg-gradient-to-br border border-white/10 backdrop-blur-sm',
+          'relative rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden border border-white/80 bg-white shadow-2xl shadow-slate-900/10',
+          !hasImage && 'bg-gradient-to-br backdrop-blur-sm',
           !hasImage && item.gradient,
           'group will-change-transform',
           'transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
@@ -189,14 +235,15 @@ export function GallerySection() {
               alt={`${item.title} - ${item.subtitle}`}
               width="1086"
               height="1448"
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               loading="lazy"
               decoding="async"
             />
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors duration-700" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/82 via-slate-950/20 to-transparent transition-opacity duration-700 group-hover:opacity-90" />
+            <div className="absolute inset-0 ring-1 ring-inset ring-white/50" />
           </>
         ) : (
-          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-700" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent transition-colors duration-700" />
         )}
 
         <div className="relative h-full flex flex-col justify-between p-6 md:p-10 z-10">
@@ -215,13 +262,13 @@ export function GallerySection() {
           </div>
 
           <div>
-            <p className="text-xs md:text-sm text-white/60 font-medium mb-1 md:mb-2 tracking-wide uppercase">
+            <p className="text-xs md:text-sm text-white/70 font-medium mb-1 md:mb-2 tracking-wide uppercase">
               {String(index + 1).padStart(2, '0')}
             </p>
-            <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-white mb-1 md:mb-2 tracking-tight">
+            <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-white mb-1 md:mb-2 tracking-tight drop-shadow-sm">
               {item.title}
             </h3>
-            <p className="text-white/70 text-base md:text-lg">{item.subtitle}</p>
+            <p className="text-white/85 text-base md:text-lg leading-snug">{item.subtitle}</p>
           </div>
         </div>
       </div>
@@ -230,11 +277,17 @@ export function GallerySection() {
 
   if (reducedMotion) {
     return (
-      <section ref={sectionRef} id="industrias" className="relative py-16 md:py-32 px-6 bg-slate-950">
+      <section ref={sectionRef} id="industrias" className="relative py-16 md:py-32 px-6 bg-[linear-gradient(180deg,#fff_0%,#f8fafc_45%,#eef2ff_100%)]">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-white tracking-tight mb-12 md:mb-16">
+          <p className="mb-3 inline-flex rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-600">
+            Industrias
+          </p>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-950 tracking-tight mb-4">
             Software de reservas diseñado para cada industria.
           </h2>
+          <p className="mb-12 md:mb-16 max-w-2xl text-base md:text-lg text-slate-500">
+            Muestra tu negocio con una experiencia visual, clara y fácil de reservar desde cualquier celular.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {GALLERY_ITEMS.map((item, index) => renderCard(item, index, true))}
           </div>
@@ -247,30 +300,39 @@ export function GallerySection() {
     <section
       ref={sectionRef}
       id="industrias"
-      className="relative md:h-screen md:overflow-hidden bg-slate-950 py-12 md:py-0"
+      className="relative md:h-screen md:overflow-hidden bg-[linear-gradient(180deg,#fff_0%,#f8fafc_42%,#eef2ff_100%)] py-12 md:py-0"
     >
-      {/* Fondo con doble gradiente radial premium (Índigo y Rose) */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(99,102,241,0.12),transparent_60%),radial-gradient(circle_at_80%_75%,rgba(244,63,94,0.08),transparent_60%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(239,68,68,0.10),transparent_35%),radial-gradient(circle_at_78%_74%,rgba(99,102,241,0.14),transparent_45%)] pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
 
-      <div className="md:absolute md:top-24 md:left-6 lg:left-12 z-10 max-w-none px-6 md:px-0 mb-4 md:mb-0">
+      <div className="md:absolute md:top-20 md:left-6 lg:left-12 z-10 max-w-none px-6 md:px-0 mb-6 md:mb-0">
+          <p className="mb-3 inline-flex rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-600 shadow-sm backdrop-blur-sm">
+            Industrias
+          </p>
           <TextReveal
             as="h2"
             splitBy="word"
-            className="text-xl md:text-4xl lg:text-5xl font-semibold text-white tracking-tight"
+            className="max-w-2xl text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-950 tracking-tight"
             start="top 80%"
             end="top 60%"
             scrub={0.6}
           >
           Software de reservas para cada industria.
         </TextReveal>
+        <p className="mt-4 max-w-xl text-sm md:text-base text-slate-500">
+          Fotos más visibles, mensajes directos y casos de uso claros para que el visitante identifique rápido su tipo de negocio.
+        </p>
       </div>
 
       {/* Móvil: scroll horizontal nativo con snap */}
-      <div className="md:hidden overflow-x-auto pb-4 px-6 snap-x snap-mandatory scrollbar-hide -mx-6">
+      <div ref={mobileScrollRef} className="md:hidden overflow-x-auto pb-4 px-6 snap-x snap-mandatory scrollbar-hide -mx-6">
         <div className="flex gap-4 w-max pr-6">
           {GALLERY_ITEMS.map((item, index) => renderCard(item, index))}
         </div>
       </div>
+      <p className="md:hidden px-6 text-center text-[11px] font-medium text-slate-400">
+        Se desplaza automáticamente. Toca para pausar y explorar.
+      </p>
 
       {/* Desktop: track controlado por GSAP */}
       <div

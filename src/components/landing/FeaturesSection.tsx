@@ -137,17 +137,16 @@ export function FeaturesSection() {
         cards.forEach((card) => {
           gsap.fromTo(
             card,
-            { opacity: 0, y: 50 },
+            { opacity: 0, y: 24 },
             {
               opacity: 1,
               y: 0,
-              duration: 0.8,
+              duration: 0.65,
               ease: 'power2.out',
               scrollTrigger: {
                 trigger: card,
-                start: 'top 85%',
-                end: 'top 55%',
-                scrub: 0.5,
+                start: 'top 92%',
+                toggleActions: 'play none none reverse',
               },
             }
           );
@@ -202,7 +201,7 @@ export function FeaturesSection() {
             {/* Visual */}
             <div
               ref={visualRef}
-              className="relative w-full order-first lg:order-1"
+              className="relative w-full order-first lg:order-1 hidden lg:block"
             >
               <div className="relative w-full min-h-[220px] md:min-h-[400px]">
                 {FEATURES.map((feature, index) => (
@@ -235,11 +234,22 @@ export function FeaturesSection() {
                   key={feature.id}
                   data-feature-card
                   className={cn(
-                    'lg:absolute lg:inset-0 flex flex-col justify-center will-change-transform',
+                    'lg:absolute lg:inset-0 flex flex-col justify-center will-change-transform rounded-[1.75rem] bg-slate-50/80 p-5 md:bg-transparent md:p-0',
                     index === 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0',
                     'mb-6 md:mb-12 lg:mb-0 last:mb-0'
                   )}
                 >
+                  <div className="lg:hidden -mx-1 mb-5 overflow-hidden rounded-[1.35rem] bg-white shadow-sm ring-1 ring-slate-100">
+                    <img
+                      src={feature.image}
+                      alt={feature.title}
+                      width="1536"
+                      height="1024"
+                      className="w-full h-auto object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
                   <img
                     src={feature.iconImage}
                     alt={feature.title}

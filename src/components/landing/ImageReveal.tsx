@@ -76,9 +76,8 @@ export function ImageReveal({
             ease: 'power2.out',
             scrollTrigger: {
               trigger: containerRef.current,
-              start: 'top 92%',
-              end: 'top 65%',
-              scrub: 0.4,
+              start: 'top 94%',
+              toggleActions: 'play none none reverse',
             },
           }
         );
@@ -88,12 +87,12 @@ export function ImageReveal({
           { scale: 1.03 },
           {
             scale: 1,
-            ease: 'none',
+            duration: 0.8,
+            ease: 'power2.out',
             scrollTrigger: {
               trigger: containerRef.current,
-              start,
-              end,
-              scrub: 0.5,
+              start: 'top 94%',
+              toggleActions: 'play none none reverse',
             },
           }
         );
