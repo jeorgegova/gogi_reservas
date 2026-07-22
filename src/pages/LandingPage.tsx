@@ -31,8 +31,14 @@ export default function LandingPage() {
       ScrollTrigger.refresh();
     }, 500);
 
+    let lastWidth = window.innerWidth;
     const resizeHandler = () => {
-      ScrollTrigger.refresh();
+      // En móviles el evento resize se dispara al ocultar/mostrar la barra del navegador (cambia la altura),
+      // lo cual causaba paros y tirones al cambiar de dirección. Solo refrescamos si cambia el ancho real.
+      if (window.innerWidth !== lastWidth) {
+        lastWidth = window.innerWidth;
+        ScrollTrigger.refresh();
+      }
     };
 
     window.addEventListener('resize', resizeHandler);

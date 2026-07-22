@@ -95,7 +95,7 @@ export function FeaturesGridSection() {
           scrollTrigger: {
             trigger: gridRef.current,
             start: 'top 85%',
-            toggleActions: 'play none none none',
+            toggleActions: 'play none none reset',
           },
         }
       );
@@ -113,18 +113,18 @@ export function FeaturesGridSection() {
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200/40 shadow-sm">
-            Características
+          <span className="text-xs font-bold tracking-widest text-slate-800 uppercase bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-200/80 shadow-xs">
+            Herramientas del sistema
           </span>
           <TextReveal
             as="h2"
             splitBy="word"
-            className="text-2xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
+            className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
             start="top 80%"
             end="top 55%"
             scrub={0.7}
           >
-            Herramientas pensadas para hacer crecer tu negocio.
+            Módulos diseñados para el control total de tus reservas.
           </TextReveal>
           <TextReveal
             as="p"
@@ -134,7 +134,7 @@ export function FeaturesGridSection() {
             end="top 58%"
             scrub={0.8}
           >
-             Cada función de GoGi Reservas está diseñada para ahorrarte tiempo, reducir fricciones y mejorar la experiencia de tus clientes.
+            Desde la gestión de disponibilidad por especialista hasta el envío de recordatorios automáticos por WhatsApp y correo electrónico.
           </TextReveal>
         </div>
 

@@ -75,7 +75,8 @@
     -moz-osx-font-smoothing: grayscale;
   }
   html {
-    scroll-behavior: smooth;
+    /* Desactivamos smooth scroll por CSS para evitar conflictos con el momentum scroll táctil de iOS/Android y ScrollTrigger */
+    scroll-behavior: auto;
     -webkit-overflow-scrolling: touch;
     scroll-padding-top: 5rem;
   }
@@ -239,7 +240,8 @@
 }
 
 /* ---- Today Button ---- */
-.fc .fc-today-button {
+.fc .fc-today-button,
+.fc .fc-customToday-button {
   padding: 8px 18px !important;
   font-size: 14px !important; /* Slightly larger for desktop, looks good */
   border-radius: 20px !important;
@@ -252,13 +254,15 @@
   text-transform: capitalize !important;
 }
 
-.fc .fc-today-button:not(:disabled):hover {
+.fc .fc-today-button:not(:disabled):hover,
+.fc .fc-customToday-button:not(:disabled):hover {
   background: #f9fafb !important;
   border-color: #d1d5db !important;
   color: #111827 !important;
 }
 
-.fc .fc-today-button:disabled {
+.fc .fc-today-button:disabled,
+.fc .fc-customToday-button:disabled {
   opacity: 0.35 !important;
   cursor: not-allowed !important;
 }

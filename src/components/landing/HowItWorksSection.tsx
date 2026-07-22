@@ -58,8 +58,7 @@ export function HowItWorksSection() {
           scrollTrigger: {
             trigger: cardsRef.current,
             start: 'top 85%',
-            end: 'bottom 15%',
-            toggleActions: 'play reverse restart reverse',
+            toggleActions: 'play none none reset',
           },
         }
       );
@@ -75,8 +74,7 @@ export function HowItWorksSection() {
           scrollTrigger: {
             trigger: cardsRef.current,
             start: 'top 75%',
-            end: 'bottom 25%',
-            toggleActions: 'play reverse restart reverse',
+            toggleActions: 'play none none reset',
           },
         }
       );
@@ -94,18 +92,18 @@ export function HowItWorksSection() {
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
-            Cómo funciona
+          <span className="text-xs font-bold tracking-widest text-slate-800 uppercase bg-white px-3.5 py-1.5 rounded-full border border-slate-200/80 shadow-xs">
+            Flujo de trabajo simple
           </span>
           <TextReveal
             as="h2"
             splitBy="word"
-            className="text-2xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
+            className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
             start="top 80%"
             end="top 55%"
             scrub={0.7}
           >
-            Empieza a recibir reservas en cuatro pasos.
+            Cómo funciona la plataforma de reservas en 4 pasos.
           </TextReveal>
           <TextReveal
             as="p"
@@ -115,7 +113,7 @@ export function HowItWorksSection() {
             end="top 58%"
             scrub={0.8}
           >
-            No necesitas conocimientos técnicos. Configura tu software de reservas en minutos y deja que la plataforma haga el resto.
+            Sin configuraciones complejas. Crea tus servicios, define los horarios de tu equipo y comparte tu enlace de reservas automatizado con tus clientes.
           </TextReveal>
         </div>
 

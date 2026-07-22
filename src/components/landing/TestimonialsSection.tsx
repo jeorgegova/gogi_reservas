@@ -51,8 +51,8 @@ export function TestimonialsSection() {
             ease: 'back.out(1.6)',
             scrollTrigger: {
               trigger: card as HTMLElement,
-              start: 'top 85%',
-              toggleActions: 'play none none none',
+              start: 'top 88%',
+              toggleActions: 'play none none reset',
             },
           }
         );
@@ -80,7 +80,7 @@ export function TestimonialsSection() {
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+          <span className="text-xs font-bold tracking-widest text-slate-800 uppercase bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-200/80 shadow-xs">
             Testimonios
           </span>
           <TextReveal

@@ -43,20 +43,23 @@ export function TextReveal({
       gsap.fromTo(
         elements,
         {
-          opacity: isMobile ? 0.45 : 0.35,
-          y: isMobile ? 12 : 16,
+          opacity: 0,
+          y: isMobile ? 8 : 14,
+          filter: 'blur(3px)',
         },
         {
           opacity: 1,
           y: 0,
-          duration: isMobile ? 0.65 : undefined,
-          stagger: isMobile ? 0.02 : 0.03,
+          filter: 'blur(0px)',
+          duration: isMobile ? 0.8 : 0.9,
+          stagger: isMobile ? 0.025 : 0.04,
+          ease: 'power2.out',
           scrollTrigger: {
             trigger: containerRef.current,
-            start: isMobile ? 'top 92%' : start,
-            end: isMobile ? 'top 50%' : end,
+            start: isMobile ? 'top 90%' : start,
+            end: isMobile ? 'top 60%' : end,
             scrub: isMobile ? false : scrub,
-            toggleActions: isMobile ? 'play none none reverse' : undefined,
+            toggleActions: isMobile ? 'play none none reset' : undefined,
           },
         }
       );
@@ -74,7 +77,7 @@ export function TextReveal({
           <span
             key={index}
             data-reveal-item
-            className="inline-block mr-[0.25em] will-change-transform"
+            className="inline-block mr-[0.25em] will-change-[transform,opacity,filter]"
             style={{ opacity: reducedMotion ? 1 : undefined }}
           >
             {item}

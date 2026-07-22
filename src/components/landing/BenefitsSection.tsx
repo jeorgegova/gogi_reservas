@@ -120,18 +120,18 @@ export function BenefitsSection() {
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="max-w-3xl mx-auto mb-8 md:mb-20 text-left md:text-center">
-          <span className="text-[11px] md:text-xs font-bold tracking-widest text-indigo-600 uppercase bg-indigo-50 px-3 py-1.5 rounded-full">
-            Beneficios
+          <span className="text-[11px] md:text-xs font-bold tracking-widest text-slate-800 uppercase bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-200/80 shadow-xs">
+            Impacto en tu negocio
           </span>
           <TextReveal
             as="h2"
             splitBy="word"
-            className="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6 leading-tight"
+            className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6 leading-tight"
             start="top 80%"
             end="top 55%"
             scrub={0.7}
           >
-            Todo lo que ganas con GoGi Reservas.
+            Beneficios clave de automatizar tus citas con GoGi.
           </TextReveal>
           <TextReveal
             as="p"
@@ -141,7 +141,7 @@ export function BenefitsSection() {
             end="top 58%"
             scrub={0.8}
           >
-            No es solo una agenda online. Es una plataforma de reservas que transforma la forma en que gestionas tu negocio.
+            Aumenta tus ingresos, libera a tu equipo de tareas manuales y ofrece a tus clientes una experiencia de reserva profesional disponible las 24 horas del día.
           </TextReveal>
         </div>
 

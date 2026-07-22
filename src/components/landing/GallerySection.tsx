@@ -306,21 +306,19 @@ export function GallerySection() {
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
 
       <div className="md:absolute md:top-20 md:left-6 lg:left-12 z-10 max-w-none px-6 md:px-0 mb-6 md:mb-0">
-          <p className="mb-3 inline-flex rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-600 shadow-sm backdrop-blur-sm">
-            Industrias
-          </p>
-          <TextReveal
-            as="h2"
-            splitBy="word"
-            className="max-w-2xl text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-950 tracking-tight"
-            start="top 80%"
-            end="top 60%"
-            scrub={0.6}
-          >
+
+        <TextReveal
+          as="h2"
+          splitBy="word"
+          className="max-w-2xl text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-950 tracking-tight"
+          start="top 80%"
+          end="top 60%"
+          scrub={0.6}
+        >
           Software de reservas para cada industria.
         </TextReveal>
         <p className="mt-4 max-w-xl text-sm md:text-base text-slate-500">
-          Fotos más visibles, mensajes directos y casos de uso claros para que el visitante identifique rápido su tipo de negocio.
+          Descubre cómo GoGi Reservas se adapta a tu negocio. Administra horarios, recursos, clientes y reservas desde una única plataforma.
         </p>
       </div>
 
@@ -337,7 +335,7 @@ export function GallerySection() {
       {/* Desktop: track controlado por GSAP */}
       <div
         ref={trackRef}
-        className="hidden md:flex absolute top-[56%] -translate-y-1/2 left-0 items-center gap-8 pl-6 lg:pl-12 pr-[50vw] will-change-transform"
+        className="hidden md:flex absolute top-[56%] -translate-y-1/2 left-0 lg:left-30 items-center gap-8 pl-6 lg:pl-12 pr-[50vw] will-change-transform"
       >
         {GALLERY_ITEMS.map((item, index) => renderCard(item, index))}
       </div>

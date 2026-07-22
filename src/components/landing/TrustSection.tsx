@@ -58,8 +58,8 @@ export function TrustSection() {
             ease: 'power3.out',
             scrollTrigger: {
               trigger: card as HTMLElement,
-              start: 'top 85%',
-              toggleActions: 'play none none none',
+              start: 'top 88%',
+              toggleActions: 'play none none reset',
             },
           }
         );
@@ -89,9 +89,6 @@ export function TrustSection() {
 
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-400 uppercase bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-            Confianza
-          </span>
           <TextReveal
             as="h2"
             splitBy="word"

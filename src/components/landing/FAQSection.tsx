@@ -66,8 +66,7 @@ export function FAQSection() {
           scrollTrigger: {
             trigger: listRef.current,
             start: 'top 85%',
-            end: 'bottom 15%',
-            toggleActions: 'play reverse restart reverse',
+            toggleActions: 'play none none reset',
           },
         }
       );

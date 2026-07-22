@@ -8,12 +8,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { HabeasData } from '@/components/ui/habeas-data';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { LogIn, UserPlus, X, Building2, Eye, EyeOff } from 'lucide-react';
+import logoSinFondo from '@/assets/LogoConTextoSinfondo.png';
 import { translateAuthError } from '@/lib/utils';
 import { useOrganizationImages } from '@/hooks/useOrganizationImages';
 import { useParams } from 'react-router-dom';
 
 export function AuthModal() {
-  const { authModal, closeAuthModal, terminology, profile } = useAuth();
+  const { authModal, closeAuthModal, signOut, terminology, profile } = useAuth();
   const { slug } = useParams();
   const { isOpen, view: initialView } = authModal;
   
@@ -343,6 +344,20 @@ export function AuthModal() {
           </div>
         </CardFooter>
       </Card>
+
+      {view === 'login' && (
+        <button
+        onClick={async () => {
+          closeAuthModal();
+          await signOut();
+          window.location.href = '/';
+        }}
+        className="md:hidden fixed left-4 bottom-1 z-20 flex items-center gap-2 text-black/70 text-xs font-semibold tracking-wide hover:text-black transition-colors"
+      >
+        <img src={logoSinFondo} alt="GoGi Reservas" className="h-5 w-auto brightness-0 invert" />
+        GoGi Reservas
+      </button>
+      )}
 
       <AlertDialog
         open={isSuccessAlertOpen}

@@ -77,8 +77,7 @@ export function ProblemsSection() {
           scrollTrigger: {
             trigger: gridRef.current,
             start: 'top 85%',
-            end: 'bottom 15%',
-            toggleActions: 'play reverse restart reverse',
+            toggleActions: 'play none none reset',
           },
         }
       );
@@ -96,18 +95,18 @@ export function ProblemsSection() {
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-indigo-50 px-3 py-1.5 rounded-full">
-            ¿Te resulta familiar?
+          <span className="text-xs font-bold tracking-widest text-slate-800 uppercase bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-200/80 shadow-xs">
+            ¿Fricciones en tu agenda actual?
           </span>
           <TextReveal
             as="h2"
             splitBy="word"
-            className="text-2xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
+            className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
             start="top 80%"
             end="top 55%"
             scrub={0.7}
           >
-            Deja que GoGi Reservas organice tu operación.
+            Optimiza la gestión de citas y elimina el caos de tu agenda.
           </TextReveal>
           <TextReveal
             as="p"
@@ -117,7 +116,7 @@ export function ProblemsSection() {
             end="top 58%"
             scrub={0.8}
           >
-            Los negocios que trabajan con reservas pierden tiempo y dinero todos los días. Nuestro sistema de reservas está diseñado para resolver exactamente esos puntos de fricción.
+            Gestionar reservas por mensajes o planillas genera ausencias y pérdida de clientes. GoGi Reservas automatiza tu disponibilidad y citas en una sola plataforma.
           </TextReveal>
         </div>
 

@@ -49,8 +49,8 @@ export function DevicesSection() {
             ease: 'elastic.out(1, 0.6)',
             scrollTrigger: {
               trigger: card as HTMLElement,
-              start: 'top 85%',
-              toggleActions: 'play none none none',
+              start: 'top 88%',
+              toggleActions: 'play none none reset',
             },
           }
         );
@@ -78,18 +78,18 @@ export function DevicesSection() {
       <FloatingIcons />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 md:mb-20">
-          <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase bg-indigo-50 px-3 py-1.5 rounded-full">
-            Multiplataforma
+          <span className="text-xs font-bold tracking-widest text-slate-800 uppercase bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-200/80 shadow-xs">
+            Acceso 24/7 en la nube
           </span>
           <TextReveal
             as="h2"
             splitBy="word"
-            className="text-2xl md:text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
+            className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mt-4 mb-4 md:mb-6"
             start="top 80%"
             end="top 55%"
             scrub={0.7}
           >
-            Tu negocio en cualquier dispositivo.
+            Gestiona tus reservas desde cualquier celular o computador.
           </TextReveal>
           <TextReveal
             as="p"
@@ -99,7 +99,7 @@ export function DevicesSection() {
             end="top 58%"
             scrub={0.8}
           >
-            GoGi Reservas funciona desde computador, tablet o celular. No necesitas instalar nada. Solo accede con tu cuenta y empieza a gestionar.
+            Accede a tu agenda online en tiempo real desde tu móvil, tablet o PC. Sin descargas ni instalaciones requeridas para ti o tus clientes.
           </TextReveal>
         </div>
 
