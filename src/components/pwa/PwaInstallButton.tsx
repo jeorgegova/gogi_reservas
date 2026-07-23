@@ -6,9 +6,9 @@ interface PwaInstallButtonProps {
 }
 
 export function PwaInstallButton({ className = '' }: PwaInstallButtonProps) {
-  const { isInstalled, showPrompt } = usePwaInstallContext();
+  const { isInstalled, isInstallable, showPrompt } = usePwaInstallContext();
 
-  if (isInstalled) return null;
+  if (isInstalled || !isInstallable) return null;
 
   return (
     <button

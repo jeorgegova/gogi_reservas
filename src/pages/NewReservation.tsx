@@ -24,10 +24,12 @@ import {
   LogIn,
   UserPlus,
   Building2,
+  Loader2,
 } from 'lucide-react';
 import { AlertDialog } from '@/components/ui/alert-dialog';
 import { format, addMinutes, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { sendReservationEmail } from '@/lib/emailService';
 
 interface CustomService {
   id: string;
@@ -58,7 +60,7 @@ export default function NewReservationPage() {
       });
     }
   }, [profile?.organization_id]);
-  const { status: subscriptionStatus, daysUntilExpiry, previousSubscriptionExpiredBeyond20Days, loading: subscriptionLoading, maxReservationsPerDay, todayReservationsCount } = useSubscriptionStatus(profile?.organization_id);
+  const { status: subscriptionStatus, daysUntilExpiry, previousSubscriptionExpiredBeyond20Days, loading: subscriptionLoading, maxReservationsPerDay } = useSubscriptionStatus(profile?.organization_id);
   const navigate = useNavigate();
   const { id } = useParams();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
@@ -127,6 +129,58 @@ export default function NewReservationPage() {
   });
 
   const hasPendingReservation = pendingReservations.length > 0;
+
+  const { data: fallbackMaxReservationsPerDay = null } = useQuery({
+    queryKey: ['fallbackMaxReservationsPerDay', profile?.organization_id],
+    queryFn: async () => {
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('plan_id')
+        .eq('organization_id', profile?.organization_id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!subscription?.plan_id) return null;
+
+      const { data: plan } = await supabase
+        .from('subscription_plans')
+        .select('max_reservations_per_day')
+        .eq('id', subscription.plan_id)
+        .maybeSingle();
+
+      return plan?.max_reservations_per_day ?? null;
+    },
+    enabled: !!profile?.organization_id && maxReservationsPerDay === null,
+  });
+
+  const effectiveMaxReservationsPerDay = maxReservationsPerDay ?? fallbackMaxReservationsPerDay;
+
+  const { data: selectedDateReservationsCount = 0 } = useQuery({
+    queryKey: ['dailyReservationCount', profile?.organization_id, selectedDate, effectiveMaxReservationsPerDay],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('reservations')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', profile?.organization_id)
+        .gte('start_datetime', `${selectedDate}T00:00:00`)
+        .lte('start_datetime', `${selectedDate}T23:59:59.999`)
+        .not('status', 'in', '("cancelled","rejected")');
+
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!profile?.organization_id && !!selectedDate && effectiveMaxReservationsPerDay !== null,
+  });
+
+  const selectedDateLimitReached = !isEditing && effectiveMaxReservationsPerDay !== null && selectedDateReservationsCount >= effectiveMaxReservationsPerDay;
+
+  useEffect(() => {
+    if (!selectedDateLimitReached) return;
+    setSelectedStartTime('');
+    setSelectedHourSlots([]);
+    setSelectedJornada('');
+  }, [selectedDateLimitReached, selectedDate]);
 
   const { data: users = [] } = useQuery({
     queryKey: ['users', profile?.organization_id],
@@ -253,13 +307,6 @@ export default function NewReservationPage() {
 
     if (isGuestUser && isEditing) return { title: 'Invitado', message: 'Como invitado no puedes editar reservas.' };
 
-    if (maxReservationsPerDay !== null && todayReservationsCount >= maxReservationsPerDay && !isAdmin) {
-      return {
-        title: 'Límite diario alcanzado',
-        message: `Has alcanzado el límite de ${maxReservationsPerDay} reservas por día. Intenta de nuevo mañana o contacta al administrador.`
-      };
-    }
-
     return null;
   })();
 
@@ -319,6 +366,12 @@ export default function NewReservationPage() {
   };
 
   const handleEmployeeClick = async (employee: any) => {
+    if (selectedDateLimitReached && isAdmin) {
+      setErrorMessage(`La organización alcanzó el límite de ${effectiveMaxReservationsPerDay} reservas para el día seleccionado. Elige otra fecha.`);
+      setIsErrorAlertOpen(true);
+      return;
+    }
+
     if (isAdmin && !selectedUserId) {
       setUserError('Por favor selecciona un usuario antes de continuar.');
       return;
@@ -571,6 +624,7 @@ export default function NewReservationPage() {
   };
 
   const toggleHourSlot = (time: string) => {
+    if (selectedDateLimitReached) return;
     setSelectedHourSlots(prev => {
       if (prev.includes(time)) {
         if (prev[prev.length - 1] === time) return prev.slice(0, -1);
@@ -588,6 +642,7 @@ export default function NewReservationPage() {
   };
 
   const quickSelectHours = (count: number) => {
+    if (selectedDateLimitReached) return;
     const allSlots = getAllHalfHourSlots();
     const now = new Date();
     const isAvailable = (time: string) => {
@@ -652,6 +707,7 @@ export default function NewReservationPage() {
 
   const getSlotStatus = (time: string) => {
     const slotStart = parseISO(`${selectedDate}T${time}:00`);
+    if (selectedDateLimitReached) return { status: 'limit' as const };
     if (slotStart < new Date()) return { status: 'past' as const };
 
     const slotEnd = new Date(slotStart.getTime() + totalSelectedDuration * 60 * 1000);
@@ -765,6 +821,10 @@ export default function NewReservationPage() {
   };
 
   const handleReserve = async () => {
+    if (loading || createMutation.isPending || updateMutation.isPending) return;
+    setLoading(true);
+
+    try {
     const isHourly = isResidential && selectedArea?.pricing_type === 'hourly';
     const isJornada = isResidential && selectedArea?.pricing_type === 'jornada';
 
@@ -773,6 +833,15 @@ export default function NewReservationPage() {
     if (isHourly && selectedHourSlots.length === 0) return;
     if (!isHourly && !selectedStartTime) return;
     if (!isResidential && !selectedService) return;
+
+    if (selectedDateLimitReached) {
+      setErrorMessage(isAdmin
+        ? `La organización alcanzó el límite de ${effectiveMaxReservationsPerDay} reservas para el día seleccionado. Elige otra fecha.`
+        : 'No hay horarios disponibles para el día seleccionado. Elige otra fecha.'
+      );
+      setIsErrorAlertOpen(true);
+      return;
+    }
 
     if (isGuestUser && (!guestName || !guestPhone)) {
       setErrorMessage('Por favor ingresa tu nombre y teléfono de contacto');
@@ -846,7 +915,6 @@ export default function NewReservationPage() {
       guest_phone: guestPhone || null
     };
 
-    try {
       if (isEditing) {
         await updateMutation.mutateAsync({ id: id!, data: reservationData });
         await supabase.from('reservation_services').delete().eq('reservation_id', id);
@@ -879,6 +947,9 @@ export default function NewReservationPage() {
               })));
             }
           }
+          if (profile?.organization_id) {
+            sendReservationEmail(result.id, profile.organization_id, 'created_admin');
+          }
         }
       }
 
@@ -891,6 +962,8 @@ export default function NewReservationPage() {
     } catch (error: any) {
       setErrorMessage(error.message || `Error al procesar la reserva`);
       setIsErrorAlertOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1068,12 +1141,38 @@ export default function NewReservationPage() {
             </Card>
           )}
 
+          {selectedDateLimitReached && isAdmin && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div>
+                  <p className="font-bold">Límite diario alcanzado</p>
+                  <p className="text-xs mt-0.5">
+                    Ya hay {selectedDateReservationsCount} reservas programadas para {selectedDate}. El plan permite máximo {effectiveMaxReservationsPerDay} por día. Elige otra fecha para continuar.
+                  </p>
+                  <div className="mt-3">
+                    <Label className="text-[11px] font-bold text-amber-900">Cambiar fecha</Label>
+                    <Input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(event) => handleDateChange(event.target.value)}
+                      className="mt-1 h-10 rounded-xl border-amber-200 bg-white text-sm text-amber-950 focus-visible:ring-amber-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className={cn("grid gap-4", isResidential ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
             {areasData.map((employee: any) => (
               isResidential ? (
                 <Card
                   key={employee.id}
-                  className="border-none apple-shadow bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col"
+                  className={cn(
+                    "border-none apple-shadow bg-white rounded-2xl overflow-hidden transition-all duration-300 flex flex-col",
+                    "cursor-pointer hover:-translate-y-1 hover:apple-shadow-hover"
+                  )}
                   onClick={() => handleEmployeeClick(employee)}
                 >
                   <div className="h-40 bg-gray-100 overflow-hidden">
@@ -1097,7 +1196,10 @@ export default function NewReservationPage() {
               ) : (
               <Card
                 key={employee.id}
-                className="border-none apple-shadow bg-white rounded-2xl text-center cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:apple-shadow-hover flex flex-col overflow-hidden"
+                className={cn(
+                  "border-none apple-shadow bg-white rounded-2xl text-center transition-all duration-300 flex flex-col overflow-hidden",
+                  "cursor-pointer hover:-translate-y-1 hover:apple-shadow-hover"
+                )}
                 onClick={() => handleEmployeeClick(employee)}
               >
                 {employee.image_url && (
@@ -1303,7 +1405,16 @@ export default function NewReservationPage() {
                       { key: 'nocturna', label: 'Nocturna', time: `${selectedArea.jornada_start_nocturna || '18:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`, cost: selectedArea.cost_jornada_nocturna },
                       { key: 'ambos', label: 'Completa (Día + Noche)', time: `${selectedArea.jornada_start_diurna || '08:00'} - ${selectedArea.jornada_end_nocturna || '23:59'}`, cost: selectedArea.cost_jornada_ambos },
                     ].map(j => (
-                      <button key={j.key} onClick={() => { setSelectedJornada(j.key); setSelectedStartTime(j.key); }} className={cn("w-full p-4 rounded-xl border text-left transition-all", selectedJornada === j.key ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-white border-gray-200 hover:border-gray-300")}>
+                      <button
+                        key={j.key}
+                        disabled={selectedDateLimitReached}
+                        onClick={() => { if (!selectedDateLimitReached) { setSelectedJornada(j.key); setSelectedStartTime(j.key); } }}
+                        className={cn(
+                          "w-full p-4 rounded-xl border text-left transition-all",
+                          selectedJornada === j.key ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-white border-gray-200 hover:border-gray-300",
+                          selectedDateLimitReached && "cursor-not-allowed opacity-50 hover:border-gray-200"
+                        )}
+                      >
                         <div className="flex justify-between items-center">
                           <div>
                             <span className="font-bold text-gray-900">{j.label}</span>
@@ -1337,7 +1448,7 @@ export default function NewReservationPage() {
                         });
                         const reservedName = reservedBy ? (reservedBy.guest_name || reservedBy.profiles?.full_name || 'Reservado') : '';
                         const maxSlots = selectedArea?.max_hours_per_reservation || 4;
-                        const canSelect = !isPast && !isReserved && (isSelected || selectedHourSlots.length < maxSlots);
+                        const canSelect = !selectedDateLimitReached && !isPast && !isReserved && (isSelected || selectedHourSlots.length < maxSlots);
                         return (
                           <button
                             key={time}
@@ -1347,8 +1458,8 @@ export default function NewReservationPage() {
                             className={cn(
                               "h-9 rounded-lg text-[10px] font-bold transition-all",
                               isSelected && "bg-primary text-white shadow-sm",
-                              !isSelected && !isPast && !isReserved && "bg-white border border-gray-200 text-gray-600 hover:border-primary/50 hover:bg-primary/5",
-                              (isPast || isReserved) && "bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed"
+                              !isSelected && !selectedDateLimitReached && !isPast && !isReserved && "bg-white border border-gray-200 text-gray-600 hover:border-primary/50 hover:bg-primary/5",
+                              (selectedDateLimitReached || isPast || isReserved) && "bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed"
                             )}
                           >
                             {formatTime(time)}
@@ -1359,7 +1470,16 @@ export default function NewReservationPage() {
                     <div className="flex flex-wrap gap-1.5">
                       <span className="text-[10px] font-bold text-gray-400 self-center mr-1">Selección rápida:</span>
                       {Array.from({ length: selectedArea?.max_hours_per_reservation || 4 }, (_, i) => i + 1).map(n => (
-                        <button key={n} onClick={() => quickSelectHours(n)} className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all", selectedHourSlots.length === n ? "bg-primary text-white border-primary" : "border-gray-200 bg-white text-gray-600 hover:border-primary hover:text-primary")}>
+                        <button
+                          key={n}
+                          disabled={selectedDateLimitReached}
+                          onClick={() => quickSelectHours(n)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all",
+                            selectedHourSlots.length === n ? "bg-primary text-white border-primary" : "border-gray-200 bg-white text-gray-600 hover:border-primary hover:text-primary",
+                            selectedDateLimitReached && "cursor-not-allowed opacity-50 hover:border-gray-200 hover:text-gray-600"
+                          )}
+                        >
                           {n}h
                         </button>
                       ))}
@@ -1392,14 +1512,14 @@ export default function NewReservationPage() {
                       <div key={time} className="group" title={isOccupied && info.status === 'reserved' && info.conflicts ? info.conflicts.map((c: any) => `${c.userName}${c.userPhone ? ` (${c.userPhone})` : ''}`).join('\n') : undefined}>
                       <Button
                         variant="outline"
-                        disabled={isOccupied || (!selectedStartTime && false)}
-                        onClick={() => setSelectedStartTime(time)}
+                         disabled={selectedDateLimitReached || isOccupied || (!selectedStartTime && false)}
+                         onClick={() => { if (!selectedDateLimitReached) setSelectedStartTime(time); }}
                         className={cn(
                           "h-10 text-xs font-semibold rounded-xl transition-all w-full",
                           selectedStartTime === time ? "bg-primary text-white border-none scale-105 ring-2 ring-primary/30" : 
                           isInRange ? "bg-primary/20 text-primary border-primary/30" :
                           "border-gray-200 text-gray-700 bg-white hover:bg-gray-50",
-                          isOccupied && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50"
+                           (selectedDateLimitReached || isOccupied) && "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50"
                         )}
                       >
                         {formatTime(time)}
@@ -1426,7 +1546,7 @@ export default function NewReservationPage() {
                     </p>
                   </div>
                   <Button
-                    disabled={isResidential ? (selectedArea?.pricing_type === 'jornada' ? !selectedJornada : selectedArea?.pricing_type === 'hourly' ? selectedHourSlots.length === 0 : !selectedStartTime) : !selectedStartTime}
+                    disabled={selectedDateLimitReached || (isResidential ? (selectedArea?.pricing_type === 'jornada' ? !selectedJornada : selectedArea?.pricing_type === 'hourly' ? selectedHourSlots.length === 0 : !selectedStartTime) : !selectedStartTime)}
                     onClick={() => setStep(4)}
                     size="sm"
                     className="bg-primary text-white font-bold h-9 md:h-11 px-4 md:px-6 rounded-xl border-none shadow-none text-xs md:text-sm shrink-0"
@@ -1549,9 +1669,16 @@ export default function NewReservationPage() {
             <Button
               className="w-full bg-primary text-white font-black text-lg h-12 rounded-xl border-none shadow-none"
               onClick={handleReserve}
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={loading || createMutation.isPending || updateMutation.isPending}
             >
-              Confirmar {terminology.reservationLabel}
+              {loading || createMutation.isPending || updateMutation.isPending ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Creando {terminology.reservationLabel.toLowerCase()}...
+                </span>
+              ) : (
+                `Confirmar ${terminology.reservationLabel}`
+              )}
             </Button>
             <Button variant="ghost" className="w-full text-gray-500 font-bold h-9 text-xs" onClick={() => setStep(3)}>
               Modificar horario

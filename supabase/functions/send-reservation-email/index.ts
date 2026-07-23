@@ -62,8 +62,8 @@ function getStatusMessage(status: string): { title: string; subtitle: string; me
         title: "Reserva confirmada",
         subtitle: "detalles de tu cita",
         message: "Tu reserva ha sido aprobada. A continuación te compartimos los detalles.",
-        pushTitle: "Tu reserva fue aprobada",
-        pushBody: "La reserva fue aprobada correctamente.",
+        pushTitle: "Reserva aprobada",
+        pushBody: "Su reserva ha sido aprobada correctamente.",
       };
     case "rejected":
       return {
@@ -71,7 +71,7 @@ function getStatusMessage(status: string): { title: string; subtitle: string; me
         subtitle: "estado actualizado",
         message: "Lamentablemente tu reserva no pudo ser aprobada. Si tienes dudas, comunícate con la administración.",
         pushTitle: "Reserva rechazada",
-        pushBody: "Tu solicitud de reserva fue rechazada.",
+        pushBody: "Su reserva ha sido rechazada. Si tienes dudas, comunícate con la administración.",
       };
     case "cancelled":
       return {
@@ -113,7 +113,9 @@ function getPushPayload(
   // Incluimos el nombre del recurso en el cuerpo cuando sea aprobada para coincidir con el ejemplo del usuario
   let body = statusInfo.pushBody;
   if (status === "approved") {
-    body = `La reserva de ${resourceName} fue aprobada correctamente.`;
+    body = `Su reserva de ${resourceName} ha sido aprobada correctamente para el ${dateStr} a las ${timeStr}.`;
+  } else if (status === "rejected") {
+    body = `Su reserva de ${resourceName} ha sido rechazada.`;
   } else if (status === "cancelled") {
     body = `La reserva de ${resourceName} fue cancelada.`;
   }
@@ -187,6 +189,36 @@ async function sendPushNotifications(
           result.errors.push(String(err.message || err));
         }
       }
+    })
+  );
+
+  return result;
+}
+
+async function getOrganizationAdminUserIds(supabase: any, orgId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("memberships")
+    .select("user_id, role")
+    .eq("organization_id", orgId)
+    .in("role", ["admin", "super_admin"]);
+
+  if (error || !data) return [];
+  return Array.from(new Set(data.map((row: any) => row.user_id).filter(Boolean)));
+}
+
+async function sendPushNotificationsToUsers(
+  supabase: any,
+  userIds: string[],
+  payload: { notification: object; data: object }
+): Promise<{ sent: number; removed: number; errors: string[] }> {
+  const result = { sent: 0, removed: 0, errors: [] as string[] };
+
+  await Promise.all(
+    userIds.map(async (userId) => {
+      const partial = await sendPushNotifications(supabase, userId, payload);
+      result.sent += partial.sent;
+      result.removed += partial.removed;
+      result.errors.push(...partial.errors);
     })
   );
 
@@ -408,13 +440,41 @@ serve(async (req) => {
       throw new Error("Reserva no encontrada");
     }
 
-    const clientEmail = reservation.profiles?.email;
-    if (!clientEmail) {
-      return new Response(JSON.stringify({ success: true, skipped: true, reason: "sin email de cliente" }), {
+    if (new_status === "created_admin") {
+      const resourceName = reservation.resources?.name || "recurso";
+      const clientName = reservation.profiles?.full_name || reservation.guest_name || "Cliente";
+      const dateStr = formatDate(reservation.start_datetime);
+      const timeStr = formatTime(reservation.start_datetime);
+      const adminUserIds = await getOrganizationAdminUserIds(supabase, org_id);
+      const adminPushPayload = {
+        notification: {
+          title: "Nueva reserva pendiente",
+          body: `${clientName} creó una nueva reserva para ${resourceName} el ${dateStr} a las ${timeStr}.`,
+          icon: "/icon-192x192.png",
+          badge: "/favicon-32x32.png",
+          tag: `gogi-nueva-reserva-${reservation.id}`,
+          requireInteraction: false,
+          renotify: false,
+        },
+        data: {
+          url: "https://gogireservas.com/admin/reservations",
+          reservationId: reservation.id,
+          organizationSlug: org.slug,
+          status: "created_admin",
+          resourceName,
+          date: dateStr,
+          time: timeStr,
+        },
+      };
+
+      const pushResult = await sendPushNotificationsToUsers(supabase, adminUserIds, adminPushPayload);
+      return new Response(JSON.stringify({ success: true, push: pushResult }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const clientEmail = reservation.profiles?.email;
 
     const statusInfo = getStatusMessage(new_status);
     const siteUrl = org.slug ? `https://gogireservas.com/${org.slug}/mis-reservas` : "https://gogireservas.com";
@@ -441,20 +501,22 @@ serve(async (req) => {
       siteUrl,
     });
 
-    const clientName = reservation.profiles?.full_name || reservation.guest_name || "Cliente";
-
-    await transporter.sendMail({
-      from: `"${org.name}" <${org.smtp_email}>`,
-      to: clientEmail,
-      subject: `${statusInfo.title} – ${org.name}`,
-      html,
-    });
+    if (clientEmail) {
+      await transporter.sendMail({
+        from: `"${org.name}" <${org.smtp_email}>`,
+        to: clientEmail,
+        subject: `${statusInfo.title} – ${org.name}`,
+        html,
+      });
+    }
 
     // Reutilizamos la misma información de la reserva para enviar notificaciones push
     const pushPayload = getPushPayload(statusInfo, reservation, org, new_status);
-    const pushResult = await sendPushNotifications(supabase, reservation.user_id, pushPayload);
+    const pushResult = reservation.user_id
+      ? await sendPushNotifications(supabase, reservation.user_id, pushPayload)
+      : { sent: 0, removed: 0, errors: [] as string[] };
 
-    return new Response(JSON.stringify({ success: true, push: pushResult }), {
+    return new Response(JSON.stringify({ success: true, email: Boolean(clientEmail), push: pushResult }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

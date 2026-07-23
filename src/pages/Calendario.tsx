@@ -66,7 +66,7 @@ export default function Calendario() {
     }, [profile?.organization_id]);
 
     const effectiveBusinessType = orgBusinessType || orgSettings?.business_type || businessType;
-    console.log('Tipo organizacion...', effectiveBusinessType, { dbType: orgBusinessType, orgSettingsType: orgSettings?.business_type, authType: businessType });
+    //console.log('Tipo organizacion...', effectiveBusinessType, { dbType: orgBusinessType, orgSettingsType: orgSettings?.business_type, authType: businessType });
 
     const terminology = getTerminology(effectiveBusinessType);
     const isResidential = effectiveBusinessType === 'residential';
@@ -537,7 +537,7 @@ export default function Calendario() {
                 {/* Charts Row 1 */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Reservas por Mes */}
-                    <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
+                    {(!isPlanFree || isAdmin) && <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">
                         <CardHeader className="border-b border-gray-50 p-4">
                             <div className="flex items-center gap-2">
                                 <BarChart3 className="w-5 h-5 text-primary" />
@@ -581,7 +581,7 @@ export default function Calendario() {
                                 </ResponsiveContainer>
                             </div>
                         </CardContent>
-                    </Card>
+                    </Card>}
 
                     {/* Ingresos por Mes */}
                     <Card className="border-none apple-shadow bg-white rounded-2xl overflow-hidden">

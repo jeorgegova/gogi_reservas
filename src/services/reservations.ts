@@ -43,7 +43,7 @@ export const getReservations = async (
     .in('status', ['approved', 'pending_validation', 'pending_payment']);
 
   if (error) throw error;
-  return data as any[];
+  return data as unknown as Reservation[];
 };
 
 export const getAvailability = async (
@@ -71,7 +71,54 @@ export const getAvailability = async (
   return (count || 0) === 0;
 };
 
+const getDayBounds = (dateValue: string) => {
+  const [datePart] = dateValue.split('T');
+  return {
+    start: `${datePart}T00:00:00`,
+    end: `${datePart}T23:59:59.999`,
+  };
+};
+
+const validateDailyReservationLimit = async (reservation: Partial<Reservation>) => {
+  if (!reservation.organization_id || !reservation.start_datetime) return;
+
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('plan_id')
+    .eq('organization_id', reservation.organization_id)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!subscription?.plan_id) return;
+
+  const { data: plan } = await supabase
+    .from('subscription_plans')
+    .select('max_reservations_per_day')
+    .eq('id', subscription.plan_id)
+    .maybeSingle();
+
+  const maxReservationsPerDay = plan?.max_reservations_per_day;
+  if (maxReservationsPerDay === null || maxReservationsPerDay === undefined) return;
+
+  const { start, end } = getDayBounds(reservation.start_datetime);
+  const { count, error } = await supabase
+    .from('reservations')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', reservation.organization_id)
+    .gte('start_datetime', start)
+    .lte('start_datetime', end)
+    .not('status', 'in', '("cancelled","rejected")');
+
+  if (error) throw error;
+  if ((count || 0) >= maxReservationsPerDay) {
+    throw new Error(`La organización alcanzó el límite de ${maxReservationsPerDay} reservas para el día seleccionado.`);
+  }
+};
+
 export const createReservation = async (reservation: Partial<Reservation>) => {
+  await validateDailyReservationLimit(reservation);
+
   // CRITICAL: Validation MUST be done against the DB, not cache
   const isAvailable = await getAvailability(
     reservation.resource_id!,

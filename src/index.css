@@ -133,6 +133,35 @@
     animation: neon-pulse 2s infinite ease-in-out;
   }
 
+  @keyframes attention-bell {
+    0%, 100% { transform: rotate(0deg) translateY(0); }
+    8% { transform: rotate(-18deg) translateY(-1px); }
+    16% { transform: rotate(16deg) translateY(-2px); }
+    24% { transform: rotate(-12deg) translateY(-1px); }
+    32% { transform: rotate(10deg) translateY(-2px); }
+    40% { transform: rotate(0deg) translateY(0); }
+  }
+  .animate-attention-bell {
+    transform-origin: 50% 0%;
+    animation: attention-bell 1.15s ease-in-out infinite;
+  }
+
+  @keyframes notification-ping {
+    0% { transform: scale(0.9); opacity: 0.45; }
+    70%, 100% { transform: scale(1.45); opacity: 0; }
+  }
+  .animate-notification-ping {
+    animation: notification-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes notification-pop {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.03); }
+  }
+  .animate-notification-pop {
+    animation: notification-pop 1.8s ease-in-out infinite;
+  }
+
   /* Landing page animations */
   @keyframes float-slow {
     0%, 100% { transform: translate(0, 0); }

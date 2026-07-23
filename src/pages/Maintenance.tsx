@@ -785,6 +785,10 @@ export default function MaintenancePage() {
     </div>
   );
 
+  if (!subscriptionLoading && isPlanFree && !isAdmin) {
+    return null;
+  }
+
   return (
     <div className="space-y-4">
       {isPlanFree && (

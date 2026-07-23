@@ -107,18 +107,17 @@ export function usePwaInstallPrompt(): PwaInstallState {
     };
   }, [isInstalled, isDismissed, showPrompt]);
 
-  // Fallback: si el navegador no dispara beforeinstallprompt (p. ej. escritorio, Safari,
-  // o usuario que ya descartó el banner nativo), mostramos el modal de instrucciones
-  // después de unos segundos para que el usuario pueda instalar manualmente.
+  // Fallback solo para iOS: Apple no expone prompt nativo, así que allí sí mostramos
+  // instrucciones. En Android/desktop evitamos un botón de instalar sin prompt nativo.
   useEffect(() => {
-    if (isInstalled || isDismissed || hasShownRef.current) return;
+    if (!isIOS || isInstalled || isDismissed || hasShownRef.current) return;
     const timer = setTimeout(() => {
       if (!hasShownRef.current && !isInstalled && !isDismissed) {
         showPrompt();
       }
     }, FALLBACK_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [isInstalled, isDismissed, showPrompt]);
+  }, [isIOS, isInstalled, isDismissed, showPrompt]);
 
   const dismiss = useCallback(() => {
     markDismissed();

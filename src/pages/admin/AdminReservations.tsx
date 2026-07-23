@@ -170,6 +170,7 @@ export default function AdminReservationsPage() {
 
       const currentIds = new Set(merged.map(r => r.id));
       const previousIds = previousIdsRef.current;
+      const pendingHighlightId = sessionStorage.getItem('gogi-new-admin-reservation-id');
 
       // newlyArrived solo considera reservas pendientes que no estaban en la vista anteriormente
       const newlyArrived = merged.filter(r =>
@@ -209,6 +210,30 @@ export default function AdminReservationsPage() {
             duration: 6000,
           });
         }
+      }
+
+      if (pendingHighlightId && currentIds.has(pendingHighlightId)) {
+        setHighlightedIds(prev => {
+          const next = new Set(prev);
+          next.add(pendingHighlightId);
+          return next;
+        });
+        if (!highlightTimersRef.current.has(pendingHighlightId)) {
+          const timer = setTimeout(() => {
+            setHighlightedIds(prev => {
+              const next = new Set(prev);
+              next.delete(pendingHighlightId);
+              return next;
+            });
+            highlightTimersRef.current.delete(pendingHighlightId);
+          }, 8000);
+          highlightTimersRef.current.set(pendingHighlightId, timer);
+        }
+        sessionStorage.removeItem('gogi-new-admin-reservation-id');
+        toast.info(`Nueva ${terminology.reservationLabel.toLowerCase()} recibida`, {
+          description: 'La solicitud quedó resaltada en la lista.',
+          duration: 5000,
+        });
       }
 
       previousIdsRef.current = currentIds;

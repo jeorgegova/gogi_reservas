@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/lib/supabase';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard, Clock, Crown } from 'lucide-react';
+import { Settings, Users, Loader2, Save, CheckCircle2, UserCheck, CreditCard, Clock, Crown, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatTime } from '@/lib/utils';
 
@@ -26,6 +27,7 @@ interface ScheduleEntry {
 
 export default function AdminSettingsPage() {
   const { profile, terminology } = useAuth();
+  const navigate = useNavigate();
   const { isPlanFree } = useSubscriptionStatus(profile?.organization_id);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +42,34 @@ export default function AdminSettingsPage() {
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [maxReservationDays, setMaxReservationDays] = useState<number | null>(null);
   const [orgSlug, setOrgSlug] = useState('');
+  const [initialSnapshot, setInitialSnapshot] = useState('');
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<{ type: 'path'; to: string } | { type: 'back' } | null>(null);
+  const allowNavigationRef = useRef(false);
+
+  const createSettingsSnapshot = (overrideGuestUserId = guestUserId) => JSON.stringify({
+    requiresAuth,
+    guestUserId: overrideGuestUserId,
+    logoUrl,
+    loginPhotoUrl: isPlanFree ? '' : loginPhotoUrl,
+    orgName,
+    orgPhone,
+    orgAddress,
+    autoApprovePayments,
+    maxReservationDays: isPlanFree ? 8 : maxReservationDays,
+    schedules: schedules
+      .map((schedule) => ({
+        day_of_week: schedule.day_of_week,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        is_active: schedule.is_active,
+        break_start: schedule.break_start || null,
+        break_end: schedule.break_end || null,
+      }))
+      .sort((a, b) => a.day_of_week - b.day_of_week),
+  });
+
+  const hasUnsavedChanges = !loading && !saving && initialSnapshot !== '' && createSettingsSnapshot() !== initialSnapshot;
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -47,6 +77,62 @@ export default function AdminSettingsPage() {
       fetchSchedules();
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (!loading && schedules.length > 0 && initialSnapshot === '') {
+      setInitialSnapshot(createSettingsSnapshot());
+    }
+  }, [loading, schedules, initialSnapshot]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || allowNavigationRef.current) return;
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (!hasUnsavedChanges || allowNavigationRef.current || event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+
+      const anchor = (event.target as HTMLElement | null)?.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+
+      const targetUrl = new URL(anchor.href);
+      if (targetUrl.origin !== window.location.origin) return;
+
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const nextPath = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
+      if (nextPath === currentPath) return;
+
+      event.preventDefault();
+      setPendingNavigation({ type: 'path', to: nextPath });
+      setShowUnsavedModal(true);
+    };
+
+    const handlePopState = () => {
+      if (!hasUnsavedChanges || allowNavigationRef.current) return;
+      window.history.pushState({ gogiSettingsGuard: true }, '', window.location.href);
+      setPendingNavigation({ type: 'back' });
+      setShowUnsavedModal(true);
+    };
+
+    window.history.pushState({ gogiSettingsGuard: true }, '', window.location.href);
+    document.addEventListener('click', handleDocumentClick, true);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      document.removeEventListener('click', handleDocumentClick, true);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [hasUnsavedChanges]);
 
   const fetchSchedules = async () => {
     if (!profile?.organization_id) return;
@@ -70,7 +156,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleScheduleChange = (dayOfWeek: number, field: keyof ScheduleEntry, value: any) => {
+  const handleScheduleChange = (dayOfWeek: number, field: keyof ScheduleEntry, value: ScheduleEntry[keyof ScheduleEntry]) => {
     setSchedules(prev => prev.map(s =>
       s.day_of_week === dayOfWeek ? { ...s, [field]: value } : s
     ));
@@ -130,8 +216,8 @@ export default function AdminSettingsPage() {
     setRequiresAuth(!checked);
   };
 
-  const handleSave = async () => {
-    if (!profile?.organization_id) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (!profile?.organization_id) return false;
     setSaving(true);
     try {
       let finalGuestId = guestUserId;
@@ -164,13 +250,47 @@ export default function AdminSettingsPage() {
 
       if (error) throw error;
       await saveSchedules();
+      setInitialSnapshot(createSettingsSnapshot(finalGuestId));
       toast.success('Configuración guardada exitosamente');
-    } catch (error: any) {
+      return true;
+    } catch (error: unknown) {
       console.error('Error saving settings:', error);
-      toast.error('Error al guardar: ' + error.message);
+      toast.error('Error al guardar: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleStayEditing = () => {
+    setShowUnsavedModal(false);
+    setPendingNavigation(null);
+  };
+
+  const proceedPendingNavigation = () => {
+    const next = pendingNavigation;
+    setPendingNavigation(null);
+
+    if (!next) return;
+    if (next.type === 'path') {
+      navigate(next.to);
+      return;
+    }
+    window.history.back();
+  };
+
+  const handleLeaveWithoutSaving = () => {
+    allowNavigationRef.current = true;
+    setShowUnsavedModal(false);
+    proceedPendingNavigation();
+  };
+
+  const handleSaveAndLeave = async () => {
+    const saved = await handleSave();
+    if (!saved) return;
+    allowNavigationRef.current = true;
+    setShowUnsavedModal(false);
+    proceedPendingNavigation();
   };
 
   if (loading) {
@@ -567,7 +687,7 @@ export default function AdminSettingsPage() {
 
         <div className="flex justify-end pt-2">
           <Button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={saving}
             className="w-full md:w-auto h-11 px-8 rounded-xl font-bold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
           >
@@ -585,6 +705,54 @@ export default function AdminSettingsPage() {
           </Button>
         </div>
       </div>
+
+      {showUnsavedModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleStayEditing} />
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-gray-950">Tienes cambios sin guardar</h2>
+                <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                  Si sales de configuración ahora, los cambios se omitirán. Puedes guardarlos antes de salir o continuar editando.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleStayEditing}
+                disabled={saving}
+                className="h-11 rounded-xl border-gray-200 text-xs font-bold text-gray-600 sm:col-span-1"
+              >
+                Seguir editando
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleLeaveWithoutSaving}
+                disabled={saving}
+                className="h-11 rounded-xl border-red-100 bg-red-50 text-xs font-bold text-red-600 hover:bg-red-100 sm:col-span-1"
+              >
+                Salir sin guardar
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void handleSaveAndLeave()}
+                disabled={saving}
+                className="h-11 rounded-xl bg-primary text-xs font-bold text-white hover:bg-primary/90 sm:col-span-1"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar y salir'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -27,7 +27,7 @@ import {
   Package,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
@@ -36,12 +36,31 @@ import { AuthModal } from '../auth/AuthModal';
 import { PwaInstallProvider } from '../pwa/PwaInstallContext';
 import { PwaInstallButton } from '../pwa/PwaInstallButton';
 
+type DashboardNavItem = {
+  name: string;
+  path: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  locked?: boolean;
+};
+
+type DashboardOrganization = {
+  id: string;
+  name?: string | null;
+  slug?: string | null;
+  logo_url?: string | null;
+  business_type?: string | null;
+  bonus_system_active?: boolean | null;
+};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { profile, signOut, loading, impersonatedOrgId, setImpersonatedOrgId, isGuest, openAuthModal, businessType } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [organization, setOrganization] = useState<any>(null);
+  const [organization, setOrganization] = useState<DashboardOrganization | null>(null);
   const [orgLoading, setOrgLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [newReservationBanner, setNewReservationBanner] = useState<{ id: string; clientName: string; resourceName: string } | null>(null);
+  const [pendingAdminReservationsCount, setPendingAdminReservationsCount] = useState(0);
+  const latestAdminReservationIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -58,25 +77,157 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isInSupportMode = isSuperAdmin && impersonatedOrgId !== null;
 
   useEffect(() => {
-    if (profile?.organization_id) {
-      fetchOrganization(profile.organization_id);
+    if (!orgId || !isAdmin) return;
+
+    let cancelled = false;
+
+    const showNewReservationNotice = async (reservation: { id?: string; resource_id?: string; user_id?: string; guest_name?: string | null; status?: string }) => {
+      if (cancelled || !reservation.id || !['pending_validation', 'pending_payment', 'paid'].includes(reservation.status || '')) return;
+      latestAdminReservationIdRef.current = reservation.id;
+      if (location.pathname === '/admin/reservations') return;
+
+      let clientName = reservation.guest_name || 'Cliente';
+      let resourceName = 'Recurso';
+
+      const [profileResult, resourceResult] = await Promise.all([
+        reservation.user_id
+          ? supabase.from('profiles').select('full_name').eq('id', reservation.user_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        reservation.resource_id
+          ? supabase.from('resources').select('name').eq('id', reservation.resource_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      if (cancelled) return;
+
+      clientName = profileResult.data?.full_name || clientName;
+      resourceName = resourceResult.data?.name || resourceName;
+
+      sessionStorage.setItem('gogi-new-admin-reservation-id', reservation.id);
+      setNewReservationBanner({ id: reservation.id, clientName, resourceName });
+      toast.info('Acabas de recibir una nueva reserva', {
+        description: `${clientName} - ${resourceName}`,
+        action: {
+          label: 'Ver',
+          onClick: () => navigate('/admin/reservations'),
+        },
+        duration: 8000,
+      });
+    };
+
+    const fetchLatestReservation = async (notify: boolean) => {
+      const { data } = await supabase
+        .from('reservations')
+        .select('id, resource_id, user_id, guest_name, status, created_at')
+        .eq('organization_id', orgId)
+        .in('status', ['pending_validation', 'pending_payment', 'paid'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled || !data?.id) return;
+      const previousId = latestAdminReservationIdRef.current;
+      latestAdminReservationIdRef.current = data.id;
+      if (notify && previousId && previousId !== data.id) {
+        await showNewReservationNotice(data);
+      }
+    };
+
+    fetchLatestReservation(false);
+    const fallbackInterval = window.setInterval(() => fetchLatestReservation(true), 10000);
+
+    const channel = supabase
+      .channel(`admin-new-reservations-${orgId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reservations',
+          filter: `organization_id=eq.${orgId}`,
+        },
+        async (payload) => {
+          const reservation = payload.new as { id?: string; resource_id?: string; user_id?: string; guest_name?: string | null; status?: string };
+          await showNewReservationNotice(reservation);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(fallbackInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [orgId, isAdmin, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!orgId || !isAdmin) {
+      return;
     }
+
+    let cancelled = false;
+    const fetchPendingCount = async () => {
+      const { count, error } = await supabase
+        .from('reservations')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .in('status', ['pending_validation', 'pending_payment', 'paid']);
+
+      if (!cancelled && !error) {
+        setPendingAdminReservationsCount(count || 0);
+      }
+    };
+
+    fetchPendingCount();
+    const fallbackInterval = window.setInterval(fetchPendingCount, 10000);
+
+    const channel = supabase
+      .channel(`admin-pending-reservations-count-${orgId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reservations',
+          filter: `organization_id=eq.${orgId}`,
+        },
+        () => {
+          fetchPendingCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(fallbackInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [orgId, isAdmin]);
+
+  useEffect(() => {
+    if (!profile?.organization_id) return;
+
+    let cancelled = false;
+    const loadOrganization = async () => {
+      setOrgLoading(true);
+      const { data } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', profile.organization_id)
+        .single();
+      if (!cancelled && data) {
+        setOrganization(data);
+      }
+      if (!cancelled) {
+        setOrgLoading(false);
+      }
+    };
+
+    loadOrganization();
+    return () => {
+      cancelled = true;
+    };
   }, [profile?.organization_id]);
-
-
-
-  const fetchOrganization = async (orgId: string) => {
-    setOrgLoading(true);
-    const { data } = await supabase
-      .from('organizations')
-      .select('*')
-      .eq('id', orgId)
-      .single();
-    if (data) {
-      setOrganization(data);
-    }
-    setOrgLoading(false);
-  };
 
   const handleSignOut = async () => {
     const slug = organization?.slug;
@@ -105,7 +256,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const effectiveBusinessType = organization?.business_type || businessType;
   const terminology = getTerminology(effectiveBusinessType);
   const isResidential = effectiveBusinessType === 'residential';
-  let navItems = [
+  let navItems: DashboardNavItem[] = [
     { name: 'Calendario', path: '/dashboard', icon: LayoutDashboard },
     { name: terminology.reservationLabel, path: '/reservations/new', icon: Calendar },
     { name: `Mis ${terminology.reservationLabel}s`, path: '/reservations/my', icon: History },
@@ -154,6 +305,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     navItems = [...adminItems, { name: `Nueva ${terminology.reservationLabel}`, path: '/reservations/new', icon: Calendar }, { name: terminology.noticesLabel, path: '/maintenance', icon: Bell }, { name: 'Mi Perfil', path: '/profile', icon: User }];
   }
 
+  if (isPlanFree && !isAdmin && !isSuperAdmin) {
+    navItems = navItems.filter((item) => item.path !== '/maintenance');
+  }
+
   // Plan gratuito: marcar módulos de pago para mostrar el icono de corona, pero no bloquear la navegación
   const lockedPaths = isPlanFree
     ? ['/maintenance', '/admin', '/admin/statistics']
@@ -170,7 +325,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${organization?.slug}`;
+    const url = `${window.location.origin}/${organization?.slug}/login`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success('Enlace copiado al portapapeles');
@@ -178,9 +333,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const handleShareWhatsApp = () => {
-    const url = `${window.location.origin}/${organization?.slug}`;
+    const url = `${window.location.origin}/${organization?.slug}/login`;
     const text = `¡Hola! Puedes realizar tus reservas en ${organization?.name} aquí: ${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const openNewReservationBanner = () => {
+    setNewReservationBanner(null);
+    navigate('/admin/reservations');
   };
 
 
@@ -252,7 +412,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
 
           <nav className="flex-1 overflow-y-auto px-4 space-y-1 mt-4 lg:mt-0 pb-safe">
-            {navItems.map((item: any) => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -274,6 +434,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     )}
                     <item.icon className={cn("w-5 h-5 ml-1 transition-transform duration-200 group-hover:scale-110", isActive ? "text-[#FF3B30]" : "text-gray-400 group-hover:text-gray-600")} />
                     <span className="truncate flex-1">{item.name}</span>
+                    {item.path === '/admin/reservations' && pendingAdminReservationsCount > 0 && (
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white shadow-sm shadow-red-500/30">
+                        {pendingAdminReservationsCount > 99 ? '99+' : pendingAdminReservationsCount}
+                      </span>
+                    )}
                     {item.locked && <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                   </>
                 )}
@@ -396,6 +561,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
+            {newReservationBanner && isAdmin && location.pathname !== '/admin/reservations' && (
+              <div className="mb-6 rounded-[1.75rem] border border-primary/10 bg-white/90 p-4 shadow-[0_18px_60px_-28px_rgba(30,41,59,0.55)] ring-1 ring-white/70 backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 animate-notification-pop">
+                      <span className="absolute inset-0 rounded-2xl bg-primary/25 animate-notification-ping" />
+                      <Bell className="relative h-5 w-5 animate-attention-bell" />
+                      <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#FF3B30] ring-2 ring-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-gray-950">Acabas de recibir una nueva reserva</p>
+                      <p className="mt-0.5 text-xs font-medium text-gray-500">
+                        {newReservationBanner.clientName} reservó {newReservationBanner.resourceName}. Revísala en Gestión de reservas.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 sm:shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => setNewReservationBanner(null)} className="h-9 rounded-xl border-gray-200 bg-white text-xs font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-950">
+                      Luego
+                    </Button>
+                    <Button size="sm" onClick={openNewReservationBanner} className="h-9 rounded-xl bg-primary text-xs font-bold text-white shadow-sm hover:bg-primary/90">
+                      Ver reserva
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
             {subscriptionStatus === 'pending_validation' && isAdmin && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -477,7 +669,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               end
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+                  "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
                   isActive ? "text-[#FF3B30]" : "text-gray-500 hover:text-gray-900"
                 )
               }
@@ -485,6 +677,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {({ isActive }) => (
                 <>
                   <item.icon className={cn("w-6 h-6", isActive ? "text-[#FF3B30]" : "text-gray-500")} strokeWidth={1.5} />
+                  {item.path === '/admin/reservations' && pendingAdminReservationsCount > 0 && (
+                    <span className="absolute top-2 right-1/2 flex h-4 min-w-4 translate-x-5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white shadow-sm shadow-red-500/30">
+                      {pendingAdminReservationsCount > 99 ? '99+' : pendingAdminReservationsCount}
+                    </span>
+                  )}
                   <span className="text-[10px] font-medium leading-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px] text-center">
                     {item.name.split(' ')[0]}
                   </span>

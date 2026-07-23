@@ -11,7 +11,7 @@ declare const self: ServiceWorkerGlobalScope;
 const wbManifest = self.__WB_MANIFEST;
 console.log('[SW] Precache manifest entries:', wbManifest.length);
 
-const CACHE_NAME = 'gogi-reservas-v1';
+const CACHE_NAME = 'gogi-reservas-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Recursos estáticos que se cachean en la instalación
@@ -109,19 +109,51 @@ self.addEventListener('push', (event) => {
     };
   }
 
+  const notification = payload.notification || payload;
+  const notificationData = payload.data || notification.data || { url: '/' };
+  const status = notificationData.status || payload.status;
+
+  const fallbackTitleByStatus: Record<string, string> = {
+    approved: 'Reserva aprobada',
+    rejected: 'Reserva rechazada',
+    cancelled: 'Reserva cancelada',
+    created_admin: 'Nueva reserva pendiente',
+  };
+
+  const fallbackBodyByStatus: Record<string, string> = {
+    approved: 'Su reserva ha sido aprobada correctamente.',
+    rejected: 'Su reserva ha sido rechazada.',
+    cancelled: 'Su reserva ha sido cancelada.',
+    created_admin: 'Acabas de recibir una nueva reserva.',
+  };
+
+  const normalizedTitle =
+    typeof notification.title === 'string' && notification.title.trim() && notification.title !== 'undefined'
+      ? notification.title.trim()
+      : status && fallbackTitleByStatus[status]
+        ? fallbackTitleByStatus[status]
+        : 'GoGi Reservas';
+
+  const normalizedBody =
+    typeof notification.body === 'string' && notification.body.trim() && notification.body !== 'undefined'
+      ? notification.body.trim()
+      : status && fallbackBodyByStatus[status]
+        ? fallbackBodyByStatus[status]
+        : 'Tienes una nueva notificación.';
+
   const options: NotificationOptions = {
-    body: payload.body,
-    icon: payload.icon || '/icon-192x192.png',
-    badge: payload.badge || '/favicon-32x32.png',
-    tag: payload.tag || 'gogi-reserva',
+    body: normalizedBody,
+    icon: notification.icon || '/icon-192x192.png',
+    badge: notification.badge || '/favicon-32x32.png',
+    tag: notification.tag || 'gogi-reserva',
     requireInteraction: false,
-    data: payload.data || { url: '/' },
+    data: notificationData,
   };
 
   // renotify no está en el tipo de lib.dom, pero es una propiedad válida según la especificación
   (options as NotificationOptions & { renotify: boolean }).renotify = false;
 
-  event.waitUntil(self.registration.showNotification(payload.title, options));
+  event.waitUntil(self.registration.showNotification(normalizedTitle, options));
 });
 
 // Manejar clic en la notificación
@@ -151,16 +183,31 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 interface PushNotificationPayload {
-  title: string;
-  body: string;
+  title?: string;
+  body?: string;
   icon?: string;
   badge?: string;
   tag?: string;
+  notification?: {
+    title?: string;
+    body?: string;
+    icon?: string;
+    badge?: string;
+    tag?: string;
+    data?: {
+      url: string;
+      reservationId?: string;
+      organizationSlug?: string;
+      status?: string;
+    };
+  };
   data?: {
     url: string;
     reservationId?: string;
     organizationSlug?: string;
+    status?: string;
   };
+  status?: string;
 }
 
 export {};

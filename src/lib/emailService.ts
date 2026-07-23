@@ -1,12 +1,12 @@
 import { supabase } from './supabase';
 
-async function getFreshToken(): Promise<string> {
+async function getFreshToken(): Promise<string | null> {
   const {
     data: { session },
     error: sessionError,
   } = await supabase.auth.getSession();
   if (sessionError || !session) {
-    throw new Error('No hay sesión activa. Por favor inicia sesión.');
+    return null;
   }
 
   const expiresAt = session.expires_at ?? 0;
@@ -18,7 +18,7 @@ async function getFreshToken(): Promise<string> {
       error: refreshError,
     } = await supabase.auth.refreshSession();
     if (refreshError || !refreshed) {
-      throw new Error('Error al refrescar la sesión. Por favor inicia sesión de nuevo.');
+      return session.access_token;
     }
     return refreshed.access_token;
   }
@@ -33,16 +33,20 @@ export async function sendReservationEmail(
 ): Promise<void> {
   try {
     const token = await getFreshToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
 
     await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reservation-email`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
+        headers,
         body: JSON.stringify({
           reservation_id: reservationId,
           org_id: orgId,
